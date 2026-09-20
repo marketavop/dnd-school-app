@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TECH-001 · Realtime spike</title>
+  <style>
+    body { margin: 32px; font: 16px/1.5 system-ui, sans-serif; color: #172536; background: #f5f7fa; }
+    h1 { font-size: 24px; }
+    #map-viewport { width: max-content; max-width: 100%; overflow: auto; max-height: 70vh; outline: 2px solid #7d9275; }
+    #map-space { position: relative; width: 0; height: 0; }
+    #map { display: block; max-width: none; }
+    #grid { position: absolute; left: 0; top: 0; pointer-events: none; fill: none; stroke: rgba(20, 30, 40, 0.5); stroke-width: 1; }
+    #token { position: absolute; border-radius: 50%; background: #345bb8; color: white; display: grid; place-items: center; cursor: grab; touch-action: none; user-select: none; }
+    #token[hidden] { display: none; }
+    #token { transform: translate(-50%, -50%); }
+    #token.dragging { cursor: grabbing; }
+    #status, #connection { min-height: 24px; }
+  </style>
+</head>
+<body>
+  <h1>TECH-001 · Realtime spike</h1>
+  <p>Přetáhněte token. Pozice se ukládá až po puštění.</p>
+  <p id="connection" role="status">Realtime: připojuji…</p>
+  <p id="status" role="status">Načítám konfiguraci…</p>
+  <p>Pozice na mapě: <output id="position">—</output></p>
+  <p id="map-status" role="status">Načítám mapu…</p>
+  <div id="map-viewport" tabindex="0" aria-label="Posuvná testovací mapa">
+    <div id="map-space">
+      <img id="map" src="./assets/maps/test-map.png" alt="Nádvoří kouzelnické školy s kašnou" draggable="false">
+      <svg id="grid" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true"></svg>
+      <div id="token" aria-label="Token 1" hidden>1</div>
+    </div>
+  </div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

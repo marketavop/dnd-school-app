@@ -321,9 +321,9 @@ Aplikace AC nepočítá z vybavení.
 
 ### Rychlost
 
-Rychlost je ručně zapsaná hodnota, například `9 m`.
+Rychlost je ručně zapsaná hodnota, například `30 ft`.
 
-Aplikace podle ní neomezuje token, nepočítá hexy a nekontroluje pravidla
+Aplikace podle ní neomezuje token, nepočítá pole ani vzdálenost a nekontroluje pravidla
 pohybu.
 
 ------------------------------------------------------------------------
@@ -542,14 +542,14 @@ může zůstat v plném deníku.
 
 ------------------------------------------------------------------------
 
-## 22. Mapy a hex grid
+## 22. Mapy a čtvercová mřížka
 
 PJ může předem nahrát mapy, pravděpodobně PNG.
 
-Zdrojové mapy jsou bez gridu. Aplikace přes ně vytvoří vlastní hex grid.
+Zdrojové mapy jsou bez gridu. Aplikace přes ně vytvoří vlastní čtvercovou mřížku.
 
-PJ při přípravě nastaví velikost hexu a vidí okamžitý náhled. Jakmile se
-mapa používá, velikost gridu už neměníme.
+PJ při přípravě nastaví velikost pole a vidí okamžitý náhled. Každé pole
+představuje 5 ft. Jakmile se mapa používá, velikost gridu už neměníme.
 
 V MVP nemáme:
 
@@ -585,13 +585,13 @@ Každý uživatel ovládá vlastní lokální zoom/pan.
 
 Camera state se nesynchronizuje.
 
-Mapa, hex grid a tokeny musí být v jednom vizuálním/souřadnicovém
+Mapa, čtvercová mřížka a tokeny musí být v jednom vizuálním/souřadnicovém
 prostoru.
 
 Důležitý acceptance test:
 
-> Umístit token na hex → opakovaně změnit zoom a posun mapy → token
-> zůstává přesně na stejném hexu.
+> Umístit token na pole → opakovaně změnit zoom a posun mapy → token
+> zůstává přesně na stejném poli.
 
 ------------------------------------------------------------------------
 
@@ -607,7 +607,7 @@ kterýmkoliv hráčským tokenem.
 Pohyb:
 
 1.  drag probíhá lokálně,
-2.  po puštění se token snapne na nejbližší hex,
+2.  po puštění se token snapne na nejbližší pole,
 3.  výsledná pozice se synchronizuje ostatním.
 
 Nesynchronizujeme kontinuálně každý pixel pohybu.
@@ -752,12 +752,12 @@ MVP zahrnuje:
 30. plný deník + kompaktní mapový panel nad stejnými daty,
 31. mapa + tokeny + kostky + panel deníku,
 32. upload/příprava map Vedoucím,
-33. generovaný hex grid a nastavení velikosti,
+33. generovaná čtvercová mřížka a nastavení velikosti pole,
 34. lokální zoom/pan,
 35. knihovna připravených map pouze pro Vedoucího,
 36. jedna aktivní mapa a realtime přepnutí hráčů,
 37. hráčské tokeny s map-specific pozicemi,
-38. drag/drop + snap na hex + synchronizace po dropu,
+38. drag/drop + snap na pole + synchronizace po dropu,
 39. NPC tokeny lokální pro mapu,
 40. NPC bez obrázku s jednoduchým placeholderem,
 41. NPC visible/hidden, pokud nezkomplikuje MVP,
@@ -901,8 +901,8 @@ Pokud ne, řešíme architekturu/realtime, nikoliv CSS.
 ### Dny 4--7 --- Mapa
 
 -   PNG mapa,
--   hex grid,
--   nastavení velikosti hexu,
+-   čtvercová mřížka,
+-   nastavení velikosti pole,
 -   zoom/pan,
 -   tokeny,
 -   drag/snap,
@@ -1028,7 +1028,7 @@ chvíli, kdy jsou potřeba:
 -   finální technické řešení backendu/realtime (Supabase je pracovní
     kandidát),
 -   přesný datový model,
--   přesná implementace hexových souřadnic,
+-   přesná implementace souřadnic čtvercové mřížky a snapu,
 -   konkrétní způsob uploadu/omezení obrázků,
 -   rozsah class-specific částí deníku,
 -   zda hidden NPC zůstane v MVP po technickém spike,
