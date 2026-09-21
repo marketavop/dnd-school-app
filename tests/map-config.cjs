@@ -139,7 +139,8 @@ async function client() {
   const context = vm.createContext({
     testConfig: { SUPABASE_URL: 'https://test.supabase.co', SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' },
     testSdk: sdk,
-    window: { confirm: () => confirmResult },
+    URLSearchParams,
+    window: { location: { search: `?character_id=${characterId}` }, confirm: () => confirmResult },
     document: { querySelector: s => elements[s.slice(1)], createElement() { return {}; }, createElementNS() { return { setAttribute() {} }; } },
   });
   // Zpřístupníme pouze čekání na interní frontu pro deterministické testy.

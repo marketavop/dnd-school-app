@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deník postavy</title>
+  <style>
+    body { margin: 32px; font: 16px/1.5 system-ui, sans-serif; color: #172536; background: #f5f7fa; }
+    main { max-width: 720px; margin: 0 auto; }
+    h1 { margin: 0; font-size: 18px; }
+    #load-status:empty { display: none; }
+    .edit { cursor: pointer; }
+    input, select { width: 100%; min-width: 0; box-sizing: border-box; padding: 6px; font: 16px/1.5 system-ui, sans-serif; color: inherit; border: 1px solid #667788; border-radius: 4px; background: white; }
+    [aria-invalid="true"] { border-color: #b42318; }
+    .field-error { display: block; font-size: 14px; font-weight: 400; color: #b42318; }
+    .field-error:empty { display: none; }
+    #save-status { min-height: 24px; margin: 16px 0 0; font-size: 14px; color: #526171; }
+    #save-status[data-error="true"] { color: #b42318; }
+    #load-status { color: #526171; }
+    #load-status[data-error="true"] { color: #b42318; }
+    .card { padding: 24px; border: 1px solid #c9d2dc; border-radius: 8px; background: white; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+    .edit { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #c9d2dc; border-radius: 4px; color: #667788; background: #f5f7fa; }
+    .identity { display: flex; align-items: flex-start; gap: 24px; }
+    .portrait { width: 112px; height: 112px; flex: 0 0 112px; border-radius: 50%; background: #edf1f6; display: grid; place-items: center; overflow: hidden; color: #667788; }
+    .portrait img { width: 100%; height: 100%; object-fit: cover; }
+    dl { flex: 1; min-width: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+    .name { grid-column: 1 / -1; }
+    .hp-block { grid-column: span 2; }
+    .hp-values { display: flex; align-items: center; gap: 6px; }
+    .hp-values input { max-width: 85px; }
+    .hp-adjust { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+    #hp-delta { width: 70px; text-align: center; }
+    .hp-adjust button { width: 38px; height: 38px; border: 1px solid #667788; border-radius: 4px; background: #f5f7fa; color: #172536; font: 24px/1 system-ui, sans-serif; cursor: pointer; }
+    .hp-adjust button:disabled { opacity: 0.45; cursor: default; }
+    .hp-adjust button:enabled:hover { background: #e3eaf3; }
+    .hint { display: block; font-size: 12px; color: #526171; }
+    dt { font-size: 14px; color: #526171; }
+    dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+    .name dd { font-size: 24px; font-weight: 600; }
+    [data-empty="true"] { color: #667788; font-weight: 400; }
+    [hidden] { display: none !important; }
+    .abilities { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    .ability-card { padding: 14px; background: white; border: 1px solid #c9d2dc; border-radius: 8px; }
+    .ability-card h2 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+    .ability-card h2 span { color: #667788; margin-right: 4px; }
+    .ability-values { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 12px; }
+    .ability-values input, .ability-values output { font: 24px/1.25 system-ui, sans-serif; text-align: center; font-weight: 500; }
+    .ability-values output { min-height: 30px; }
+    @media (max-width: 520px) {
+      body { margin: 20px 16px; }
+      .card { padding: 20px; }
+      .identity { flex-direction: column; }
+      dl { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .abilities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 340px) { .abilities { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <a id="home-link" href="./index.html" style="display: inline-block; margin-bottom: 12px; color: #526171;">← Domů</a>
+    <p id="load-status" role="status" aria-live="polite">Načítám postavu…</p>
+    <section id="student-card" class="card" aria-labelledby="card-title" hidden>
+      <header class="card-header">
+        <h1 id="card-title">Studentský průkaz</h1>
+        <button id="edit-toggle" class="edit" type="button" aria-label="Upravit průkaz" title="Upravit průkaz" aria-pressed="false">
+          <svg id="edit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m15 5 4 4M4 20l5-1L20 8a2.8 2.8 0 0 0-4-4L5 15z"/></svg>
+          <svg id="close-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" hidden><path d="m6 6 12 12M6 18 18 6"/></svg>
+        </button>
+      </header>
+      <div class="identity">
+        <div class="portrait">
+          <svg id="portrait-placeholder" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" role="img" aria-label="Portrét není k dispozici"><circle cx="32" cy="22" r="10"/><path d="M12 54c0-13 9-19 20-19s20 6 20 19"/></svg>
+          <img id="portrait" alt="Portrét postavy" referrerpolicy="no-referrer" hidden>
+        </div>
+        <dl>
+          <div class="name"><dt><label for="edit-name">Jméno</label></dt><dd><span id="character-name"></span><input id="edit-name" type="text" required aria-describedby="error-name" hidden><span id="error-name" class="field-error" role="status"></span></dd></div>
+          <div><dt><label for="edit-race">Rasa</label></dt><dd><span id="character-race"></span><select id="edit-race" aria-describedby="error-race" hidden></select><span id="error-race" class="field-error" role="status"></span></dd></div>
+          <div><dt><label for="edit-class">Povolání</label></dt><dd><span id="character-class"></span><select id="edit-class" aria-describedby="error-class" hidden></select><span id="error-class" class="field-error" role="status"></span></dd></div>
+          <div><dt><label for="edit-level">Level</label></dt><dd><span id="character-level"></span><input id="edit-level" type="number" min="1" max="20" step="1" aria-describedby="error-level" hidden><span id="error-level" class="field-error" role="status"></span></dd></div>
+          <div><dt><label for="edit-xp">XP</label></dt><dd><span id="character-xp"></span><input id="edit-xp" type="number" min="0" step="1" aria-describedby="error-xp" hidden><span id="error-xp" class="field-error" role="status"></span><span id="xp-next" class="hint"></span></dd></div>
+          <div class="hp-block"><dt>HP</dt><dd>
+            <div class="hp-values"><span id="character-current_hp"></span><input id="edit-current_hp" aria-label="Aktuální HP" type="number" min="0" step="1" aria-describedby="error-current_hp" hidden><span>/</span><span id="character-max_hp"></span><input id="edit-max_hp" aria-label="Maximální HP" type="number" min="1" step="1" aria-describedby="error-max_hp" hidden></div>
+            <span id="error-current_hp" class="field-error" role="status"></span><span id="error-max_hp" class="field-error" role="status"></span>
+            <div class="hp-adjust"><button id="hp-minus" type="button" aria-label="Odečíst HP" aria-describedby="hp-hint">−</button><input id="hp-delta" type="number" min="1" step="1" value="1" aria-label="Počet HP k přidání nebo odečtení" aria-describedby="hp-hint hp-error"><button id="hp-plus" type="button" aria-label="Přidat HP" aria-describedby="hp-hint">+</button></div><span id="hp-hint" class="hint"></span><span id="hp-error" class="field-error" role="status"></span>
+          </dd></div>
+        </dl>
+      </div>
+      <p id="save-status" role="status" aria-live="polite"></p>
+    </section>
+    <section id="abilities" class="abilities" aria-label="Vlastnosti" hidden>
+      <article class="ability-card">
+        <h2><span aria-hidden="true">◇</span> <label for="edit-str">Síla (STR)</label></h2>
+        <div class="ability-values"><input id="edit-str" type="number" min="1" max="20" step="1" aria-describedby="error-str"><output id="modifier-str" for="edit-str" aria-label="Modifikátor: Síla"></output></div>
+        <span id="error-str" class="field-error" role="status"></span>
+      </article>
+      <article class="ability-card">
+        <h2><span aria-hidden="true">↗</span> <label for="edit-dex">Obratnost (DEX)</label></h2>
+        <div class="ability-values"><input id="edit-dex" type="number" min="1" max="20" step="1" aria-describedby="error-dex"><output id="modifier-dex" for="edit-dex" aria-label="Modifikátor: Obratnost"></output></div>
+        <span id="error-dex" class="field-error" role="status"></span>
+      </article>
+      <article class="ability-card">
+        <h2><span aria-hidden="true">⬡</span> <label for="edit-con">Odolnost (CON)</label></h2>
+        <div class="ability-values"><input id="edit-con" type="number" min="1" max="20" step="1" aria-describedby="error-con"><output id="modifier-con" for="edit-con" aria-label="Modifikátor: Odolnost"></output></div>
+        <span id="error-con" class="field-error" role="status"></span>
+      </article>
+      <article class="ability-card">
+        <h2><span aria-hidden="true">✧</span> <label for="edit-int">Inteligence (INT)</label></h2>
+        <div class="ability-values"><input id="edit-int" type="number" min="1" max="20" step="1" aria-describedby="error-int"><output id="modifier-int" for="edit-int" aria-label="Modifikátor: Inteligence"></output></div>
+        <span id="error-int" class="field-error" role="status"></span>
+      </article>
+      <article class="ability-card">
+        <h2><span aria-hidden="true">◉</span> <label for="edit-wis">Moudrost (WIS)</label></h2>
+        <div class="ability-values"><input id="edit-wis" type="number" min="1" max="20" step="1" aria-describedby="error-wis"><output id="modifier-wis" for="edit-wis" aria-label="Modifikátor: Moudrost"></output></div>
+        <span id="error-wis" class="field-error" role="status"></span>
+      </article>
+      <article class="ability-card">
+        <h2><span aria-hidden="true">☆</span> <label for="edit-cha">Charisma (CHA)</label></h2>
+        <div class="ability-values"><input id="edit-cha" type="number" min="1" max="20" step="1" aria-describedby="error-cha"><output id="modifier-cha" for="edit-cha" aria-label="Modifikátor: Charisma"></output></div>
+        <span id="error-cha" class="field-error" role="status"></span>
+      </article>
+    </section>
+    <noscript>Pro zobrazení deníku povolte JavaScript.</noscript>
+  </main>
+  <script type="module" src="./character.js"></script>
+  <script type="module" src="./navigation.js"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
 **Stav dokumentu:** výchozí scope pro MVP\
-**Verze:** 1.0.3\
+**Verze:** 1.0.4\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
@@ -47,8 +47,6 @@ Aplikace nemá učit pravidla místo PJ a nemá hrát za dítě.
     a učení.
 -   Jednoduché, dokončené a pochopitelné řešení má přednost před
     dokonalou architekturou.
--   Uživatelské chyby musí být srozumitelné a kontextové: zobrazují se
-    u akce, která selhala. Technické detaily patří pouze do konzole.
 -   Nová funkce je standardně „Později", dokud neprokážeme, že ji první
     hraní potřebuje.
 
@@ -176,6 +174,23 @@ Přehled / Hody / Boj / Kouzla / Věci.
 Každá informace v mapovém panelu musí odpovědět na otázku: **potřebuje
 ji dítě běžně během session?**
 
+### První výukový řez deníku
+
+První session nezačíná plným deníkem. Pro první výukový řez stačí:
+
+- **Studentský průkaz**: portrét/token, jméno, rasa, povolání, level,
+- **šest vlastností**: STR, DEX, CON, INT, WIS, CHA,
+- automaticky dopočítané modifikátory vlastností.
+
+HP, AC, rychlost, proficiency bonus, skills, saves, iniciativa, pasivní
+vnímání, útoky, kouzla, spell sloty, inventář a další části plného deníku
+zůstávají v celkovém scope, ale přidávají se až ve chvíli, kdy je děti
+při výuce skutečně potřebují.
+
+První výukový řez se má na běžném notebooku vejít na jednu obrazovku bez
+scrollování. Nezavádíme kvůli tomu progression UI ani odemykání sekcí;
+jde pouze o pořadí implementace a výuky řízené PJ.
+
 ------------------------------------------------------------------------
 
 ## 8. Web vs. papírový deník
@@ -205,20 +220,30 @@ Web může mít také jednoduché obecné **Poznámky** pro situační informace
 
 ## 9. Studentský průkaz
 
-Základní identita postavy:
+Studentský průkaz je kompaktní horní blok deníku. Pro první výukový řez
+obsahuje:
 
--   portrét/token,
+-   kulatý portrét/token,
 -   jméno,
 -   rasa,
 -   povolání,
--   zázemí,
--   level,
--   XP.
+-   level.
 
-Portrét postavy je zároveň obrázkem hráčského tokenu.
+Další identitní údaje, například zázemí a XP, mohou být doplněny později
+v plném deníku podle toho, kdy je děti začnou používat.
 
-Hráč může vlastní obrázek změnit, pokud implementace zůstane jednoduchá.
-Nevytváříme editor avatarů, cropper ani složité zpracování obrázků.
+Běžný stav průkazu je **read-only**. V rohu je nenápadná ikona tužky,
+která přepne celý průkaz do editace. Jméno je textové pole, rasa a
+povolání jsou výběry ze seznamu a level je jednoduché číselné pole.
+Jednotlivé změny se ukládají automaticky po opuštění pole; nepoužíváme
+samostatné tlačítko Uložit.
+
+Portrét postavy je zároveň obrázkem hráčského tokenu. Portrét i token se
+zobrazují jako kruh. Změna portrétu se spouští kliknutím přímo na portrét.
+V MVP používáme jednoduché automatické centrování a kruhové zobrazení;
+nevytváříme editor avatarů, cropper, zoom, rotaci ani ruční posun obrázku.
+Ruční posun je **Později**, pouze pokud se při skutečném použití ukáže
+jako potřebný.
 
 V MVP neevidujeme:
 
@@ -236,8 +261,21 @@ V MVP neevidujeme:
 
 Pravidlovým základem je D&D 5e 2014.
 
-Rasa, povolání a zázemí jsou samostatná pole. Dítě je vyplňuje ve
-chvíli, kdy k nim příběh/PJ dojde.
+Rasa a povolání jsou v prvním výukovém řezu vybírány z pevného seznamu,
+nejsou free-text. V datech používáme stabilní systémové kódy a v UI
+zobrazujeme české názvy. Samostatné databázové tabulky ras a povolání pro
+MVP nevytváříme.
+
+Povolené rasy jsou základní rasy PHB 2014 používané v této kampani:
+člověk, elf, hobit, trpaslík, gnóm, půlelf, půlork a tiefling.
+**Drakorozený se v této kampani nepoužívá.** Podrasy a varianty jsou mimo
+MVP.
+
+Povolání vybíráme ze základních povolání PHB 2014. Multiclass v MVP
+neřešíme.
+
+Zázemí zůstává samostatným mechanickým D&D údajem plného deníku a dítě ho
+vyplní ve chvíli, kdy k němu příběh/PJ dojde.
 
 Princip:
 
@@ -245,9 +283,10 @@ Princip:
 > změny.**
 
 Aplikace automaticky neaplikuje mechanické důsledky rasy, povolání nebo
-zázemí.
+zázemí. Stabilní kódy pouze ponechávají možnost později přidat konkrétní
+jednoznačnou automatiku, pokud pro ni vznikne ověřená potřeba.
 
-Podrasy/varianty jsou mimo MVP. Featy jsou Budoucnost.
+Featy jsou Budoucnost.
 
 Případné části specifické pro povolání řešíme jako společné jádro
 deníku + malé specifické části, nikoliv jako 12 samostatných deníků.
@@ -258,27 +297,54 @@ deníku + malé specifické části, nikoliv jako 12 samostatných deníků.
 
 Používáme šest vlastností:
 
--   STR
--   DEX
--   CON
--   INT
--   WIS
--   CHA
+-   STR — Síla,
+-   DEX — Obratnost,
+-   CON — Odolnost,
+-   INT — Inteligence,
+-   WIS — Moudrost,
+-   CHA — Charisma.
 
-Dítě zadává hodnoty vlastností samo. Může existovat jednoduchá pomůcka
-pro hod na vlastnosti podle používaného způsobu tvorby postavy; aplikace
-ale výsledky sama nerozděluje.
+Dítě zadává hodnoty vlastností samo. Hodnoty mohou zůstat prázdné, dokud
+se k nim při výuce nedojde. Nevyplněná hodnota nemá žádný zobrazený
+modifikátor.
 
-Aplikace automaticky vypočítá:
+Pro aktuální MVP je platná hodnota vlastnosti celé číslo **1--20**.
+Hodnota se edituje přímo v kartě vlastnosti a validuje se při opuštění
+pole. Neplatná hodnota se neuloží a UI vrátí poslední platnou hodnotu.
 
--   modifikátory vlastností,
--   proficiency bonus podle levelu,
--   bonusy dovedností,
--   bonusy záchranných hodů.
+Aplikace automaticky vypočítá modifikátory vlastností jako rutinní
+matematiku. Modifikátory se do databáze neukládají; počítají se z aktuální
+hodnoty. Kladné hodnoty zobrazujeme se znaménkem `+`, záporné se `-` a
+nulový modifikátor jako `0`.
 
-Dítě označuje proficiency u skills/saves.
+V prvním výukovém řezu je všech šest vlastností vidět najednou jako šest
+stejně velkých karet v mřížce 3 × 2. Každá karta má malou jednoduchou
+ikonu, český název, anglickou zkratku a vedle sebe hodnotu a modifikátor.
+Všechny karty mají jednotný vizuální styl; nepoužíváme rozdílné barvy pro
+jednotlivé vlastnosti ani pomocné vysvětlující texty.
 
-Samotný hod provádí dítě a samo přičítá zobrazený bonus.
+Proficiency bonus, bonusy dovedností a bonusy záchranných hodů zůstávají
+součástí plného MVP deníku, ale v první session jsou skryté, dokud je PJ
+nezačne učit. Dítě označuje proficiency u skills/saves až v tomto pozdějším
+kroku. Samotný hod provádí dítě a samo přičítá zobrazený bonus.
+
+Ukládáme pouze aktuální hodnoty vlastností, ne jejich historii.
+
+### Datový základ prvního řezu deníku
+
+Tabulka `characters` zůstává hlavním záznamem postavy. Pro první řez se k
+existujícím `id`, `user_id` a `name` přidají:
+
+-   reference na portrét,
+-   `race_code`,
+-   `class_code`,
+-   `level`,
+-   `str`, `dex`, `con`, `int`, `wis`, `cha`.
+
+`race_code`, `class_code`, `level` a šest vlastností mohou být `NULL`,
+protože postava vzniká postupně. Level a vlastnosti používají rozsah
+1--20, pokud nejsou prázdné. Přesná podoba reference na soubor portrétu
+je implementační detail storage vrstvy.
 
 ------------------------------------------------------------------------
 
@@ -619,11 +685,6 @@ Hráčský token logicky zabírá jedno pole. Je kruhový a jeho vizuální prů
 
 Vedoucí umisťuje hráčské tokeny na mapu.
 
-Přidání postavy na aktivní mapu je součást MVP. Pokud postava na mapě
-nemá uloženou pozici, lze ji přidat jedním tlačítkem. Výchozí pozice je
-střed nejbližšího platného úplného pole poblíž středu mapy; následně ji
-vedoucí přesune běžným drag/dropem.
-
 Hráč může pohybovat pouze vlastním tokenem. Vedoucí může pohybovat
 kterýmkoliv hráčským tokenem.
 
@@ -781,17 +842,24 @@ ani komplexní undo.
 Implementace nemá bezdůvodně posílat request po každém stisku klávesy;
 použije se jednoduché rozumné ukládání/debounce.
 
+V prvním výukovém řezu se pole Studentského průkazu a vlastností ukládají
+po opuštění konkrétního pole. Neplatná hodnota se neukládá.
+
 ------------------------------------------------------------------------
 
 ## 30. MVP
 
 MVP zahrnuje:
 
+**Pořadí implementace deníku pro první session:** nejprve Studentský průkaz + šest
+vlastností + automatické modifikátory. Ostatní části deníku se přidávají podle
+výuky a reálné potřeby; nejde o progression engine.
+
 1.  jednoduché přihlášení předem vytvořených účtů,
 2.  dvě role Hráč / Vedoucí,
 3.  domovskou stránku Můj deník / Vstoupit do hry,
 4.  jednoduchý seznam hráčů pro Vedoucího,
-5.  jeden účet = jedna postava,
+5.  jeden účet = jedno dítě; účet může mít více postav v čase,
 6.  plný deník se sekcemi viditelnými od začátku,
 7.  portrét = token,
 8.  read-only přístup Vedoucího k deníkům hráčů,
@@ -866,7 +934,6 @@ Toto je obranná zeď proti scope creepu:
 -   self-registration,
 -   uživatelský dashboard,
 -   více kampaní,
--   více postav na účet,
 -   automatické rests,
 -   conditions systém,
 -   inspiration,
@@ -982,18 +1049,15 @@ Pokud ne, řešíme architekturu/realtime, nikoliv CSS.
 
 ### Dny 8--11 --- Deník
 
--   identita,
--   atributy,
--   skills/saves,
--   HP/AC,
--   XP/level,
--   schopnosti,
--   bojové položky,
--   kouzla,
--   spell sloty,
--   inventář,
--   poznámková pole,
--   ukládání/autosave.
+Nejdřív dokončit a ověřit první výukový řez:
+
+-   Studentský průkaz: portrét, jméno, rasa, povolání, level,
+-   šest vlastností včetně validace a automatických modifikátorů,
+-   ukládání/autosave a srozumitelné chyby.
+
+Teprve potom podle dostupného času a pořadí výuky pokračovat dalšími částmi
+plného MVP deníku: skills/saves, HP/AC, XP, schopnosti, bojové položky,
+kouzla, spell sloty, inventář a poznámková pole.
 
 ### Dny 12--14 --- Herní obrazovka a integrace
 
@@ -1095,13 +1159,28 @@ chvíli, kdy jsou potřeba:
 
 -   přesná informační architektura záložek kompaktního deníku,
 -   finální pravidla RLS/oprávnění po napojení autentizace,
--   konkrétní způsob budoucího uploadu/omezení obrázků přes UI (upload je Později),
+-   technické řešení uploadu/omezení portrétu postavy; UX je jednoduchý klik na portrét bez cropperu,
 -   rozsah class-specific částí deníku,
 -   zda hidden NPC zůstane v MVP po technickém spike,
 -   detaily jednoduché pomůcky pro generování hodnot vlastností.
 
 Neřešit je předčasně jen kvůli „kompletnímu návrhu".
 
+
+------------------------------------------------------------------------
+
+### Změny ve verzi 1.0.4
+
+- uzavřen první výukový řez deníku: Studentský průkaz + šest vlastností,
+- první session schovává pokročilejší mechaniky, dokud je PJ nezačne učit,
+- Studentský průkaz je běžně read-only a edituje se přes jednu ikonu tužky,
+- portrét/token je kruhový; bez cropperu a ručního posunu v MVP,
+- rasa a povolání používají pevné seznamy a stabilní systémové kódy,
+- drakorozený není v této kampani povolen; podrasy/varianty a multiclass nejsou MVP,
+- vlastnosti mohou být prázdné, používají rozsah 1--20 a modifikátory se pouze dopočítávají,
+- první sheet se má vejít na běžný notebook bez scrollování,
+- rozšířen minimální datový základ `characters` pro první řez deníku,
+- opraven starší rozpor: jeden účet může mít více postav v čase.
 
 ------------------------------------------------------------------------
 

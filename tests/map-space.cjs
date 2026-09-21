@@ -21,7 +21,7 @@ Object.assign(elements.grid, { attributes: {}, children: [],
   setAttribute(name, value) { this.attributes[name] = String(value); },
   replaceChildren() { this.children = []; },
   append(child) { this.children.push(child); } });
-const context = vm.createContext({ window: { confirm: () => true }, document: {
+const context = vm.createContext({ URLSearchParams, window: { location: { search: '?character_id=d16ac8a0-ba74-40e7-8402-c75cfe3a4ab6' }, confirm: () => true }, document: {
   querySelector: s => elements[s.slice(1)],
   createElement() { return {}; },
   createElementNS(namespace, tag) { return { namespace, tag, attributes: {},
@@ -163,7 +163,7 @@ const point = () => [parseFloat(elements.token.style.left), parseFloat(elements.
   assert.deepEqual(writes.at(-1), { x: 200, y: 200 });
   assert.equal(writes.length, countBefore + 1);
   // Nový běh modulu načte uložených 80 z DB namísto výchozích 100.
-  const reload = vm.createContext({ document: context.document, mockDb: context.mockDb });
+  const reload = vm.createContext({ URLSearchParams, window: context.window, document: context.document, mockDb: context.mockDb });
   vm.runInContext(source + '\ndb = mockDb; connected = true;', reload);
   await vm.runInContext('loadMapConfig()', reload);
   assert.equal(Number(input.value), 80);

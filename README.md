@@ -5,10 +5,167 @@ Jeho pozice je v `public.token_positions` podle `character_id + map_id`. Souřad
 v přirozených pixelech mapy, počátek (0,0) je vlevo nahoře.
 Žádný build, npm, Auth ani aplikační backend.
 
+## XP a HP – Ticket 8
+
+Studentský průkaz načítá také `xp`, `current_hp` a `max_hp`. XP se mění přes
+tužku na blur (NULL nebo celé číslo >= 0). Zbývající XP používají hranice
+2014 ze zadání; pro prázdné XP/level a level 20 se údaj nezobrazuje. Dosažená
+hranice zobrazí informaci, level se nikdy automaticky nemění.
+
+HP zobrazují aktuální/maximum, NULL jako pomlčku. Ovládání `[−] [počet] [+]` přidá nebo odečte zadaný kladný počet HP.
+Výchozí počet je 1 (nejde o výchozí HP postavy); výsledek se omezí na 0..max_hp. Bez maxima nebo
+aktuálních HP je vstup neaktivní s vysvětlením. Přes tužku lze zadat maximum
+(NULL nebo celé číslo >= 1) i aktuální HP (NULL nebo 0..max_hp; bez maxima
+lze zadat jen NULL nebo 0). Nastavení maxima samo neinicializuje aktuální HP.
+
+Snížení maxima pod aktuální HP používá účelovou funkci `lowerCharacterHp`
+ve stávajícím `characters.js`: jeden atomický UPDATE obou HP na nové maximum.
+Ostatní změny používají `updateCharacterField`. Během HP zápisu jsou HP
+ovladače neaktivní. Při chybě se vrací potvrzené hodnoty a sdílený autosave
+hlásí selhání; SQL schéma, RLS ani mapová logika se nemění.
+
+Prošly testy `character-page.cjs`, `characters.cjs`, `navigation.cjs`,
+`map-space.cjs`, `map-config.cjs` a kontroly syntaxe obou skriptů deníku.
+Test stránky ověřuje XP hranice, NULL, clamp, přímé HP vstupy, atomický payload,
+selhání obou způsobů zápisu, blokaci souběžných HP akcí a reload s náhradou DB.
+Ručně zbývá ověřit kompaktnost layoutu v prohlížeči, ovládání tlačítek a blur,
+oprávnění a zápisy/reload v živém Supabase včetně atomického snížení HP.
+
+## Homepage a hra – Ticket 6
+
+Otevřete `public/index.html?character_id=<UUID>` přes místní server (při
+servírování složky public přímo `/index.html?character_id=<UUID>`).
+Homepage nabízí „Můj deník“ a „Vstoupit do hry“. Odkazy vedou na
+`character.html` a `game.html` se stejným ID; obě stránky mají „← Domů“,
+které ID zachovává. Bez platného jednoznačného UUID jsou hlavní odkazy
+neaktivní a zobrazí se vysvětlení. Návrat Domů bez platného ID vede na
+`index.html` bez parametru.
+
+Původní mapové HTML je v `public/game.html`. `navigation.js` spustí původní
+`app.js` pouze s platným UUID; mapa používá toto ID místo dřívější pevné
+testovací postavy. CSS, mapové ovladače a mapová logika zůstávají zachované.
+Neexistuje výchozí postava ani nový výběr postavy/auth flow.
+
+Prošly `node tests/navigation.cjs`, `node tests/character-page.cjs`,
+`node tests/characters.cjs`, `node tests/map-space.cjs`,
+`node tests/map-config.cjs` a kontroly syntaxe `navigation.js` a `app.js`.
+Mapové testy pouze doplňují URL do simulovaného prostředí. V prohlížeči
+zbývá ověřit celé flow s reálnou postavou, návraty a mapový realtime/drag
+ve dvou klientech proti živé DB.
+
+## Šest vlastností
+
+Pod průkazem jsou karty STR, DEX, CON, INT, WIS a CHA v mřížce 3 × 2
+(na úzké obrazovce dva nebo jeden sloupec). Hodnoty se upravují přímo,
+nezávisle na tužce průkazu. NULL znamená prázdný input i modifikátor.
+Modifikátor se počítá pouze v prohlížeči jako `Math.floor((score - 10) / 2)`;
+kladné číslo má `+`, nula je `0`.
+
+Karty používají stejné ukládání a společný stav jako průkaz. Blur ukládá jen
+změněnou hodnotu (NULL nebo celé číslo 1–20). Neplatný vstup i selhání backendu
+vrací potvrzenou hodnotu a její modifikátor; validní vstup odstraní validační
+hlášku. Modifikátory se neposílají do DB.
+
+`node tests/character-page.cjs` ověřuje všech šest polí, příklady modifikátorů,
+reload nad náhradou DB, NULL, neplatné hodnoty, opravu validace a chybu zápisu.
+Prošly také testy `characters.cjs`, `map-space.cjs`, `map-config.cjs` a
+`node --check public/character.js`. Ručně zbývá ověřit vizuální rozložení,
+vejití průkazu a karet do okna notebooku, ovládání skutečných number inputů
+a zápisy/reload proti živé DB včetně stávajících RLS.
+
+## Editace Studentského průkazu
+
+Průkaz se načítá v read-only režimu. Tužka zapne editaci jména, rasy,
+povolání a levelu přímo na místě hodnot; ikona zavření ji ukončí. Horní nadpis
+„Deník postavy“ je odstraněn, hlavním nadpisem je „Studentský průkaz“.
+Portrét zůstává beze změny. Každé změněné pole se ukládá při blur přes
+`updateCharacterField`; zavření není samostatný příkaz k uložení.
+
+Rasa a povolání mají pevné seznamy, včetně prázdné položky pro NULL;
+`halfling` se zobrazuje jako „Půlčík“. Level lze vymazat na NULL nebo zadat
+celé číslo 1–20. Prázdné či pouze mezerové jméno a neplatný level se neukládají:
+pole zobrazí chybu a vrátí poslední potvrzenou hodnotu. Stejně se hodnota
+obnoví při selhání backendu. Stav průkazu hlásí „Ukládám…“, „Uloženo“ nebo
+„Nepodařilo se uložit“. Během zápisu je jen zapisované pole neaktivní;
+ostatní pole lze upravovat. Úspěch jiného pole nezakryje nevyřešenou chybu.
+
+Spuštěné testy: `node tests/character-page.cjs`, `node tests/characters.cjs`,
+`node tests/map-space.cjs`, `node tests/map-config.cjs`,
+`node --check public/character.js`. Vše prošlo. Test stránky používá skutečný
+skript/datovou vrstvu s náhradou DOM a Supabase; pokrývá editaci, blur,
+opětovné načtení, NULL, validaci, nezměněné hodnoty, selhání i souběh zápisů.
+Živé DB zápisy, RLS a vizuální kontrola v prohlížeči nebyly provedeny.
+
+## Samostatný deník postavy – Ticket 3
+
+Otevřete `/character.html?character_id=<UUID>` na stejném serveru jako mapu,
+kde `<UUID>` nahradíte ID existující postavy. Chybějící, prázdný, opakovaný nebo
+syntakticky neplatný parametr zobrazí zprávu bez inicializace Supabase a bez
+dotazu na postavu. Není použita žádná výchozí testovací postava.
+
+Stránka používá `config.local.js`, stejnou verzi Supabase SDK a stejné nastavení
+klienta jako mapa. Přes `loadCharacter` načte Studentský průkaz: kulatý portrét
+nebo placeholder, jméno, rasu, povolání a level. Editaci popisuje sekce výše. NULL se
+zobrazuje jako nenápadná pomlčka. Chyba načtení zobrazí zprávu; technický detail
+je v konzoli. Stránka nemá mapové závislosti ani realtime.
+
+Lokální české názvy v `public/character.js` používají kódy ras `human`, `elf`,
+`halfling`, `dwarf`, `gnome`, `half_elf`, `half_orc`, `tiefling` a povolání
+`barbarian`, `bard`, `cleric`, `druid`, `fighter`, `monk`, `paladin`, `ranger`,
+`rogue`, `sorcerer`, `warlock`, `wizard`. Neznámý kód zobrazí „Neznámá rasa“
+nebo „Neznámé povolání“. Portrét přijímá webovou cestu nebo HTTPS URL;
+konkrétní Supabase Storage bucket není definován a stránka jej nevymýšlí.
+Chybějící nebo nedostupný obrázek ponechá placeholder.
+
+Ověření: `node tests/character-page.cjs`, `node tests/characters.cjs`,
+`node tests/map-space.cjs`, `node tests/map-config.cjs` a
+`node --check public/character.js` prošly. Test stránky spouští její skript
+i skutečnou datovou vrstvu s náhradou DOM a SDK. Ověřuje parametr URL, read-only
+dotaz na správné ID, NULL, překlady, bezpečné vykreslení textu, placeholder
+a chybové stavy. Vizuální kontrola v prohlížeči a načtení proti živé databázi
+nebyly provedeny; skutečné RLS a nasazení migrace je nutné ověřit v cílovém
+prostředí bez rozšiřování oprávnění.
+
+## Datová vrstva postavy – Ticket 2
+
+`public/characters.js` exportuje dvě samostatné funkce. Obě přijímají existující
+Supabase klient `db`, který vzniká na konci `public/app.js`; nevytvářejí další
+klient ani automatické dotazy. Budoucí UI je může použít po inicializaci `db`:
+
+```js
+import { loadCharacter, updateCharacterField } from './characters.js';
+
+const character = await loadCharacter(db, characterId);
+const updated = await updateCharacterField(db, characterId, 'str', 15);
+await updateCharacterField(db, characterId, 'str', null);
+const reloaded = await loadCharacter(db, characterId);
+```
+
+Načtení i zápis vracejí `id`, `user_id`, `name`, `portrait_path`, `race_code`,
+`class_code`, `level`, `str`, `dex`, `con`, `int`, `wis`, `cha` bez náhrady NULL.
+Zápis mění právě jedno pole existující postavy podle `id`; povolená jsou jen
+uvedená pole kromě `id` a `user_id`. `undefined` je odmítnuto, pro vyprázdnění
+nullable pole použijte `null`. Rozsahy hodnot kontroluje databáze.
+
+Při selhání funkce zaloguje technický detail přes `console.error` a vyhodí
+chybu; volající musí odmítnutý Promise zpracovat pomocí `try/catch`.
+Také chybějící/nepřístupný řádek nebo UPDATE bez vráceného řádku je chyba,
+nikoli úspěch. Zápis používá `update(...).eq('id', ...).select(...).single()`
+a vyžaduje odpovídající oprávnění ke čtení i aktualizaci. Auth/RLS nemění.
+
+Ověření: `node tests/characters.cjs`, `node tests/map-space.cjs`,
+`node tests/map-config.cjs`, `node --check public/characters.js` a
+`node --check public/app.js` prošly. Test postavy používá náhradu Supabase:
+ověřuje NULL, jednotlivé zápisy a následné čtení, ochranu systémových polí,
+izolaci jiné postavy, chybějící řádek a logování/předání databázových i síťových
+chyb. Živá databáze, nasazení migrace z Ticketu 1 a skutečné RLS/constrainty
+nebyly tímto testem ověřeny. UI ani automatické načítání deníku nevzniklo.
+
 ## MAP-007 – pozice postavy pro jednotlivé mapy
 
-Jedna připravená postava je určena konstantou `TEST_CHARACTER_ID` v
-`public/app.js`: `d16ac8a0-ba74-40e7-8402-c75cfe3a4ab6` z `characters`.
+Původní ověření používalo postavu
+`d16ac8a0-ba74-40e7-8402-c75cfe3a4ab6` z `characters`.
+Od Ticketu 6 určuje postavu parametr `character_id` na `game.html`.
 Jde o ID testovací postavy, nikoliv přihlášeného uživatele. `spike_token`
 už aplikační kód nečte, nezapisuje a neposlouchá.
 
@@ -325,7 +482,7 @@ Vygenerováno vestavěným nástrojem imagegen, uloženo v
    Zachovejte uvozovky a `export const`. Soubor je v `.gitignore`.
    Publishable key je určený pro browser a návštěvník jej může přečíst;
    nikdy nepoužívejte secret ani service_role key. Klíč nedávejte do ticketu.
-3. Otevřete složku ve VS Code a `index.html` spusťte přes **Live Server →
+3. Otevřete složku ve VS Code a `public/index.html` spusťte přes **Live Server →
    Open with Live Server** (pokud rozšíření používáte). Alternativa s Pythonem:
 
    ```powershell

@@ -1,8 +1,8 @@
 const map = document.querySelector('#map');
 const mapSpace = document.querySelector('#map-space');
 const grid = document.querySelector('#grid');
-// Jedna připravená testovací postava z public.characters (MAP-007).
-const TEST_CHARACTER_ID = 'd16ac8a0-ba74-40e7-8402-c75cfe3a4ab6';
+// navigation.js spustí mapu pouze s platným character_id v URL.
+const CHARACTER_ID = new URLSearchParams(window.location.search).get('character_id').toLowerCase();
 const MAPS = [
   { id: 'test-map', name: 'Test map', src: './assets/maps/test-map.png' },
   { id: 'mapa-akademie', name: 'Mapa akademie', src: './assets/maps/mapa-akademie.png' },
@@ -87,7 +87,7 @@ removeTokenButton.addEventListener('click', async () => {
   showMessage('info', 'Odebírám postavu z mapy…', removeTokenMessage);
   try {
     const { error } = await db.from('token_positions')
-      .delete().eq('character_id', TEST_CHARACTER_ID).eq('map_id', mapId);
+      .delete().eq('character_id', CHARACTER_ID).eq('map_id', mapId);
     if (error) throw error;
     if (version !== mapVersion) return;
     saved = null;
@@ -95,7 +95,7 @@ removeTokenButton.addEventListener('click', async () => {
     showMessage('info', '', removeTokenMessage);
     showMessage('info', 'Postava byla odebrána z mapy.');
   } catch (error) {
-    console.error('Odebrání postavy z mapy selhalo:', { mapId, characterId: TEST_CHARACTER_ID, error });
+    console.error('Odebrání postavy z mapy selhalo:', { mapId, characterId: CHARACTER_ID, error });
     if (version === mapVersion) showMessage('error', 'Postavu se nepodařilo odebrat z mapy. Zkus to znovu.', removeTokenMessage);
   } finally {
     if (version === mapVersion) {
@@ -118,7 +118,7 @@ addTokenButton.addEventListener('click', async () => {
     if (!destination) throw new Error('Mapa neobsahuje úplné gridové pole.');
     // INSERT nikdy nepřepisuje pozici, kterou mezitím vytvořil jiný klient.
     const { data, error } = await db.from('token_positions')
-      .insert({ character_id: TEST_CHARACTER_ID, map_id: mapId, ...destination })
+      .insert({ character_id: CHARACTER_ID, map_id: mapId, ...destination })
       .select('x,y').single();
     if (error) throw error;
     if (version !== mapVersion) return;
@@ -127,7 +127,7 @@ addTokenButton.addEventListener('click', async () => {
     showMessage('info', '', addTokenMessage);
     showMessage('info', 'Postava je přidaná na mapu.');
   } catch (error) {
-    console.error('Přidání postavy na mapu selhalo:', { mapId, characterId: TEST_CHARACTER_ID, error });
+    console.error('Přidání postavy na mapu selhalo:', { mapId, characterId: CHARACTER_ID, error });
     if (version !== mapVersion) return;
     // Realtime mohl mezitím potvrdit vložení od druhého klienta.
     showMessage(saved ? 'info' : 'error', saved ? '' : 'Postavu se nepodařilo přidat na mapu. Zkus to znovu.', addTokenMessage);
@@ -409,7 +409,7 @@ function render(point) {
 function subscribePosition(mapId, version) {
   const receive = (payload) => {
     const row = payload.new;
-    if (version !== mapVersion || row.character_id !== TEST_CHARACTER_ID || row.map_id !== mapId) return;
+    if (version !== mapVersion || row.character_id !== CHARACTER_ID || row.map_id !== mapId) return;
     realtimeRevision += 1;
     saved = { x: row.x, y: row.y };
     positionLoaded = true;
@@ -426,7 +426,7 @@ function subscribePosition(mapId, version) {
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'token_positions', filter: `map_id=eq.${mapId}` }, receive)
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'token_positions', filter: `map_id=eq.${mapId}` }, (payload) => {
       const row = payload.old;
-      if (version !== mapVersion || row.character_id !== TEST_CHARACTER_ID || row.map_id !== mapId) return;
+      if (version !== mapVersion || row.character_id !== CHARACTER_ID || row.map_id !== mapId) return;
       realtimeRevision += 1;
       saved = null;
       render(null);
@@ -454,7 +454,7 @@ async function loadPosition(mapId = activeMapId, version = mapVersion) {
   const revision = realtimeRevision;
   try {
     const { data, error } = await db.from('token_positions').select('x,y')
-      .eq('character_id', TEST_CHARACTER_ID).eq('map_id', mapId).maybeSingle();
+      .eq('character_id', CHARACTER_ID).eq('map_id', mapId).maybeSingle();
     if (version !== mapVersion) return;
     if (error) throw error;
     // Novější realtime událost nesmí přepsat pomalejší odpověď SELECTu.
@@ -526,7 +526,7 @@ token.addEventListener('pointerup', async (event) => {
   try {
     // Pozice patří dvojici postava + mapa zachycené při začátku dragu.
     const { data, error } = await db.from('token_positions')
-      .upsert({ character_id: TEST_CHARACTER_ID, map_id: start.mapId, ...destination },
+      .upsert({ character_id: CHARACTER_ID, map_id: start.mapId, ...destination },
         { onConflict: 'character_id,map_id' }).select('x,y').single();
     if (start.version !== mapVersion) return;
     if (error) throw error;

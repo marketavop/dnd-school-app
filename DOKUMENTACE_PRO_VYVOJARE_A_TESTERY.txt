@@ -1,0 +1,301 @@
+D&D SCHOOL APP – DOKUMENTACE PRO BE, FE A TESTERY
+Stav podle lokálního zdrojového kódu k 21. 9. 2026
+Kódování: UTF-8. Cesty níže jsou relativní ke kořeni projektu.
+
+1. ÚČEL A AKTUÁLNÍ ROZSAH
+========================
+Aplikace je zatím mapový realtime prototyp pro školní D&D. Prohlížeč
+komunikuje přímo se Supabase. Samostatný aplikační backend, přihlášení
+ani role nejsou implementované. Není zde framework, build ani package.json.
+
+Hotový kód obsahuje:
+- dvě statické PNG mapy a společnou aktivní mapu pro všechny klienty;
+- čtvercovou SVG mřížku s velikostí uloženou zvlášť pro každou mapu;
+- jednu pevně zvolenou testovací postavu;
+- její přidání na mapu, přesun se snapem a odebrání s potvrzením;
+- mapově oddělené pozice a odběry databázových změn přes realtime;
+- stavové a chybové zprávy a ochrany proti některým opožděným odpovědím.
+
+PROJECT_BRIEF.md je produktové zadání, nikoli seznam dokončených funkcí.
+Deník, účty a role Hráč/Vedoucí, portréty, více tokenů, NPC, kostky,
+zoom/pan a další části cílového MVP zatím nejsou v tomto frontendu.
+Současný token je modrý kruh s číslem 1. Mapu lze běžně scrollovat.
+Produktový brief preferuje WebP, aktuální assety jsou PNG.
+
+README.md obsahuje historické zápisy různých ticketů. Některé popisy
+spuštění, tabulek a chování jsou zastaralé; zejména spike_token ani
+spike_map_config již app.js nepoužívá. Pro současné chování vycházejte
+z kódu a této dokumentace, pro produktová rozhodnutí z aktuálního briefu.
+
+2. ORIENTACE V SOUBORECH
+=======================
+public/index.html             HTML a veškeré současné CSS, české UI.
+public/app.js                 Aplikační logika, geometrie, Supabase a události.
+public/config.local.js        Konfigurace importovaná prohlížečem.
+public/assets/maps/           Dvě připravené mapy.
+config.example.js             Vzor konfigurace, nečte se přímo při běhu.
+tests/map-space.cjs           Testy geometrie a handlerů s náhradou DOM/DB.
+tests/map-config.cjs          Celý app.js ve více simulovaných klientech.
+wrangler.jsonc               Název dnd-school-app, assets.directory = ./public.
+PROJECT_BRIEF.md              Aktuální produktový brief.
+PROJECT_BRIEF-v1.0.1.md       Starší verze briefu.
+README.md                    Historie implementací a dřívějších ověření.
+DOKUMENTACE_PRO_VYVOJARE_A_TESTERY.txt  Tento neveřejně servírovaný soubor.
+
+3. LOKÁLNÍ SPUŠTĚNÍ
+==================
+Potřebujete moderní prohlížeč s ES moduly a Pointer Events, statický HTTP
+server a internet pro Supabase i CDN. Pro testy potřebujete Node.js;
+testy používají pouze jeho vestavěné moduly, npm install není potřeba.
+Repozitář neurčuje minimální verzi Node.js ani Pythonu.
+
+V PowerShellu z kořene projektu:
+  Copy-Item config.example.js public/config.local.js
+
+Tento příkaz použijte pouze při prvním nastavení, pokud cílový soubor
+neexistuje; existující konfiguraci nepřepisujte. Doplňte v něm exporty:
+  SUPABASE_URL = Project URL začínající https://
+  SUPABASE_PUBLISHABLE_KEY = veřejný klíč začínající sb_publishable_
+
+Zachovejte syntaxi export const a řetězcové hodnoty. Aktuální validace
+nepřijímá starší JWT anon klíč. Nevkládejte secret/service_role klíč.
+Obsah tohoto souboru si může přečíst každý návštěvník webu.
+Pozor: současný .gitignore ignoruje pouze /config.local.js v kořeni,
+nikoliv public/config.local.js. Před commitem zkontrolujte obsah změn.
+
+Spuštění z kořene projektu:
+  python -m http.server 8001 --bind 127.0.0.1 --directory public
+
+Otevřete http://127.0.0.1:8001. Nepoužívejte file://. Serverujte pouze
+public, aby briefy, testy a tato dokumentace nebyly součástí webu.
+Při startu klient čeká na připojení realtime, načte aktivní mapu,
+konfiguraci gridu a pozici. Chybějící pozice je platný prázdný stav.
+Konkrétní počáteční souřadnice nejsou garantované: zdrojem pravdy je DB.
+
+4. BACKEND A DATOVÝ KONTRAKT
+==========================
+Backendovou službou je Supabase: PostgreSQL, REST přístup přes SDK
+a Realtime Postgres Changes. SDK je v app.js importováno z jsDelivr,
+verze @supabase/supabase-js@2.57.4. Auth má persistSession,
+autoRefreshToken i detectSessionInUrl nastavené na false.
+
+Následující model vychází z briefu a dotazů v kódu. Repozitář neobsahuje
+SQL migrace ani kompletní reprodukovatelný setup backendu. Skutečné DDL,
+granty, RLS, publication a data je nutné ověřit v cílovém Supabase projektu.
+
+Schéma public:
+- characters: id uuid PK, user_id uuid NULL, name text NOT NULL.
+  Brief uvádí vazbu user_id na auth.users.id s ON DELETE SET NULL.
+  Frontend tuto tabulku přímo nečte ani nemění.
+- map_config: map_id text PK, cell_size podle briefu int4.
+  Každá registrovaná mapa potřebuje právě jeden konfigurační řádek.
+- game_state: singleton id = 1, active_map_id text.
+  Hodnota active_map_id musí odpovídat známé mapě a její konfiguraci.
+- token_positions: složený PK (character_id, map_id), x/y double precision.
+  Brief uvádí FK na characters.id a map_config.map_id, oba ON DELETE CASCADE.
+  Absence řádku znamená nepřítomnost postavy na mapě; nikoliv NULL x/y.
+
+Pevná testovací postava v app.js:
+  d16ac8a0-ba74-40e7-8402-c75cfe3a4ab6
+Jde o character_id, nikoli ID uživatele. Před vložením pozice musí existovat
+odpovídající postava. Pro jiná data změňte konstantu a související testy.
+
+Registr MAPS:
+  test-map       -> assets/maps/test-map.png       (1536 x 1024 px)
+  mapa-akademie  -> assets/maps/mapa-akademie.png  (1310 x 1200 px)
+Rozměry aplikace vždy čte z naturalWidth/naturalHeight načteného obrázku.
+
+Operace frontendu:
+  game_state: SELECT a UPDATE s filtrem id = 1.
+  map_config: SELECT a UPDATE s filtrem map_id.
+  token_positions: SELECT s filtry character_id + map_id; maybeSingle().
+  Přidání: INSERT character_id, map_id, x, y; vrací x,y přes single().
+  Přesun: UPSERT stejného payloadu, onConflict = character_id,map_id.
+  Odebrání: DELETE s oběma filtry; nemaže postavu ani pozice jiných map.
+
+Přístupy musí mít odpovídající granty a případné RLS policies. V prototypu
+bez přihlášení jde o anonymní přístup. Vypnutí RLS samo nepřidává granty.
+Oprávnění skutečných hráčů musí budoucí BE vynucovat v databázi; ukrytí
+tlačítka ve FE není autorizace. Současná UI role nerozlišuje.
+
+Realtime:
+- Kanál map-state sleduje UPDATE map_config a UPDATE game_state (id=eq.1).
+  Callback konfigurace ignoruje jinou než aktivní mapu.
+- Kanál token-position-<mapId>-<version> sleduje INSERT, UPDATE a DELETE
+  token_positions s filtrem map_id. Callback ověřuje také character_id.
+- Při změně mapy se starý kanál odstraňuje. Po SUBSCRIBED se čtou data.
+  Opětovné připojení vyvolává nové načtení příslušného stavu.
+- Příslušné tabulky musejí být zahrnuté v realtime publication.
+- DELETE handler očekává payload.old.character_id a payload.old.map_id.
+  Ověřte skutečné doručování DELETE i obsah old při konkrétních RLS
+  a replica identity nastaveních. Simulovaný test tuto konfiguraci neověří.
+
+5. FRONTEND: CHOVÁNÍ A MÍSTA PRO ÚPRAVY
+====================================
+activateMap/loadGameState: výběr mapy, reset UI, výměna obrázku a odběru.
+loadMapConfig/receiveMapConfig/applyCellSize: persistence a aplikace gridu.
+subscribePosition/loadPosition: odběr a počáteční načtení pozice.
+renderGrid/mapLoaded/render: SVG grid, rozměry mapy a vykreslení tokenu.
+snapToCell/move/pointer handlery: geometrie a ukládání po dropu.
+Handlery add-token/remove-token: vložení a odebrání testovací postavy.
+showMessage: text a atribut data-message-type; technické chyby jdou do konzole.
+
+Souřadnicový kontrakt:
+- x/y je střed tokenu v přirozených pixelech mapy, počátek vlevo nahoře.
+- Mapa, SVG a token sdílejí #map-space, nad ním je scrollovací #map-viewport.
+- Bez škálování: mapa je 1:1. CSS translate(-50%, -50%) centruje token.
+- Průměr = cellSize * 0.9. Jedno čtvercové pole představuje 5 ft.
+- Render omezuje střed poloměrem tokenu na hranice mapy. Staré souřadnice
+  mimo mapu tím pouze vizuálně omezí, automaticky je nepřepisuje v DB.
+- Snap vybírá střed nejbližšího úplného pole; částečná pole na pravém
+  a spodním okraji nejsou cílem. Na hranici vyhrává pravé/spodní pole.
+- Drag zachovává místo úchopu a při pohybu znovu čte obdélník map-space,
+  takže započítává scroll. Během pohybu neposílá zápisy.
+- Skutečný drop s jinou výslednou pozicí provede jeden upsert. Klik,
+  zrušený drag nebo stejná výsledná pozice nezapisují. Při ukládání je
+  další drag blokovaný. Při chybě se vrací poslední známá uložená pozice.
+
+Grid:
+- CELL_SIZE = 100 je dočasný default, skutečnou hodnotu načítá DB.
+- FE přijímá konečná čísla včetně desetinných od 20 do 300.
+- Každý platný input ihned mění náhled a řadí UPDATE do fronty.
+  Nejde o debounce; rychlé změny jednoho klienta se zapisují v pořadí.
+- Neplatný input nezapisuje; zobrazí chybu a aria-invalid.
+- Změna velikosti nezapisuje x/y ani neposouvá střed. U kraje tak může
+  zvětšený token do dalšího renderu/pohybu přesahovat mapu.
+- POZOR: FE přijímá desetinné cell_size, zatímco brief uvádí int4.
+  Před podporou desetinných hodnot ověřte a sjednoťte DB kontrakt.
+
+Přidání a odebrání:
+- Bez pozice se po načtení mapy a konfigurace nabídne přidání.
+- INSERT volí snapnuté úplné pole poblíž středu mapy. Záměrně nepoužívá
+  upsert, aby nepřepsal pozici souběžně přidanou druhým klientem.
+- Existující pozice nabídne odebrání s window.confirm. Zrušení dialogu
+  nic nemaže; potvrzení maže pouze tuto dvojici postava + mapa.
+
+Asynchronní stav:
+- mapVersion brání starým odpovědím a callbackům měnit novou mapu.
+- Revision čítače chrání některá čtení před přepsáním novějšího realtime.
+- Zápisy zachycují původní mapId. Rozpracovaný zápis při přepnutí dokončí
+  původní mapu; přepnutí během samotného dragu jej zruší bez zápisu.
+- Nejde o obecné řešení konfliktů více klientů nebo offline frontu.
+  Souběžný drag, odebrání a přidání vyžadují zvláštní integrační ověření.
+
+Přidání další mapy: vložit asset do public/assets/maps, rozšířit MAPS,
+připravit map_config se shodným ID a otestovat přepnutí, grid i pozice.
+Rozšíření o více postav vyžaduje změnu stavového modelu a UI; nestačí
+pouze přidat další databázový řádek k současné pevné konstantě.
+
+6. AUTOMATICKÉ TESTY
+===================
+Spouštějte z kořene projektu:
+  node --check public/app.js
+  node tests/map-space.cjs
+  node tests/map-config.cjs
+
+První příkaz kontroluje syntaxi, další dva mají vypsat PASS a skončit 0.
+Testy nahrazují DOM i Supabase, nepotřebují klíče, internet ani živou DB.
+map-space ověřuje geometrii, hrany, scroll, snap, drag a validaci gridu.
+map-config spouští celý app.js v simulovaných klientech a ověřuje mapy,
+pozice, INSERT/UPDATE, reload, staré odběry, opožděná čtení/zápisy a chyby.
+
+Limity: nejde o browserové E2E testy ani důkaz správných grantů, RLS,
+publication, skutečného reconnectu či vizuálního layoutu. Aktuální mock
+událostí v map-config vytváří payload.new i pro DELETE, zatímco handler
+čte payload.old. Přítomnost delete mocku proto není důkaz pokrytí odebrání.
+UI přidání/odebrání a souběhy ověřujte zvlášť podle scénářů níže.
+
+Při vzniku této dokumentace 21. 9. 2026 všechny tři příkazy prošly.
+Živá DB, browserové testy ani deployment nebyly v rámci dokumentace provedeny.
+
+7. RUČNÍ TESTOVACÍ SCÉNÁŘE
+=========================
+Příprava: použijte testovací Supabase projekt a dva nezávislé klienty
+(např. Chrome a Edge nebo běžné a anonymní okno). Oba musejí používat
+stejnou konfiguraci. Zaznamenejte původní aktivní mapu, obě velikosti gridu
+a existenci i x/y pozice pro každou mapu. Testy mění sdílenou databázi.
+
+T01 Start a reload
+Otevřít oba klienty, počkat na připojení a načtení. Mapa a grid se shodují
+s DB; pozice odpovídá této mapě, případně je token skrytý. Reload zachová stav.
+
+T02 Přepnutí mapy
+V A přepnout mapu, pak v B zpět. Druhý klient bez reloadu zobrazí stejnou
+mapu, její grid a její vlastní pozici. Přepnutí samo nemění token_positions.
+
+T03 Grid a validace
+Na jedné mapě nastavit 150, na druhé 80. Návrat i reload zachovají hodnoty.
+Vyzkoušet prázdno, 10 a 500: chyba, žádný UPDATE, zachovaný platný náhled.
+Ověřit meze 20/300 a samostatně desetinnou hodnotu proti skutečnému DB typu.
+Změna gridu nesmí změnit uložené x/y; token má průměr 90 % velikosti pole.
+
+T04 Přidání postavy
+Na mapě bez pozice kliknout Přidat postavu na mapu. Jeden INSERT vytvoří
+pozici poblíž středu na úplném poli; token se objeví i v B a po reloadu.
+Opakované rychlé klikání nemá vytvořit duplicitní řádky.
+
+T05 Pohyb A -> B a B -> A
+Přesunout a pustit token; druhý klient přijme snapnutou pozici bez reloadu.
+Reload i později otevřený klient zobrazí uloženou pozici.
+V Network filtrovat token_positions: při dragu žádný zápis, po změněném
+dropu jeden POST/upsert. OPTIONS ani websocket heartbeat nepočítat.
+
+T06 Geometrie
+Zkusit všechny hrany, neúplná okrajová pole, scroll při tažení a resize.
+Token i grid zůstávají vůči mapě zarovnané. Klik bez tažení a cancel
+nezapisují. Starou nesnapnutou pozici reload automaticky nepřesnapuje.
+
+T07 Odebrání
+Zrušit potvrzovací dialog: žádný DELETE. Potvrdit: jeden DELETE filtrovaný
+oběma ID, token zmizí i v B, po reloadu chybí a lze jej znovu přidat.
+Řádek characters a pozice stejné postavy na druhé mapě zůstávají.
+
+T08 Oddělení událostí
+Změna jiné postavy nebo pozice na neaktivní mapě nesmí měnit aktuální
+token. Návrat na původní mapu obnoví její vlastní uloženou pozici.
+
+T09 Chyby
+V testovacím prostředí simulovat nedostupný asset, chybějící map_config,
+neznámé active_map_id a selhání zápisů. UI zobrazí srozumitelnou chybu,
+technické detaily jsou v konzoli. Neúspěšný zápis mapy vrátí výběr;
+neúspěšný přesun vrátí poslední známou pozici. Ověřit také chyby přidání
+a odebrání a možnost opakování akce po obnovení spojení.
+
+T10 Reconnect a souběhy
+Odpojit síť, změnit stav druhým klientem, obnovit síť. Ověřit nové načtení
+aktuální mapy a pozic. S pomalou sítí přepínat při čtení, ukládání a dragu.
+Stará odpověď nesmí přepsat novou mapu. Zvlášť zkusit souběžné přidání,
+odebrání během dragu a odebrání během upsertu; případnou chybu zapsat,
+nepředpokládat, že je obecné řešení konfliktů již implementované.
+
+Po testování obnovte zaznamenaný stav a odstraňte jen vlastní testovací
+řádky. Nepoužívejte historické souřadnice z README jako povinný DB fixture.
+
+8. DIAGNOSTIKA A PŘEDÁNÍ ZMĚN
+============================
+Aplikace nestartuje: zkontrolovat HTTP server nad public, dostupnost
+config.local.js, formát exportů, CDN import a podrobnost chyby v konzoli.
+DB požadavek selhává: Network odpověď, názvy a existence řádků, granty/RLS,
+unikátní dvojice pro upsert, FK a datové typy.
+Zápis funguje, realtime ne: WebSocket spojení, SUBSCRIBED, publication
+a filtry. U odebrání kontrolovat skutečný payload.old a obě ID.
+Token chybí: nejprve ověřit absenci řádku pro aktivní mapu; může to být
+správný stav. Poté obrázek, konfiguraci, odběr a chyby SELECTu.
+
+Při hlášení chyby uvést browser, prostředí, map_id, kroky, očekávaný
+a skutečný výsledek, stav před/po reloadu a anonymizované chyby z Network
+a konzole. Nepřikládat klíče ani kompletní konfigurační soubor.
+
+Pro změny FE zachovat souřadnicový kontrakt a zápis jen po dropu, ověřit
+stávající testy a relevantní ruční scénáře. Pro změny BE dodat verzovanou
+migraci a popis potřebných oprávnění/realtime nastavení; dosavadní repo
+takovou infrastrukturu neobsahuje. Testy s mockem nenahrazují DB ověření.
+
+9. SERVÍROVÁNÍ A NASAZENÍ
+========================
+wrangler.jsonc připravuje statické assets ze složky public; worker skript
+není nakonfigurovaný. Repo neobsahuje package.json s deploy skriptem.
+Před nasazením ověřte v cílovém prostředí konfiguraci a dostupnost assetů.
+Deploy konfigurace ani tento dokument nepotvrzují existující živé nasazení.
+Do publikovaného adresáře patří pouze obsah určený browseru. Dokumentace,
+briefy, testy a případné budoucí SQL migrace mají zůstat mimo public.
