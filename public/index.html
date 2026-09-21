@@ -16,6 +16,17 @@
     #token { transform: translate(-50%, -50%); }
     #token.dragging { cursor: grabbing; }
     #status, #connection { min-height: 24px; }
+    #cell-size { width: 6em; padding: 6px; font: inherit; border: 1px solid #667788; border-radius: 4px; }
+    #cell-size[aria-invalid="true"] { border: 2px solid #b42318; background: #fff0ef; }
+    #cell-size-error { min-height: 1.5em; margin: 4px 0 12px; color: #b42318; }
+    #map-select { padding: 6px; font: inherit; }
+    #map[hidden] { display: none; }
+    #add-token { padding: 8px 12px; font: inherit; cursor: pointer; }
+    #add-token:disabled { cursor: wait; }
+    #add-token-message[data-message-type="error"] { color: #b42318; }
+    #remove-token { padding: 8px 12px; font: inherit; cursor: pointer; }
+    #remove-token:disabled { cursor: wait; }
+    #remove-token-message[data-message-type="error"] { color: #b42318; }
   </style>
 </head>
 <body>
@@ -24,10 +35,21 @@
   <p id="connection" role="status">Realtime: připojuji…</p>
   <p id="status" role="status">Načítám konfiguraci…</p>
   <p>Pozice na mapě: <output id="position">—</output></p>
+  <label for="map-select">Aktivní mapa</label>
+  <select id="map-select" aria-describedby="active-map-status" disabled></select>
+  <p id="active-map-status" role="status">Načítám aktivní mapu…</p>
   <p id="map-status" role="status">Načítám mapu…</p>
+  <label for="cell-size">Velikost pole (px)</label>
+  <input id="cell-size" type="number" step="any" autocomplete="off" aria-invalid="false" aria-describedby="cell-size-error cell-size-status" disabled>
+  <p id="cell-size-error" role="status"></p>
+  <p id="cell-size-status" role="status">Čekám na načtení velikosti pole z DB…</p>
+  <button id="add-token" type="button" aria-describedby="add-token-message" hidden>Přidat postavu na mapu</button>
+  <p id="add-token-message" role="status"></p>
+  <button id="remove-token" type="button" aria-describedby="remove-token-message" hidden>Odebrat postavu z mapy</button>
+  <p id="remove-token-message" role="status"></p>
   <div id="map-viewport" tabindex="0" aria-label="Posuvná testovací mapa">
     <div id="map-space">
-      <img id="map" src="./assets/maps/test-map.png" alt="Nádvoří kouzelnické školy s kašnou" draggable="false">
+      <img id="map" alt="Aktivní mapa" draggable="false" hidden>
       <svg id="grid" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true"></svg>
       <div id="token" aria-label="Token 1" hidden>1</div>
     </div>

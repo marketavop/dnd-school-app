@@ -1,9 +1,212 @@
-# TECH-001 / MAP-001 / MAP-002 – Realtime spike s PNG mapou a mřížkou
+# D&D mapa – realtime spike a MAP-001 až MAP-007
 
-Jedna PNG mapa (1536 × 1024 px), jeden token (průměr `CELL_SIZE × TOKEN_SCALE`), řádek
-`public.spike_token`, `id = 1`. Souřadnice x/y jsou **střed tokenu**
+Dvě připravené PNG mapy, jedna sdílená aktivní mapa a jeden token (průměr `cellSize × TOKEN_SCALE`).
+Jeho pozice je v `public.token_positions` podle `character_id + map_id`. Souřadnice x/y jsou **střed tokenu**
 v přirozených pixelech mapy, počátek (0,0) je vlevo nahoře.
 Žádný build, npm, Auth ani aplikační backend.
+
+## MAP-007 – pozice postavy pro jednotlivé mapy
+
+Jedna připravená postava je určena konstantou `TEST_CHARACTER_ID` v
+`public/app.js`: `d16ac8a0-ba74-40e7-8402-c75cfe3a4ab6` z `characters`.
+Jde o ID testovací postavy, nikoliv přihlášeného uživatele. `spike_token`
+už aplikační kód nečte, nezapisuje a neposlouchá.
+
+Po aktivaci mapy se připojí samostatný realtime odběr pozic a poté se
+načte `token_positions` s filtry na obě hodnoty: postavu a aktivní mapu.
+Chybějící řádek je normální stav: token je skrytý a stránka oznámí, že
+postava nemá na této mapě uloženou pozici. Nevytváří se výchozí pozice.
+
+Po dokončení dragu se provede jediný upsert s `character_id`, `map_id`,
+`x`, `y` a `onConflict: 'character_id,map_id'`. DB proto musí mít unikátní
+klíč této dvojice a umožňovat SELECT/INSERT/UPDATE. Frontend schéma nemění.
+Snap nadále používá aktuální grid; během dragu se nezapisuje.
+
+Realtime sleduje INSERT i UPDATE: server filtruje aktivní `map_id`,
+callback navíc ověřuje `character_id` i mapu. Při přepnutí se starý kanál
+odstraní, starý token ihned skryje a načte se pozice nové mapy. Dodatečný
+INSERT pro postavu a aktivní mapu token zobrazí bez reloadu. Opožděné
+odpovědi ani callbacky předchozího odběru nepřepíšou novou mapu. Upsert
+rozpracovaný při přepnutí dokončí zápis do původní mapy. Nevzniká UI pro
+přidávání tokenů ani více postav.
+
+Ověření 2026-09-21:
+
+- `node --check public/app.js`, `node tests/map-space.cjs` a
+  `node tests/map-config.cjs` prošly. Test celého app.js s náhradou DOM/DB
+  ověřuje počátečních 375/375, upsert + reload + realtime, prázdnou
+  akademii, pozdější INSERT, oddělené pozice a návrat na původní mapu.
+  Také ignorování jiné postavy/mapy, odstranění starých odběrů, chybu
+  upsertu, opožděné čtení/zápis, INSERT během počátečního SELECTu a regrese
+  gridu, map, dragu a snapu. Mock odmítne jakýkoliv přístup ke `spike_token`.
+- Skutečná DB potvrdila testovací postavu, `test-map = 375/375` a chybějící
+  řádek akademie. Backendový test ověřil kompozitní upsert na 525/525,
+  opětovné čtení a UPDATE do dvou nezávislých WebSocket spojení. Odběr
+  akademie změnu test-map nedostal. INSERT akademie na 225/225 dorazil
+  přes realtime a nezměnil pozici test-map.
+- Test následně obnovil **test-map = 375/375** a odstranil pouze svůj
+  nově vytvořený řádek akademie; ta je opět bez pozice. `game_state`,
+  `map_config`, `characters` ani `spike_token` tento backendový test neměnil.
+- Browserový nástroj stále selhává při inicializaci. Vizuální test
+  skutečného frontendu nebyl proveden; backendový test ho nenahrazuje.
+
+Ruční ověření: ve dvou klientech zvolte test-map a zkontrolujte 375/375.
+Přesuňte token, ověřte shodnou pozici v B bez reloadu a pak po reloadu.
+Přepněte na akademii: token musí zmizet. V Supabase vytvořte v
+`token_positions` řádek s výše uvedeným `character_id`,
+`map_id = 'mapa-akademie'`, např. `x = 225`, `y = 225`; token se má objevit
+bez reloadu. Návrat na test-map musí obnovit její vlastní uloženou pozici.
+V Network po dropu očekávejte jeden POST (upsert) do `token_positions`,
+žádný request do `spike_token`.
+
+## MAP-006 – přepínání aktivní mapy (pozice nově řeší MAP-007)
+
+Dropdown **Aktivní mapa** obsahuje statický registr `MAPS` v `public/app.js`:
+
+| ID | Název | Soubor | Rozměry |
+| --- | --- | --- | --- |
+| `test-map` | Test map | `public/assets/maps/test-map.png` | 1536 × 1024 px |
+| `mapa-akademie` | Mapa akademie | `public/assets/maps/mapa-akademie.png` | 1310 × 1200 px |
+
+Zdroj pravdy je `public.game_state.id = 1`, sloupec `active_map_id`.
+Velikost gridu se načítá z `public.map_config` podle `map_id` a zapisuje
+se pouze do tohoto řádku. `spike_map_config` už frontend nepoužívá.
+Obě tabulky musí umožňovat SELECT/UPDATE a mít zapnuté Realtime UPDATE.
+Schéma ani oprávnění frontend nemění.
+
+Po připojení realtime odběrů se načte aktivní mapa a její konfigurace.
+PNG, grid a token se zobrazí až po načtení obrázku i konfigurace.
+Změna dropdownu uloží `active_map_id`; druhý klient přepne mapu,
+input velikosti, grid i průměr tokenu bez reloadu. Reload načte aktivní
+mapu i její uloženou velikost. Validace 20–300 px zůstává zachovaná.
+
+Opožděná odpověď konfigurace předchozí mapy nepřepíše právě aktivní mapu.
+Zápis velikosti zahájený před přepnutím dokončí zápis do původního `map_id`.
+Neznámé ID mapy, chybějící konfigurace a chyba PNG se zobrazí jako chyba.
+Při chybě zápisu mapy se dropdown vrátí na poslední známou aktivní mapu.
+
+`spike_token` zůstává společný pro obě mapy. Přepnutí nezapisuje x/y;
+pozice se zobrazí na nové mapě se stávajícím omezením na její hranice.
+Přepnutí během dragu tento rozpracovaný pohyb zruší bez zápisu.
+Další drag/drop snapuje podle gridu aktuální mapy. Map-specific token
+positions, role a správa knihovny map nejsou implementované.
+
+Ověření 2026-09-21:
+
+- `node --check public/app.js`, `node tests/map-space.cjs` a
+  `node tests/map-config.cjs` prošly.
+- Test celého aplikačního kódu se dvěma oddělenými kontexty a náhradou
+  DOM/Supabase ověřuje přepínání A → B i B → A, cesty PNG a jejich rozdílné
+  rozměry, vlastní velikost gridu každé mapy, návrat, reload, token realtime
+  a snap, validaci, selhání zápisu/načtení, pomalý obrázek, přepnutí během
+  dragu a opožděné odpovědi konfigurace. Přepnutí nezapisuje do tokenu.
+- Skutečné Supabase GET potvrdily aktivní `test-map` a oba řádky
+  `map_config` s velikostí 100.
+- Živý backendový test přes REST a dvě nezávislá WebSocket spojení ověřil
+  zápis i doručení přepnutí na akademii a zpět, změnu jejího gridu na 150,
+  nezměněnou konfiguraci test-map, opětovné čtení DB a nezměněný token.
+  Test vrátil původní aktivní mapu i velikosti: **test-map, 100 / 100**.
+  Použit [Supabase Realtime protokol](https://supabase.com/docs/guides/realtime/protocol).
+- Vizuální test skutečného frontendu ve dvou browserech zůstává
+  neprovedený: browserový nástroj selhává při inicializaci. Backendový
+  test neověřuje vykreslení PNG a ovládání dropdownu v browseru.
+
+Ruční přijetí: spusťte statický server nad `public` (např.
+`python -m http.server 8001 --bind 127.0.0.1 --directory public`) a otevřete
+`http://127.0.0.1:8001` ve dvou browserech. V A vyberte akademii a ověřte
+stejnou PNG mapu a input v B. Nastavte její grid na 150; přepněte v B na
+test-map, která musí zachovat 100. Nastavte test-map na 80 a vraťte se
+na akademii: musí načíst 150. Reload obou musí zachovat aktivní mapu
+i velikost. Nakonec ověřte drag, snap a realtime tokenu. Samotná změna
+mapy ani gridu nesmí poslat PATCH na `spike_token`.
+
+Níže následují historické záznamy předchozích ticketů; aktuální tabulky
+a chování určuje sekce MAP-006 výše.
+
+## MAP-005B – původní konfigurace (nahrazena MAP-006)
+
+Aktuálním zdrojem pravdy je `public.spike_map_config`, řádek `id = 1`,
+sloupec `cell_size`. Frontend tabulku ani řádek nevytváří. Pro tento spike
+musí být dostupné SELECT/UPDATE a tabulka zařazená do `supabase_realtime`.
+
+Po připojení realtime odběru se načte velikost z DB a nastaví input, grid
+i průměr tokenu. Do úspěšného načtení je input a drag blokovaný; 100 px je
+jen dočasná výchozí hodnota. Reload načte poslední uloženou velikost.
+Každá platná změna inputu ihned aktualizuje náhled a zapíše `cell_size`.
+Rychlé lokální změny se zapisují postupně v pořadí zadání. Realtime UPDATE
+řádku 1 aktualizuje druhého klienta bez dalšího zápisu. Konfliktní editace
+z více klientů se neřeší.
+
+Validace 20–300 px zůstává zachovaná. Neplatná hodnota nic nezapisuje.
+Samostatná zpráva pod inputem ukazuje načítání, ukládání nebo chybu.
+Při neúspěšném zápisu se náhled vrátí na poslední známou uloženou velikost;
+reload ověří skutečný stav DB. Změna velikosti nemění střed tokenu ani
+nezapisuje do `spike_token`. Snap při dalším dropu používá aktuální grid.
+
+Ověření 2026-09-21:
+
+- Skutečný Supabase GET vrátil HTTP 200 a `cell_size = 100`.
+- `node --check public/app.js`, `node tests/map-space.cjs` a
+  `node tests/map-config.cjs` prošly.
+- Nový test spouští celý app.js ve dvou oddělených kontextech s náhradou
+  DOM/Supabase: start 100, A → B na 150, B → A na 80, reload obou,
+  neplatné vstupy bez zápisů, nezměněný střed, rychlé změny v pořadí,
+  chyba zápisu, chyba načtení a regrese token realtime + snap + reload.
+- Živý zápis a realtime přenos mezi browsery v tomto kroku neověřeny:
+  browserový nástroj selhává při inicializaci. Test s náhradou Supabase
+  neověřuje skutečnou publication ani oprávnění UPDATE.
+
+Ruční přijetí: otevřete dva klienty, ověřte 100 z DB, v A zadejte 150 a
+ověřte změnu v B; v B zadejte 80 a ověřte A. Reload obou musí načíst 80.
+Prázdný vstup, 10 a 500 nesmí poslat PATCH. Porovnejte x/y před a po změně
+gridu a pak otestujte drag/drop: snap na aktuální pole, přenos tokenu do
+druhého klienta a zachování pozice po reloadu.
+
+## MAP-005 – původní lokální náhled (nahrazen MAP-005B)
+
+Nad mapou je číselný vstup **Velikost pole (px)**. Každá platná změna
+okamžitě překreslí grid a nastaví průměr tokenu na `cellSize * TOKEN_SCALE`.
+Výchozí hodnotu 100 px určuje `CELL_SIZE` v `public/app.js`; snadno
+upravitelné meze jsou `MIN_CELL_SIZE = 20` a `MAX_CELL_SIZE = 300`.
+Povolena jsou i desetinná čísla v tomto rozsahu.
+
+Prázdný vstup hlásí „Zadej velikost pole.“, hodnota mimo rozsah hlásí
+„Zadej velikost pole od 20 do 300 px.“. Neplatný číselný zápis má vlastní
+hlášku. Input má při chybě červený okraj a `aria-invalid`; text je přímo
+pod ním. Grid i token zůstávají v posledním platném stavu. Platná hodnota
+chybu odstraní a aktualizuje náhled.
+
+Změna velikosti nemění uložené ani zobrazené x/y, neposílá požadavek do DB
+a nepřepočítává snap. Ani u kraje se střed neposouvá: zvětšený token může
+do dalšího pohybu přesahovat mapu. Až další drag/drop použije dosavadní
+snap algoritmus MAP-004 s aktuální platnou velikostí pole. Nastavení je
+lokální pro jednu stránku, nesynchronizuje se a po reloadu se vrátí na 100.
+
+Aktuální soubory frontendu jsou ve složce `public`. Pro lokální spuštění
+z kořene repozitáře použijte `python -m http.server 8001 --bind 127.0.0.1 --directory public`
+a otevřete `http://127.0.0.1:8001`. Browser načítá konfiguraci z
+`public/config.local.js`.
+
+Ověření MAP-005 (2026-09-21):
+
+- `node --check public/app.js` a `node tests/map-space.cjs` prošly.
+- Test se skutečnými handlery a náhradou DOM/DB ověřuje default, změnu
+  100 → 80 (token 90 → 72 px), hodnoty 20/300 a desetinnou hodnotu,
+  prázdný vstup, 10/500, neplatný číselný zápis a návrat na platnou hodnotu.
+- Ověřeny nezměněný střed u kraje, uložená pozice i rozměry map-space,
+  žádný zápis při náhledu, změna před načtením PNG a default při novém běhu.
+- Regresní testy dragu, scrollu, hran a snapu prošly. Drop při platné
+  velikosti 80 a následném neplatném vstupu nadále snapuje do 80px gridu
+  a zapíše právě jednou.
+- Živé browserové TS1–TS9 v tomto kroku nebyly provedeny: browserový nástroj
+  selhal při inicializaci i po resetu. Skutečný realtime a persistence
+  nebyly znovu testovány; jejich mechanismus zůstává beze změny.
+
+Ruční kontrola: po reloadu ověřte 100; změňte na 80 a porovnejte střed
+tokenu; vyzkoušejte prázdný vstup, 10 a 500; vraťte platnou hodnotu.
+Ověřte meze 20/300 i token u kraje. Reload musí obnovit 100.
+Nakonec přetáhněte token, ověřte snap, přenos do druhého klienta a jeho
+pozici po reloadu. Samotná změna velikosti nesmí v Network poslat PATCH.
 
 ## MAP-003 – velikost hráčského tokenu
 
