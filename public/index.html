@@ -12,17 +12,35 @@
     nav a[href]:hover { border-color: #345bb8; }
     nav a[aria-disabled="true"] { color: #667788; background: #edf1f6; }
     #navigation-status { color: #526171; }
+    [hidden] { display: none !important; }
+    #login-form { display: grid; gap: 16px; padding: 24px; background: white; border: 1px solid #c9d2dc; border-radius: 8px; }
+    #login-form h1 { margin: 0; font-size: 24px; }
+    #login-form label { display: grid; gap: 6px; }
+    #login-form input, #login-submit { padding: 12px; font: inherit; border: 1px solid #c9d2dc; border-radius: 6px; }
+    #login-submit { background: #345bb8; color: white; cursor: pointer; }
+    #login-submit:disabled { opacity: .6; cursor: wait; }
   </style>
 </head>
 <body>
   <main>
+    <form id="login-form" method="post">
+      <h1>Přihlášení</h1>
+      <label>Uživatelské jméno<input id="username" name="username" autocomplete="username" maxlength="100" required></label>
+      <label>Heslo<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+      <button id="login-submit" type="submit">Přihlásit</button>
+      <p id="login-status" role="status" aria-live="polite"></p>
+    </form>
+    <section id="home-content" hidden>
+    <p id="signed-in-status" role="status"></p>
     <nav aria-label="Hlavní akce">
       <a id="diary-link" aria-disabled="true">Můj deník</a>
       <a id="game-link" aria-disabled="true">Vstoupit do hry</a>
     </nav>
     <p id="navigation-status" role="status">Načítám odkaz na postavu…</p>
+    </section>
     <noscript>Pro otevření deníku nebo hry povolte JavaScript.</noscript>
   </main>
   <script type="module" src="./navigation.js"></script>
+  <script type="module" src="./login-page.js"></script>
 </body>
 </html>

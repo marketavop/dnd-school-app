@@ -3,7 +3,18 @@
 Dvě připravené PNG mapy, jedna sdílená aktivní mapa a jeden token (průměr `cellSize × TOKEN_SCALE`).
 Jeho pozice je v `public.token_positions` podle `character_id + map_id`. Souřadnice x/y jsou **střed tokenu**
 v přirozených pixelech mapy, počátek (0,0) je vlevo nahoře.
-Žádný build, npm, Auth ani aplikační backend.
+Žádný build, npm ani Supabase Auth. Login ověřuje malá serverová SQL funkce.
+
+## Jednoduché přihlášení — Ticket 1
+
+Úvodní stránka nyní nejprve zobrazí username + heslo. Identita (`user_id`,
+`role`, `character_id`) existuje pouze v paměti; reload znovu zobrazí login.
+Po úspěchu se odkryje původní nabídka bez změny hráčského UI nebo navigace
+podle rolí. SQL migraci je před použitím nutné nasadit a účty předem připravit.
+Postup, hranice ticketu a ruční testy jsou v [supabase/LOGIN.md](supabase/LOGIN.md).
+
+Všech šest JavaScript testovacích sad prošlo včetně `node tests/login.cjs`.
+SQL test a přihlášení proti živému Supabase zatím ověřeny nejsou.
 
 ## MAP-010 – responsivní mapa
 
