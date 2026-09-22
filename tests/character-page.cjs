@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const { resolve } = require('node:path');
 const dataSource = readFileSync(resolve(__dirname, '../public/characters.js'), 'utf8').replaceAll('export async', 'async');
 const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'utf8')
+  .replace("import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';", readFileSync(resolve(__dirname, '../public/character-rules.js'), 'utf8').replaceAll('export function', 'function'))
   .replace("import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';", dataSource)
   .replace("await import('./config.local.js')", 'getConfig()')
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');

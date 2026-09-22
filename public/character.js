@@ -1,3 +1,4 @@
+import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';
 
 const RACES = new Map([
@@ -10,15 +11,6 @@ const CLASSES = new Map([
   ['rogue', 'Tulák'], ['sorcerer', 'Čaroděj'], ['warlock', 'Černokněžník'], ['wizard', 'Kouzelník'],
 ]);
 const status = document.querySelector('#load-status');
-// Ticket 9: proficiency pouze podle základního povolání, bez ručních výjimek.
-const SAVE_PROFICIENCIES = new Map([
-  ['barbarian', ['str', 'con']], ['bard', ['dex', 'cha']],
-  ['fighter', ['str', 'con']], ['sorcerer', ['con', 'cha']],
-  ['warlock', ['wis', 'cha']], ['druid', ['int', 'wis']],
-  ['ranger', ['str', 'dex']], ['cleric', ['wis', 'cha']],
-  ['wizard', ['int', 'wis']], ['monk', ['str', 'dex']],
-  ['paladin', ['wis', 'cha']], ['rogue', ['dex', 'int']],
-]);
 const card = document.querySelector('#student-card');
 const ids = new URLSearchParams(window.location.search).getAll('character_id');
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -93,7 +85,7 @@ function enableEditing(db, character) {
     }
   });
   function validHpAmount() {
-    return !delta.validity.badInput && /^\d+$/.test(delta.value) && Number.isSafeInteger(Number(delta.value)) && Number(delta.value) > 0;
+    return validHpDelta(delta.value, delta.validity.badInput);
   }
   async function changeHp(direction) {
     if (delta.disabled || hpBusy) return;
@@ -102,7 +94,7 @@ function enableEditing(db, character) {
       delta.setAttribute('aria-invalid', 'true');
       return;
     }
-    const value = Math.max(0, Math.min(character.max_hp, character.current_hp + direction * Number(delta.value)));
+    const value = adjustedHp(character, direction, delta.value);
     hpError.textContent = '';
     delta.setAttribute('aria-invalid', 'false');
     if (value === character.current_hp) return;
@@ -152,12 +144,8 @@ function enableEditing(db, character) {
     function showModifier(value) {
       if (!field.ability) return;
       displayedScore = value;
-      const modifier = value == null ? null : Math.floor((value - 10) / 2);
+      const { modifier, proficient, save } = abilityValues(character, field.key, value);
       document.querySelector(`#modifier-${field.key}`).textContent = modifier == null ? '' : modifier > 0 ? `+${modifier}` : String(modifier);
-      const proficient = SAVE_PROFICIENCIES.get(character.class_code)?.includes(field.key) ?? false;
-      const level = character.level;
-      const proficiencyBonus = Number.isInteger(level) && level >= 1 && level <= 20 ? 2 + Math.floor((level - 1) / 4) : 0;
-      const save = modifier == null ? null : modifier + (proficient ? proficiencyBonus : 0);
       document.querySelector(`#save-${field.key}`).textContent = save == null ? '' : save > 0 ? `+${save}` : String(save);
       document.querySelector(`#save-proficiency-${field.key}`).hidden = !proficient;
     }

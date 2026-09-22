@@ -593,3 +593,39 @@ Pokud funguje zápis, ale ne realtime, ověřte připojení websocketu a zařaze
 `public.spike_token` do `supabase_realtime` publication. Frontend schéma ani
 oprávnění nemění. Při chybě připojení se řiďte stavem na stránce a Network;
 po opravě konfigurace proveďte reload.
+
+## GAME-FE-003 — kostky a krátký společný log
+
+GAME-FE-005: jméno postavy otevírá Studijní panel (Přehled / Vlastnosti),
+ikona kostky vedle něj samostatný panel Kostky. Otevřený je nejvýše jeden
+pravý panel; opětovný klik na aktivní ovladač jej zavře. Studijní panel si
+při přepínání pamatuje svou záložku. Reload zavře oba panely a vrátí Přehled.
+Spodní herní pruh neexistuje. Poslední hod i všech deset historických
+položek zobrazují jméno postavy, kostku a výsledek.
+
+`game-dice.js` načítá postavu pro stejné UUID z URL jako mapa. `rolls.js`
+používá samostatný Supabase Broadcast kanál `game-rolls-v1` (jedna skupina).
+Nevyžaduje SQL migraci, nemění mapové kanály ani nevytváří archiv hodů.
+Každý klient drží maximálně deset záznamů v paměti. Nový nebo znovu připojený
+klient si vyžádá aktuální krátký stav od připojených klientů. Po zavření
+všech klientů historie zaniká. Pořadí používá logické počítadlo a UUID pro
+jednotné seřazení souběžných hodů, nikoli neporovnatelné hodiny počítačů.
+
+Tlačítka se zpřístupní po načtení postavy a připojení kanálu. Výsledek
+vznikne ihned lokálně; pokud server nepotvrdí odeslání, panel viditelně
+upozorní, že ostatní hráči nemusí mít stejný log. Reconnect znovu sloučí
+krátké stavy. Broadcast používá současný klientský kontext projektu;
+nejde o serverové ověřování identity nebo mechanismus proti podvádění.
+
+Ověření:
+- `node tests/rolls.cjs` — rozsahy, identity, souběh, limit, deduplikace,
+  pozdní připojení, reconnect a chyba odeslání.
+- `node tests/game-layout.cjs` — Playwright + náhrada SDK/DB; dva klienti,
+  sedm kostek, dvojklik, responzivita a existující panel/HP.
+- `node tests/rolls-live.cjs` — opt-in test se skutečným Supabase a lokální
+  konfigurací: dvě nezávislé browserové session a unikátní testovací kanál,
+  bez DB zápisů a bez zpráv v herním kanálu. Vyžaduje síť, Playwright a Edge.
+
+Transport byl ověřen proti skutečnému Supabase. Mapové regrese prošly
+stávajícími automatickými testy; živý drag se v tomto ticketu neopakoval.
+Dokumentace transportu: https://supabase.com/docs/guides/realtime/broadcast

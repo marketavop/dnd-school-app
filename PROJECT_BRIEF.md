@@ -1,10 +1,22 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.2  
+**Verze:** 1.1.3  
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.3
+
+- zpřesněna informační architektura hráčského `game.html`,
+- ve viditelném UI již nepoužíváme označení „deník“; používáme `Studentský průkaz` a `Studijní panel`,
+- jméno postavy v horní liště slouží jako ovladač Studijního panelu,
+- kostky mají samostatný ovladač s ikonou kostky vedle jména postavy,
+- Studijní panel a panel Kostky používají stejný pravý prostor a jsou vzájemně výlučné,
+- Studijní panel obsahuje záložky `Přehled` a `Vlastnosti`,
+- panel Kostky obsahuje kostky, poslední hod a společný realtime roll log,
+- každý záznam roll logu obsahuje jméno postavy, typ kostky a výsledek,
+- spodní herní lišta s kostkami se nepoužívá.
 
 ### Změny ve verzi 1.1.2
 
@@ -178,19 +190,17 @@ odemykání sekcí, progression UI ani procenta dokončení.
 
 ------------------------------------------------------------------------
 
-## 7. Deník postavy
+## 7. Studentský průkaz a Studijní panel
 
-Používáme označení **Deník postavy / školní deník**, nikoliv „character
-sheet“.
+Ve viditelném UI nepoužíváme označení „deník“.
 
-Mentální model je školní deník / studentský průkaz.
+Používáme:
 
-Existují dva pohledy nad stejnými daty:
+1.  **Studentský průkaz** — plný pohled na postavu pro správu a učení.
+2.  **Studijní panel** — kompaktní pohled během hry.
 
-1.  **Plný deník** — správa a učení.
-2.  **Kompaktní panel na mapě** — rychlé použití během hry.
-
-Nevytváříme dvě kopie dat.
+Oba pohledy používají stejná data. Nevytváříme dvě kopie dat ani
+samostatné výpočty pro herní panel.
 
 ### Listování Studentským průkazem
 
@@ -209,10 +219,28 @@ Implementace má zůstat jednoduchá:
 Neimplementujeme prázdné budoucí stránky jen proto, že mohou jednou
 existovat. Další stránka vznikne až pro konkrétní obsah.
 
-Kompaktní panel na mapě může mít vlastní jednoduché záložky. Jeho přesné
-členění zatím není uzavřené. Každá informace v mapovém panelu musí
-odpovědět na otázku: **potřebuje ji dítě běžně během session?**
+### Studijní panel na herní obrazovce
 
+Studijní panel je pravý postranní panel na `game.html`.
+
+Aktuální MVP obsahuje záložky:
+
+-   `Přehled`,
+-   `Vlastnosti`.
+
+`Přehled` obsahuje aktuálně zejména HP.
+`Vlastnosti` obsahují šest vlastností, jejich hodnotu, modifikátor
+a záchranný hod.
+
+Každá další informace ve Studijním panelu musí odpovědět na otázku:
+**potřebuje ji dítě běžně během session?**
+
+Jméno aktuální postavy v horní liště funguje jako ovladač
+otevření/zavření Studijního panelu.
+
+Panel je po načtení stránky zavřený.
+Otevření panelu nepřekrývá mapu; mapa se pouze responsivně přizpůsobí
+menší dostupné ploše.
 ------------------------------------------------------------------------
 
 ## 8. Web vs. papírový deník
@@ -648,9 +676,30 @@ MVP obsahuje jednoduchou sadu:
 
 Kliknutí na kostku provede jeden čistý náhodný hod.
 
-Výsledek se zobrazí ve společném krátkodobém logu, například:
+Kostky mají na herní obrazovce vlastní samostatný pravý panel.
+Panel Kostky se otevírá ikonou kostky v horní liště vedle jména postavy.
 
-`Eliška: k20 → 14`
+Studijní panel a panel Kostky používají stejný pravý prostor a jsou
+vzájemně výlučné. Otevřený může být vždy maximálně jeden z nich.
+
+Panel Kostky obsahuje:
+
+-   k4, k6, k8, k10, k12, k20 a k100,
+-   výrazný poslední hod,
+-   společný realtime roll log.
+
+Poslední hod i každý záznam roll logu obsahují:
+
+`<jméno postavy> · <kostka> → <výsledek>`
+
+například:
+
+`Eliška · k20 → 14`
+
+Jméno je jméno postavy, nikoli jméno uživatelského účtu.
+
+Roll log je krátkodobý společný herní stav.
+V MVP zobrazujeme omezený počet posledních hodů, aktuálně maximálně 10.
 
 Nevytváříme:
 
@@ -659,14 +708,17 @@ Nevytváříme:
 -   makra,
 -   automatické modifikátory,
 -   advantage/disadvantage switch,
--   attack buttons.
+-   attack buttons,
+-   dlouhodobou historii celé session,
+-   statistiky hodů,
+-   filtry,
+-   audit log.
 
 Když dítě potřebuje 2k6, hodí k6 dvakrát.
 
 > **Kostky simulují fyzickou kostku. Nic víc.**
 
 Dice log nemusí být dlouhodobě persistentní.
-
 ------------------------------------------------------------------------
 
 ## 22. Hlavní herní obrazovka
@@ -675,14 +727,44 @@ Během hraní dítě primárně vidí:
 
 -   mapu,
 -   tokeny,
+-   tenkou horní lištu,
+-   podle potřeby jeden pravý postranní panel.
+
+Mapa zůstává hlavním obsahem obrazovky.
+
+Horní lišta obsahuje:
+
+-   `← Domů`,
+-   `Aktivní mapa: <název>`,
+-   jméno aktuální postavy,
+-   ikonu kostky.
+
+Jméno postavy otevírá/zavírá **Studijní panel**.
+
+Ikona kostky otevírá/zavírá **panel Kostky**.
+
+Studijní panel a panel Kostky jsou vzájemně výlučné.
+Nikdy nejsou otevřené současně.
+
+Oba používají stejný pravý layoutový prostor a nepřekrývají mapu.
+Při otevření, zavření nebo přepnutí panelu se mapa pouze responsivně
+refitne do aktuálně dostupné plochy.
+
+Studijní panel obsahuje:
+
+-   `Přehled`,
+-   `Vlastnosti`.
+
+Panel Kostky obsahuje:
+
 -   jednoduché kostky,
--   otevíratelný kompaktní deník.
+-   poslední hod,
+-   společný krátkodobý roll log.
 
-Dítě by kvůli běžnému hraní nemělo potřebovat opustit mapu.
+Dítě by kvůli běžnému hraní nemělo potřebovat opustit mapovou stránku.
 
-Panel může umožnit rychle měnit běžný stav, zejména HP a spell sloty. XP
-může zůstat v plném deníku.
-
+XP a další méně často používané informace mohou zůstat pouze
+ve Studentském průkazu.
 ------------------------------------------------------------------------
 
 ## 23. Mapy a čtvercová mřížka
@@ -1087,7 +1169,7 @@ Pokud ne, řešíme architekturu/realtime, nikoliv CSS.
 
 ### Dny 12--14 --- Herní obrazovka a integrace
 
--   mapový panel deníku,
+-   Studijní panel na mapě,
 -   kostky,
 -   roll log,
 -   NPC,

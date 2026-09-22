@@ -3,10 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TECH-001 · Realtime spike</title>
+  <title>Hra · Akademie</title>
   <style>
-    body { margin: 32px; font: 16px/1.5 system-ui, sans-serif; color: #172536; background: #f5f7fa; }
-    h1 { font-size: 24px; }
     #map-viewport { position: relative; width: 100%; height: 70vh; overflow: hidden; background: #d1d5db; outline: 2px solid #7d9275; }
     #map-space { position: absolute; width: 0; height: 0; transform-origin: top left; }
     #map { display: block; max-width: none; }
@@ -15,49 +13,94 @@
     #token[hidden] { display: none; }
     #token { transform: translate(-50%, -50%); }
     #token.dragging { cursor: grabbing; }
-    #status, #connection { min-height: 24px; }
-    #cell-size { width: 6em; padding: 6px; font: inherit; border: 1px solid #667788; border-radius: 4px; }
-    #cell-size[aria-invalid="true"] { border: 2px solid #b42318; background: #fff0ef; }
-    #cell-size-error { min-height: 1.5em; margin: 4px 0 12px; color: #b42318; }
-    #map-select { padding: 6px; font: inherit; }
     #map[hidden] { display: none; }
-    #add-token { padding: 8px 12px; font: inherit; cursor: pointer; }
-    #add-token:disabled { cursor: wait; }
-    #add-token-message[data-message-type="error"] { color: #b42318; }
-    #remove-token { padding: 8px 12px; font: inherit; cursor: pointer; }
-    #remove-token:disabled { cursor: wait; }
-    #remove-token-message[data-message-type="error"] { color: #b42318; }
   </style>
+  <link rel="stylesheet" href="./game.css">
 </head>
 <body>
-  <a id="home-link" href="./index.html" style="color: #526171;">← Domů</a>
+  <header class="top-bar">
+    <a id="home-link" href="./index.html">← Domů</a>
+    <span id="active-map-status" role="status">Aktivní mapa: načítám…</span>
+    <button id="game-character-name" type="button" aria-expanded="false" aria-controls="character-panel" title="Otevřít Studijní panel" disabled>Postava</button>
+    <button id="dice-toggle" type="button" aria-label="Kostky" aria-expanded="false" aria-controls="dice-panel" title="Otevřít Kostky" disabled>
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><g fill="currentColor"><circle cx="8" cy="8" r="1.5"/><circle cx="16" cy="8" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="8" cy="16" r="1.5"/><circle cx="16" cy="16" r="1.5"/></g></svg>
+    </button>
+  </header>
   <p id="navigation-status" role="status"></p>
-  <div id="game-content" hidden>
-  <h1>TECH-001 · Realtime spike</h1>
-  <p>Přetáhněte token. Pozice se ukládá až po puštění.</p>
-  <p id="connection" role="status">Realtime: připojuji…</p>
-  <p id="status" role="status">Načítám konfiguraci…</p>
-  <p>Pozice na mapě: <output id="position">—</output></p>
-  <label for="map-select">Aktivní mapa</label>
-  <select id="map-select" aria-describedby="active-map-status" disabled></select>
-  <p id="active-map-status" role="status">Načítám aktivní mapu…</p>
-  <p id="map-status" role="status">Načítám mapu…</p>
-  <label for="cell-size">Velikost pole (px)</label>
-  <input id="cell-size" type="number" step="any" autocomplete="off" aria-invalid="false" aria-describedby="cell-size-error cell-size-status" disabled>
-  <p id="cell-size-error" role="status"></p>
-  <p id="cell-size-status" role="status">Čekám na načtení velikosti pole z DB…</p>
-  <button id="add-token" type="button" aria-describedby="add-token-message" hidden>Přidat postavu na mapu</button>
-  <p id="add-token-message" role="status"></p>
-  <button id="remove-token" type="button" aria-describedby="remove-token-message" hidden>Odebrat postavu z mapy</button>
-  <p id="remove-token-message" role="status"></p>
-  <div id="map-viewport" aria-label="Testovací mapa">
+  <main id="game-content" hidden>
+    <div class="game-workspace">
+      <section class="map-area" aria-label="Mapa">
+        <div class="map-notices" aria-live="polite">
+          <span id="connection">Realtime: připojuji…</span>
+          <span id="status" role="status">Načítám konfiguraci…</span>
+          <span id="map-status" role="status">Načítám mapu…</span>
+        </div>
+  <div id="map-viewport" aria-label="Herní mapa">
     <div id="map-space">
       <img id="map" alt="Aktivní mapa" draggable="false" hidden>
       <svg id="grid" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true"></svg>
       <div id="token" aria-label="Token 1" hidden>1</div>
     </div>
   </div>
+
+      </section>
+      <aside id="character-panel" aria-label="Studijní panel" hidden>
+        <div class="panel-tabs" role="tablist" aria-label="Studijní panel">
+          <button id="overview-tab" role="tab" aria-selected="true" aria-controls="overview-panel">Přehled</button>
+          <button id="abilities-tab" role="tab" aria-selected="false" aria-controls="abilities-panel" tabindex="-1">Vlastnosti</button>
+        </div>
+        <p id="diary-status" role="status">Načítám postavu…</p>
+        <section id="overview-panel" role="tabpanel" aria-labelledby="overview-tab">
+          <h2>Životy</h2>
+          <p class="hp-values"><span id="compact-current-hp">—</span> / <span id="compact-max-hp">—</span> <small>HP</small></p>
+          <div class="hp-adjust">
+            <button id="compact-hp-minus" aria-label="Ubrat HP" disabled>−</button>
+            <input id="compact-hp-delta" type="number" min="1" step="1" value="1" aria-label="Počet HP ke změně" aria-describedby="compact-hp-error compact-hp-hint" disabled>
+            <button id="compact-hp-plus" aria-label="Přidat HP" disabled>+</button>
+          </div>
+          <p id="compact-hp-hint" class="muted"></p>
+          <p id="compact-hp-error" role="status" class="error"></p>
+        </section>
+        <section id="abilities-panel" role="tabpanel" aria-labelledby="abilities-tab" hidden>
+          <table class="ability-table" aria-label="Vlastnosti postavy">
+            <thead><tr><th scope="col">Vlastnost</th><th scope="col">Hodnota</th><th scope="col">Mod.</th><th scope="col">Záchrana</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Síla <span>(STR)</span></th><td id="compact-str">—</td><td id="compact-modifier-str">—</td><td id="compact-save-str">—</td></tr>
+              <tr><th scope="row">Obratnost <span>(DEX)</span></th><td id="compact-dex">—</td><td id="compact-modifier-dex">—</td><td id="compact-save-dex">—</td></tr>
+              <tr><th scope="row">Odolnost <span>(CON)</span></th><td id="compact-con">—</td><td id="compact-modifier-con">—</td><td id="compact-save-con">—</td></tr>
+              <tr><th scope="row">Inteligence <span>(INT)</span></th><td id="compact-int">—</td><td id="compact-modifier-int">—</td><td id="compact-save-int">—</td></tr>
+              <tr><th scope="row">Moudrost <span>(WIS)</span></th><td id="compact-wis">—</td><td id="compact-modifier-wis">—</td><td id="compact-save-wis">—</td></tr>
+              <tr><th scope="row">Charisma <span>(CHA)</span></th><td id="compact-cha">—</td><td id="compact-modifier-cha">—</td><td id="compact-save-cha">—</td></tr>
+            </tbody>
+          </table>
+        </section>
+      </aside>
+      <aside id="dice-panel" aria-label="Kostky" hidden>
+          <div class="dice-controls" aria-labelledby="dice-heading">
+            <h2 id="dice-heading">Kostky</h2>
+            <div class="dice-buttons"><button type="button" data-die="4" aria-label="Hodit k4" disabled>k4</button><button type="button" data-die="6" aria-label="Hodit k6" disabled>k6</button><button type="button" data-die="8" aria-label="Hodit k8" disabled>k8</button><button type="button" data-die="10" aria-label="Hodit k10" disabled>k10</button><button type="button" data-die="12" aria-label="Hodit k12" disabled>k12</button><button type="button" data-die="20" aria-label="Hodit k20" disabled>k20</button><button type="button" data-die="100" aria-label="Hodit k100" disabled>k100</button></div>
+            <p id="dice-status" role="status">Připojuji kostky…</p>
+          </div>
+          <div class="last-roll" aria-labelledby="last-roll-heading">
+            <h2 id="last-roll-heading">Poslední hod</h2>
+            <p id="last-roll" aria-live="polite" aria-atomic="true">Zatím žádný hod</p>
+          </div>
+          <div class="roll-history" aria-labelledby="roll-history-heading">
+            <h2 id="roll-history-heading">Poslední hody</h2>
+            <ol id="roll-log" aria-label="Posledních deset hodů, nejnovější první"></ol>
+          </div>
+      </aside>
+    </div>
+  </main>
+  <!-- Původní technické ovladače zůstávají pro mapový modul; hráč je neovládá. -->
+  <div hidden>
+    <output id="position"></output><select id="map-select" disabled></select>
+    <input id="cell-size" type="number" disabled><p id="cell-size-error"></p><p id="cell-size-status"></p>
+    <button id="add-token" hidden></button><p id="add-token-message"></p>
+    <button id="remove-token" hidden></button><p id="remove-token-message"></p>
   </div>
   <script type="module" src="./navigation.js"></script>
+  <script type="module" src="./game-panel.js"></script>
+  <script type="module" src="./game-dice.js"></script>
 </body>
 </html>
