@@ -7,8 +7,8 @@
   <style>
     body { margin: 32px; font: 16px/1.5 system-ui, sans-serif; color: #172536; background: #f5f7fa; }
     h1 { font-size: 24px; }
-    #map-viewport { width: max-content; max-width: 100%; overflow: auto; max-height: 70vh; outline: 2px solid #7d9275; }
-    #map-space { position: relative; width: 0; height: 0; }
+    #map-viewport { position: relative; width: 100%; height: 70vh; overflow: hidden; background: #d1d5db; outline: 2px solid #7d9275; }
+    #map-space { position: absolute; width: 0; height: 0; transform-origin: top left; }
     #map { display: block; max-width: none; }
     #grid { position: absolute; left: 0; top: 0; pointer-events: none; fill: none; stroke: rgba(20, 30, 40, 0.5); stroke-width: 1; }
     #token { position: absolute; border-radius: 50%; background: #345bb8; color: white; display: grid; place-items: center; cursor: grab; touch-action: none; user-select: none; }
@@ -50,7 +50,7 @@
   <p id="add-token-message" role="status"></p>
   <button id="remove-token" type="button" aria-describedby="remove-token-message" hidden>Odebrat postavu z mapy</button>
   <p id="remove-token-message" role="status"></p>
-  <div id="map-viewport" tabindex="0" aria-label="Posuvná testovací mapa">
+  <div id="map-viewport" aria-label="Testovací mapa">
     <div id="map-space">
       <img id="map" alt="Aktivní mapa" draggable="false" hidden>
       <svg id="grid" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true"></svg>

@@ -21,7 +21,13 @@ Object.assign(elements.grid, { attributes: {}, children: [],
   setAttribute(name, value) { this.attributes[name] = String(value); },
   replaceChildren() { this.children = []; },
   append(child) { this.children.push(child); } });
-const context = vm.createContext({ URLSearchParams, window: { location: { search: '?character_id=d16ac8a0-ba74-40e7-8402-c75cfe3a4ab6' }, confirm: () => true }, document: {
+let resizeMap;
+elements['map-viewport'] = { clientWidth: 2000, clientHeight: 2000 };
+class ResizeObserver {
+  constructor(callback) { resizeMap = callback; }
+  observe(target) { assert.equal(target, elements['map-viewport']); }
+}
+const context = vm.createContext({ ResizeObserver, URLSearchParams, window: { location: { search: '?character_id=d16ac8a0-ba74-40e7-8402-c75cfe3a4ab6' }, confirm: () => true }, document: {
   querySelector: s => elements[s.slice(1)],
   createElement() { return {}; },
   createElementNS(namespace, tag) { return { namespace, tag, attributes: {},
@@ -162,8 +168,31 @@ const point = () => [parseFloat(elements.token.style.left), parseFloat(elements.
   await h.pointerup(event(rect.left + 210, rect.top + 190));
   assert.deepEqual(writes.at(-1), { x: 200, y: 200 });
   assert.equal(writes.length, countBefore + 1);
+  // MAP-010: oba omezující rozměry, žádné zvětšení ani zápis při resize.
+  const beforeResize = writes.length;
+  const viewport = elements['map-viewport'];
+  for (const [width, height, scale, left, top] of [[768, 2000, 0.5, 0, 744], [2000, 256, 0.25, 808, 0], [3000, 3000, 1, 732, 988]]) {
+    Object.assign(viewport, { clientWidth: width, clientHeight: height });
+    resizeMap();
+    assert.equal(elements['map-space'].style.transform, `scale(${scale})`);
+    assert.equal(elements['map-space'].style.left, `${left}px`);
+    assert.equal(elements['map-space'].style.top, `${top}px`);
+    assert.deepEqual(point(), [200, 200]);
+    assert.equal(writes.length, beforeResize);
+    assert.equal(elements['map-space'].style.width, '1536px');
+    assert.equal(elements['map-space'].style.height, '1024px');
+  }
+  viewport.clientWidth = 768;
+  resizeMap();
+  h.pointerdown(event(rect.left + 105, rect.top + 105)); // Úchop 10 mapových px od středu při scale 0.5.
+  h.pointermove(event(rect.left + 185, rect.top + 145));
+  assert.deepEqual(point(), [360, 280]);
+  assert.equal(writes.length, beforeResize);
+  await h.pointerup(event(rect.left + 185, rect.top + 145));
+  assert.deepEqual(writes.at(-1), { x: 360, y: 280 });
+  assert.equal(writes.length, beforeResize + 1);
   // Nový běh modulu načte uložených 80 z DB namísto výchozích 100.
-  const reload = vm.createContext({ URLSearchParams, window: context.window, document: context.document, mockDb: context.mockDb });
+  const reload = vm.createContext({ ResizeObserver, URLSearchParams, window: context.window, document: context.document, mockDb: context.mockDb });
   vm.runInContext(source + '\ndb = mockDb; connected = true;', reload);
   await vm.runInContext('loadMapConfig()', reload);
   assert.equal(Number(input.value), 80);

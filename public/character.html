@@ -5,70 +5,137 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Deník postavy</title>
   <style>
-    body { margin: 32px; font: 16px/1.5 system-ui, sans-serif; color: #172536; background: #f5f7fa; }
-    main { max-width: 720px; margin: 0 auto; }
-    h1 { margin: 0; font-size: 18px; }
-    #load-status:empty { display: none; }
-    .edit { cursor: pointer; }
-    input, select { width: 100%; min-width: 0; box-sizing: border-box; padding: 6px; font: 16px/1.5 system-ui, sans-serif; color: inherit; border: 1px solid #667788; border-radius: 4px; background: white; }
-    [aria-invalid="true"] { border-color: #b42318; }
-    .field-error { display: block; font-size: 14px; font-weight: 400; color: #b42318; }
-    .field-error:empty { display: none; }
-    #save-status { min-height: 24px; margin: 16px 0 0; font-size: 14px; color: #526171; }
-    #save-status[data-error="true"] { color: #b42318; }
-    #load-status { color: #526171; }
-    #load-status[data-error="true"] { color: #b42318; }
-    .card { padding: 24px; border: 1px solid #c9d2dc; border-radius: 8px; background: white; }
-    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
-    .edit { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #c9d2dc; border-radius: 4px; color: #667788; background: #f5f7fa; }
+    :root {
+      color-scheme: light;
+      --text: #263442;
+      --muted: #68685f;
+      --background: #f2eee5;
+      --surface: #fffdf8;
+      --border: #d5cdbd;
+      --accent: #314f63;
+      --gold: #a68a4d;
+      --error: #b63832;
+      font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--background);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 16px 24px; }
+    main { max-width: 880px; margin: 0 auto; }
+    h1 { margin: 0; font: 600 28px/1.2 Georgia, "Times New Roman", serif; }
+    #home-link { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; border-radius: 3px; color: var(--accent); text-underline-offset: 4px; }
+    #home-link:hover { color: #182f40; }
+    input, select, button { font: inherit; color: inherit; }
+    input, select { width: 100%; min-width: 0; height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); }
+    input:hover:not(:disabled):not([readonly]), select:hover:not(:disabled) { border-color: #8c887b; }
+    :where(a, button, input, select):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    input:disabled, select:disabled, input[readonly] { background: #eeebe4; color: var(--muted); cursor: default; }
+    input[aria-invalid="true"], select[aria-invalid="true"] { border: 2px solid var(--error); background: #fff8f7; }
+    .field-error { display: block; margin-top: 4px; font-size: 13px; line-height: 1.4; font-weight: 400; color: var(--error); }
+    .field-error:empty, #load-status:empty { display: none; }
+    #save-status { min-height: 20px; font-size: 13px; line-height: 20px; color: var(--muted); }
+    #load-status { color: var(--muted); }
+    #save-status[data-error="true"], #load-status[data-error="true"] { color: var(--error); }
+    .card { border: 1px solid #b7a579; border-top: 3px solid var(--accent); border-radius: 3px; background: var(--surface); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--gold); background: #f8f4e9; }
+    .card-heading { min-width: 0; }
+    .card-kicker { margin: 0 0 4px; color: var(--muted); font-size: 11px; line-height: 1.2; letter-spacing: .12em; text-transform: uppercase; }
+    .card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .card-tabs:empty { display: none; }
+    .card-content { padding: 16px 24px 0; }
+    .card > #save-status { margin: 8px 24px 12px; }
+    button { display: inline-grid; place-items: center; min-width: 44px; height: 44px; padding: 8px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); cursor: pointer; }
+    button:enabled:hover { background: #eee8d9; border-color: #a39880; }
+    button:enabled:active { background: #e5dcc8; }
+    button:disabled { color: var(--muted); background: #eeebe4; cursor: default; }
+    .edit { color: var(--accent); }
+    .edit[aria-pressed="true"] { color: var(--surface); background: var(--accent); border-color: var(--accent); }
+    .edit[aria-pressed="true"]:hover { background: #243e50; }
+    #supplementary-info { background: transparent; border-color: transparent; }
     .identity { display: flex; align-items: flex-start; gap: 24px; }
-    .portrait { width: 112px; height: 112px; flex: 0 0 112px; border-radius: 50%; background: #edf1f6; display: grid; place-items: center; overflow: hidden; color: #667788; }
+    .portrait { width: 96px; height: 96px; flex: 0 0 96px; border: 1px solid #b7a579; border-radius: 50%; background: #f2eee3; display: grid; place-items: center; overflow: hidden; color: var(--accent); }
     .portrait img { width: 100%; height: 100%; object-fit: cover; }
-    dl { flex: 1; min-width: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-    .name { grid-column: 1 / -1; }
+    dl { flex: 1; min-width: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 16px; }
+    .name { grid-column: 1 / -1; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
     .hp-block { grid-column: span 2; }
-    .hp-values { display: flex; align-items: center; gap: 6px; }
-    .hp-values input { max-width: 85px; }
-    .hp-adjust { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
-    #hp-delta { width: 70px; text-align: center; }
-    .hp-adjust button { width: 38px; height: 38px; border: 1px solid #667788; border-radius: 4px; background: #f5f7fa; color: #172536; font: 24px/1 system-ui, sans-serif; cursor: pointer; }
-    .hp-adjust button:disabled { opacity: 0.45; cursor: default; }
-    .hp-adjust button:enabled:hover { background: #e3eaf3; }
-    .hint { display: block; font-size: 12px; color: #526171; }
-    dt { font-size: 14px; color: #526171; }
+    .hp-values { display: flex; align-items: center; gap: 8px; font-size: 24px; line-height: 1.25; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .hp-values input { max-width: 88px; }
+    .hp-adjust { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+    #hp-delta { width: 72px; text-align: center; }
+    .hp-adjust button { flex: 0 0 44px; font-size: 20px; line-height: 1; }
+    .hint { display: block; margin-top: 4px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+    .hint:empty { display: none; }
+    dt { font-size: 13px; color: var(--muted); }
     dd { margin: 4px 0 0; overflow-wrap: anywhere; }
-    .name dd { font-size: 24px; font-weight: 600; }
-    [data-empty="true"] { color: #667788; font-weight: 400; }
+    .name dd { font-size: 24px; line-height: 1.3; font-weight: 650; }
+    .name input { font-size: 18px; }
+    #character-level, #character-xp { font-weight: 600; font-variant-numeric: tabular-nums; }
+    [data-empty="true"] { color: var(--muted); font-weight: 400; }
     [hidden] { display: none !important; }
     .abilities { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-    .ability-card { padding: 14px; background: white; border: 1px solid #c9d2dc; border-radius: 8px; }
-    .ability-card h2 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
-    .ability-card h2 span { color: #667788; margin-right: 4px; }
-    .ability-values { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 12px; }
-    .ability-values input, .ability-values output { font: 24px/1.25 system-ui, sans-serif; text-align: center; font-weight: 500; }
-    .ability-values output { min-height: 30px; }
-    @media (max-width: 520px) {
-      body { margin: 20px 16px; }
-      .card { padding: 20px; }
-      .identity { flex-direction: column; }
-      dl { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ability-card { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 2px; background: var(--surface); }
+    .ability-card h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.4; font-weight: 600; }
+    .ability-card h2 label { min-width: 0; overflow-wrap: anywhere; }
+    .ability-icon { width: 20px; height: 20px; flex: 0 0 20px; color: #816933; }
+    .ability-values { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 12px; }
+    .ability-values input { padding: 4px; font-size: 30px; line-height: 1.2; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .ability-values input[readonly] { appearance: textfield; border-color: transparent; background: transparent; color: var(--text); cursor: default; }
+    .ability-values input[readonly]::-webkit-inner-spin-button,
+    .ability-values input[readonly]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+    .ability-values input[readonly][aria-invalid="true"] { border-color: var(--error); }
+    .ability-derived { display: grid; gap: 4px; padding-left: 12px; border-left: 1px solid var(--border); font-size: 12px; line-height: 1.5; }
+    .ability-derived p { margin: 0; }
+    .ability-derived output { color: var(--accent); font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .save-proficiency { color: var(--accent); font-size: 10px; vertical-align: middle; }
+    @media (max-width: 800px) {
+      .ability-values { grid-template-columns: 64px minmax(0, 1fr); gap: 8px; }
+      .ability-derived { padding-left: 8px; }
+    }
+    @media (max-width: 660px) {
+      body { margin: 12px 16px; }
+      .card-header { padding: 12px 16px; }
+      h1 { font-size: 24px; }
+      .card-content { padding: 16px 16px 0; }
+      .card > #save-status { margin-inline: 16px; }
+      .identity { gap: 12px; }
+      .portrait { width: 56px; height: 56px; flex-basis: 56px; }
+      .portrait svg { width: 40px; height: 40px; }
+      dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
       .abilities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-    @media (max-width: 340px) { .abilities { grid-template-columns: 1fr; } }
+    @media (max-width: 440px) {
+      body { margin: 8px; }
+      .card-header, .card-content { padding-inline: 12px; }
+      .card-header { gap: 8px; }
+      h1 { font-size: 22px; }
+      .card-actions { gap: 0; }
+      .abilities { grid-template-columns: minmax(0, 1fr); }
+      .ability-values { grid-template-columns: 64px minmax(0, 1fr); }
+    }
   </style>
 </head>
 <body>
   <main>
-    <a id="home-link" href="./index.html" style="display: inline-block; margin-bottom: 12px; color: #526171;">← Domů</a>
+    <a id="home-link" href="./index.html">← Domů</a>
     <p id="load-status" role="status" aria-live="polite">Načítám postavu…</p>
     <section id="student-card" class="card" aria-labelledby="card-title" hidden>
       <header class="card-header">
-        <h1 id="card-title">Studentský průkaz</h1>
+        <div class="card-heading"><p class="card-kicker">Studijní záznam</p><h1 id="card-title">Studentský průkaz</h1></div>
+        <div class="card-actions">
+        <!-- Hook for the future shared supplementary information panel. -->
+        <button id="supplementary-info" type="button" disabled aria-label="Doplňující info – připravujeme" title="Doplňující info – připravujeme">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg>
+        </button>
         <button id="edit-toggle" class="edit" type="button" aria-label="Upravit průkaz" title="Upravit průkaz" aria-pressed="false">
           <svg id="edit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m15 5 4 4M4 20l5-1L20 8a2.8 2.8 0 0 0-4-4L5 15z"/></svg>
           <svg id="close-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" hidden><path d="m6 6 12 12M6 18 18 6"/></svg>
         </button>
+        </div>
       </header>
+      <!-- Reserved for future page tabs; empty while the card has only one page. -->
+      <div class="card-tabs"></div>
+      <div class="card-content">
+      <div id="identity-page" class="card-page">
       <div class="identity">
         <div class="portrait">
           <svg id="portrait-placeholder" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" role="img" aria-label="Portrét není k dispozici"><circle cx="32" cy="22" r="10"/><path d="M12 54c0-13 9-19 20-19s20 6 20 19"/></svg>
@@ -87,37 +154,39 @@
           </dd></div>
         </dl>
       </div>
+      </div>
+      </div>
       <p id="save-status" role="status" aria-live="polite"></p>
     </section>
     <section id="abilities" class="abilities" aria-label="Vlastnosti" hidden>
       <article class="ability-card">
-        <h2><span aria-hidden="true">◇</span> <label for="edit-str">Síla (STR)</label></h2>
-        <div class="ability-values"><input id="edit-str" type="number" min="1" max="20" step="1" aria-describedby="error-str"><output id="modifier-str" for="edit-str" aria-label="Modifikátor: Síla"></output></div>
+        <h2><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h3v8H5zM16 8h3v8h-3zM8 12h8M2 10v4M22 10v4"/></svg><label for="edit-str">Síla (STR)</label></h2>
+        <div class="ability-values"><input id="edit-str" type="number" min="1" max="20" step="1" aria-describedby="error-str"><div class="ability-derived"><p>Modifikátor: <output id="modifier-str" for="edit-str" aria-label="Modifikátor: Síla"></output></p><p>Záchrana: <output id="save-str" for="edit-str" aria-label="Záchrana STR"></output> <span id="save-proficiency-str" class="save-proficiency" role="img" aria-label="Zdatnost v záchranném hodu" hidden>●</span></p></div></div>
         <span id="error-str" class="field-error" role="status"></span>
       </article>
       <article class="ability-card">
-        <h2><span aria-hidden="true">↗</span> <label for="edit-dex">Obratnost (DEX)</label></h2>
-        <div class="ability-values"><input id="edit-dex" type="number" min="1" max="20" step="1" aria-describedby="error-dex"><output id="modifier-dex" for="edit-dex" aria-label="Modifikátor: Obratnost"></output></div>
+        <h2><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18 19 5M11 5h8v8M3 7h5M3 11h3"/></svg><label for="edit-dex">Obratnost (DEX)</label></h2>
+        <div class="ability-values"><input id="edit-dex" type="number" min="1" max="20" step="1" aria-describedby="error-dex"><div class="ability-derived"><p>Modifikátor: <output id="modifier-dex" for="edit-dex" aria-label="Modifikátor: Obratnost"></output></p><p>Záchrana: <output id="save-dex" for="edit-dex" aria-label="Záchrana DEX"></output> <span id="save-proficiency-dex" class="save-proficiency" role="img" aria-label="Zdatnost v záchranném hodu" hidden>●</span></p></div></div>
         <span id="error-dex" class="field-error" role="status"></span>
       </article>
       <article class="ability-card">
-        <h2><span aria-hidden="true">⬡</span> <label for="edit-con">Odolnost (CON)</label></h2>
-        <div class="ability-values"><input id="edit-con" type="number" min="1" max="20" step="1" aria-describedby="error-con"><output id="modifier-con" for="edit-con" aria-label="Modifikátor: Odolnost"></output></div>
+        <h2><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6zM12 7v10"/></svg><label for="edit-con">Odolnost (CON)</label></h2>
+        <div class="ability-values"><input id="edit-con" type="number" min="1" max="20" step="1" aria-describedby="error-con"><div class="ability-derived"><p>Modifikátor: <output id="modifier-con" for="edit-con" aria-label="Modifikátor: Odolnost"></output></p><p>Záchrana: <output id="save-con" for="edit-con" aria-label="Záchrana CON"></output> <span id="save-proficiency-con" class="save-proficiency" role="img" aria-label="Zdatnost v záchranném hodu" hidden>●</span></p></div></div>
         <span id="error-con" class="field-error" role="status"></span>
       </article>
       <article class="ability-card">
-        <h2><span aria-hidden="true">✧</span> <label for="edit-int">Inteligence (INT)</label></h2>
-        <div class="ability-values"><input id="edit-int" type="number" min="1" max="20" step="1" aria-describedby="error-int"><output id="modifier-int" for="edit-int" aria-label="Modifikátor: Inteligence"></output></div>
+        <h2><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1zM12 6v14"/></svg><label for="edit-int">Inteligence (INT)</label></h2>
+        <div class="ability-values"><input id="edit-int" type="number" min="1" max="20" step="1" aria-describedby="error-int"><div class="ability-derived"><p>Modifikátor: <output id="modifier-int" for="edit-int" aria-label="Modifikátor: Inteligence"></output></p><p>Záchrana: <output id="save-int" for="edit-int" aria-label="Záchrana INT"></output> <span id="save-proficiency-int" class="save-proficiency" role="img" aria-label="Zdatnost v záchranném hodu" hidden>●</span></p></div></div>
         <span id="error-int" class="field-error" role="status"></span>
       </article>
       <article class="ability-card">
-        <h2><span aria-hidden="true">◉</span> <label for="edit-wis">Moudrost (WIS)</label></h2>
-        <div class="ability-values"><input id="edit-wis" type="number" min="1" max="20" step="1" aria-describedby="error-wis"><output id="modifier-wis" for="edit-wis" aria-label="Modifikátor: Moudrost"></output></div>
+        <h2><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><label for="edit-wis">Moudrost (WIS)</label></h2>
+        <div class="ability-values"><input id="edit-wis" type="number" min="1" max="20" step="1" aria-describedby="error-wis"><div class="ability-derived"><p>Modifikátor: <output id="modifier-wis" for="edit-wis" aria-label="Modifikátor: Moudrost"></output></p><p>Záchrana: <output id="save-wis" for="edit-wis" aria-label="Záchrana WIS"></output> <span id="save-proficiency-wis" class="save-proficiency" role="img" aria-label="Zdatnost v záchranném hodu" hidden>●</span></p></div></div>
         <span id="error-wis" class="field-error" role="status"></span>
       </article>
       <article class="ability-card">
-        <h2><span aria-hidden="true">☆</span> <label for="edit-cha">Charisma (CHA)</label></h2>
-        <div class="ability-values"><input id="edit-cha" type="number" min="1" max="20" step="1" aria-describedby="error-cha"><output id="modifier-cha" for="edit-cha" aria-label="Modifikátor: Charisma"></output></div>
+        <h2><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8l-6 3v-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM7 9h10M7 13h7"/></svg><label for="edit-cha">Charisma (CHA)</label></h2>
+        <div class="ability-values"><input id="edit-cha" type="number" min="1" max="20" step="1" aria-describedby="error-cha"><div class="ability-derived"><p>Modifikátor: <output id="modifier-cha" for="edit-cha" aria-label="Modifikátor: Charisma"></output></p><p>Záchrana: <output id="save-cha" for="edit-cha" aria-label="Záchrana CHA"></output> <span id="save-proficiency-cha" class="save-proficiency" role="img" aria-label="Zdatnost v záchranném hodu" hidden>●</span></p></div></div>
         <span id="error-cha" class="field-error" role="status"></span>
       </article>
     </section>

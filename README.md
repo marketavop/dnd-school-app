@@ -5,6 +5,41 @@ Jeho pozice je v `public.token_positions` podle `character_id + map_id`. Souřad
 v přirozených pixelech mapy, počátek (0,0) je vlevo nahoře.
 Žádný build, npm, Auth ani aplikační backend.
 
+## MAP-010 – responsivní mapa
+
+Mapa se celá vejde do viewportu širokého 100 % a vysokého 70 % okna, bez
+vlastních scrollbarů. Celý map-space (PNG, grid i token) používá společný
+scale `min(šířka viewportu / šířka mapy, výška viewportu / výška mapy, 1)`.
+ResizeObserver aktualizuje pouze transformaci; přirozené rozměry a uložené
+x/y zůstávají stejné. Drag převádí pointer zpět do původních pixelů mapy.
+
+Ověření: `node tests/map-space.cjs` a `node tests/map-config.cjs`.
+V prohlížeči otevřete hru, měňte velikost okna a přepněte obě mapy:
+celý obrázek musí zůstat uvnitř viewportu a x/y se nesmí změnit.
+Při zmenšené mapě přetáhněte token, ověřte snap, shodné x/y v druhém
+klientu a zachování pozice po reloadu. Starší popisy scrollování níže
+popisují stav před MAP-010.
+
+## Záchrany ve vlastnostech – Ticket 9
+
+Každá karta obsahuje vypočítanou Záchranu a neklikací tečku `●` pro proficiency.
+Malá mapa `SAVE_PROFICIENCIES` v `public/character.js` obsahuje dvojice pro
+12 povolání podle Ticketu 9. PB je pro level 1–20 `2 + Math.floor((level - 1) / 4)`.
+NULL nebo neznámé povolání nepřidává proficiency; NULL level nepřidává PB,
+ale tečka podle známého povolání zůstává. NULL vlastnost má prázdný bonus.
+Záporná čísla a nula se zobrazují bez přidaného plus, kladná s plus.
+
+Vlastnost přepočítává modifier i záchranu okamžitě. Povolání a level mění
+záchrany až po potvrzeném zápisu. Selhání zápisu vlastnosti obnoví i záchranu.
+Datová vrstva ani DB se nemění, odvozené bonusy se neukládají.
+Konkrétní pravidlo tohoto ticketu nahrazuje obecnou zmínku briefu o ručním
+označování save proficiency; tento ticket žádné takové ovládání nezavádí.
+
+Prošly testy stránky (včetně všech povolání a hranic PB), datové vrstvy,
+navigace, oba mapové testy a kontrola syntaxe. V prohlížeči zbývá ověřit
+čitelnost řádku a tečky, kompaktní mřížku 3 × 2 a přepočty při skutečném
+uložení levelu/povolání. Živý Supabase ani vizuální browser test nebyly spuštěny.
+
 ## XP a HP – Ticket 8
 
 Studentský průkaz načítá také `xp`, `current_hp` a `max_hp`. XP se mění přes

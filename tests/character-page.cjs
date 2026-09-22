@@ -17,7 +17,7 @@ async function page(query, row = base, error = null) {
   const elements = Object.fromEntries(['load-status', 'student-card', 'character-name', 'character-race',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
-    'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['xp', 'current_hp', 'max_hp'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`])].map(key => [key, {
+    'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['xp', 'current_hp', 'max_hp'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
     textContent: '', hidden: ['student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'close-icon'].includes(key), dataset: {}, handlers: {},
     value: '', disabled: false, validity: { badInput: false }, children: [], attributes: {},
     append(option) { this.children.push(option); },
@@ -105,7 +105,15 @@ async function page(query, row = base, error = null) {
   const edit = await page(`?character_id=${id}`, stored);
   const el = edit.elements;
   assert.equal(el['edit-name'].hidden, true);
+  for (const key of abilityKeys) {
+    assert.equal(el[`edit-${key}`].readOnly, true);
+    assert.equal(el[`edit-${key}`].tabIndex, -1);
+  }
   el['edit-toggle'].handlers.click();
+  for (const key of abilityKeys) {
+    assert.equal(el[`edit-${key}`].readOnly, false);
+    assert.equal(el[`edit-${key}`].tabIndex, 0);
+  }
   assert.equal(el['edit-name'].hidden, false);
   assert.equal(el['character-name'].hidden, true);
   assert.equal(el['close-icon'].hidden, false);
@@ -265,8 +273,16 @@ async function page(query, row = base, error = null) {
   assert.equal(failedAbility.elements['save-status'].textContent, 'Nepodařilo se uložit');
   assert.ok(failedAbility.logs.length);
   ae['edit-toggle'].handlers.click();
+  ae['edit-str'].value = '21';
+  await ae['edit-str'].handlers.blur();
+  assert.match(ae['error-str'].textContent, /celé číslo/);
+  const writesBeforeClosing = abilityPage.writes.length;
   ae['edit-toggle'].handlers.click();
   assert.equal(ae['edit-str'].hidden, false);
+  assert.equal(ae['edit-str'].readOnly, true);
+  assert.equal(ae['error-str'].textContent, '');
+  assert.equal(ae['edit-str'].attributes['aria-invalid'], 'false');
+  assert.equal(abilityPage.writes.length, writesBeforeClosing);
   const resourceRow = { ...base, level: 1, xp: 100, current_hp: 8, max_hp: 12 };
   const resources = await page(`?character_id=${id}`, resourceRow);
   const re = resources.elements;
@@ -344,6 +360,52 @@ async function page(query, row = base, error = null) {
     assert.equal(thresholdPage.elements['xp-next'].textContent, `Do další úrovně: ${threshold}`);
   }
   for (const level of [null, 20]) assert.equal((await page(`?character_id=${id}`, { ...base, level, xp: 500 })).elements['xp-next'].textContent, '');
+  const pairs = { barbarian: ['str','con'], bard: ['dex','cha'], fighter: ['str','con'], sorcerer: ['con','cha'], warlock: ['wis','cha'], druid: ['int','wis'], ranger: ['str','dex'], cleric: ['wis','cha'], wizard: ['int','wis'], monk: ['str','dex'], paladin: ['wis','cha'], rogue: ['dex','int'] };
+  for (const [class_code, proficient] of Object.entries(pairs)) {
+    for (const [level, pb] of [[null,0],[1,2],[4,2],[5,3],[8,3],[9,4],[12,4],[13,5],[16,5],[17,6],[20,6]]) {
+      const saves = await page(`?character_id=${id}`, { ...base, class_code, level, ...Object.fromEntries(abilityKeys.map(key => [key,16])) });
+      for (const key of abilityKeys) {
+        assert.equal(saves.elements[`save-${key}`].textContent, `+${3 + (proficient.includes(key) ? pb : 0)}`);
+        assert.equal(saves.elements[`save-proficiency-${key}`].hidden, !proficient.includes(key));
+      }
+      assert.equal(saves.writes.length, 0);
+    }
+  }
+  for (const class_code of [null, 'unknown']) {
+    const saves = await page(`?character_id=${id}`, { ...base, class_code, level: 3, str:16, dex:8, con:10 });
+    assert.equal(saves.elements['save-str'].textContent, '+3');
+    assert.equal(saves.elements['save-dex'].textContent, '-1');
+    assert.equal(saves.elements['save-con'].textContent, '0');
+    assert.equal(saves.elements['save-wis'].textContent, '');
+    assert.equal(saves.elements['save-proficiency-str'].hidden, true);
+  }
+  const saveRow = { ...base, class_code: 'barbarian', level: 1, str: 16, con: 14, dex:12 };
+  const saves = await page(`?character_id=${id}`, saveRow);
+  const se = saves.elements;
+  assert.equal(se['save-str'].textContent, '+5');
+  assert.equal(se['save-con'].textContent, '+4');
+  assert.equal(se['save-dex'].textContent, '+1');
+  se['edit-toggle'].handlers.click();
+  se['edit-str'].value = '18'; se['edit-str'].handlers.input();
+  assert.equal(se['save-str'].textContent, '+6');
+  assert.equal(saves.writes.length, 0);
+  saves.control.error = { code: '42501', message: 'Denied' };
+  await se['edit-str'].handlers.blur();
+  assert.equal(se['save-str'].textContent, '+5');
+  saves.control.error = null;
+  se['edit-level'].value = '5';
+  se['edit-level'].handlers.input();
+  assert.equal(se['save-str'].textContent, '+5');
+  await se['edit-level'].handlers.blur();
+  assert.equal(se['save-str'].textContent, '+6');
+  se['edit-class'].value = 'bard'; await se['edit-class'].handlers.blur();
+  assert.equal(se['save-str'].textContent, '+3');
+  assert.equal(se['save-proficiency-str'].hidden, true);
+  assert.equal(se['save-dex'].textContent, '+4');
+  saves.control.error = { code: '42501', message: 'Denied' };
+  se['edit-class'].value = 'fighter'; await se['edit-class'].handlers.blur();
+  assert.equal(se['save-proficiency-dex'].hidden, false);
+  assert.ok(saves.writes.every(patch => Object.keys(patch).every(key => ['str','level','class_code'].includes(key))));
   const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
   assert.ok(!html.includes('<h1>Deník postavy</h1>'));
   console.log('PASS: character page loading, UUID, portraits, edit toggle, exact choices, blur saves/reload, NULL, validation, unchanged values, failed/pending saves');

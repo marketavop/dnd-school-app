@@ -1,5 +1,17 @@
 const map = document.querySelector('#map');
 const mapSpace = document.querySelector('#map-space');
+const mapViewport = document.querySelector('#map-viewport');
+let mapScale = 1;
+
+function fitMap() {
+  if (!map.naturalWidth || !map.naturalHeight || !mapViewport.clientWidth || !mapViewport.clientHeight) return;
+  mapScale = Math.min(1, mapViewport.clientWidth / map.naturalWidth, mapViewport.clientHeight / map.naturalHeight);
+  mapSpace.style.transform = `scale(${mapScale})`;
+  mapSpace.style.left = `${(mapViewport.clientWidth - map.naturalWidth * mapScale) / 2}px`;
+  mapSpace.style.top = `${(mapViewport.clientHeight - map.naturalHeight * mapScale) / 2}px`;
+}
+
+new ResizeObserver(fitMap).observe(mapViewport);
 const grid = document.querySelector('#grid');
 // navigation.js spustí mapu pouze s platným character_id v URL.
 const CHARACTER_ID = new URLSearchParams(window.location.search).get('character_id').toLowerCase();
@@ -370,8 +382,9 @@ function mapLoaded() {
   grid.style.display = '';
   mapSpace.style.width = `${map.naturalWidth}px`;
   mapSpace.style.height = `${map.naturalHeight}px`;
+  fitMap();
   renderGrid();
-  mapStatus.textContent = `Mapa: ${map.naturalWidth} × ${map.naturalHeight} px (1:1). Souřadnice označují střed tokenu.`;
+  mapStatus.textContent = `Mapa: ${map.naturalWidth} × ${map.naturalHeight} px. Souřadnice označují střed tokenu.`;
   if (saved) render(saved);
   updateAddTokenButton();
 }
@@ -478,8 +491,8 @@ token.addEventListener('pointerdown', (event) => {
   if (event.button !== 0 || drag || !mapReady || !saved || saving || loading || !connected || !positionConnected || !configReady) return;
   event.preventDefault();
   const rect = mapSpace.getBoundingClientRect();
-  drag = { id: event.pointerId, offsetX: event.clientX - rect.left - shown.x,
-    offsetY: event.clientY - rect.top - shown.y, moved: false, mapId: activeMapId, version: mapVersion, ...shown };
+  drag = { id: event.pointerId, offsetX: (event.clientX - rect.left) / mapScale - shown.x,
+    offsetY: (event.clientY - rect.top) / mapScale - shown.y, moved: false, mapId: activeMapId, version: mapVersion, ...shown };
   token.setPointerCapture(event.pointerId);
   token.classList.add('dragging');
   status.textContent = 'Přetahuji lokálně — zatím neukládám.';
@@ -490,8 +503,8 @@ function move(event) {
   // Aktuální rect zahrnuje scroll i posun stránky během tažení.
   const rect = mapSpace.getBoundingClientRect();
   render({
-    x: Math.round(event.clientX - rect.left - drag.offsetX),
-    y: Math.round(event.clientY - rect.top - drag.offsetY),
+    x: Math.round((event.clientX - rect.left) / mapScale - drag.offsetX),
+    y: Math.round((event.clientY - rect.top) / mapScale - drag.offsetY),
   });
   if (shown.x !== drag.x || shown.y !== drag.y) drag.moved = true;
 }

@@ -49,6 +49,7 @@ async function client() {
     };
   }
   Object.assign(elements.map, { complete: true, naturalWidth: 1536, naturalHeight: 1024 });
+  elements['map-viewport'] = { clientWidth: 2000, clientHeight: 2000 };
   Object.defineProperty(elements.map, 'src', {
     get() { return this.source; },
     set(value) {
@@ -139,6 +140,7 @@ async function client() {
   const context = vm.createContext({
     testConfig: { SUPABASE_URL: 'https://test.supabase.co', SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' },
     testSdk: sdk,
+    ResizeObserver: class { observe() {} },
     URLSearchParams,
     window: { location: { search: `?character_id=${characterId}` }, confirm: () => confirmResult },
     document: { querySelector: s => elements[s.slice(1)], createElement() { return {}; }, createElementNS() { return { setAttribute() {} }; } },

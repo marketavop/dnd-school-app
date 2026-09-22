@@ -1,10 +1,18 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Stav dokumentu:** výchozí scope pro MVP\
-**Verze:** 1.0.4\
+**Verze:** 1.1.2  
+**Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.2
+
+- globální vizuální směr aplikace je **akademický atlas / školní registr magické akademie**,
+- schválený návrh akademie „Academia Magna Illistrass“ slouží jako vizuální reference pro barevnost, typografický charakter, rámečky, dělení panelů a heraldické akcenty,
+- styl se aplikuje postupně: nejdřív `character.html`, potom `index.html`, nakonec okolní UI `game.html`,
+- samotný map-space a mapová logika se kvůli vizuálnímu sjednocení nemění,
+- zachován scope guard: atmosféra ano, těžké textury, ornamentální přeplácanost a nové frameworky ne.
 
 ------------------------------------------------------------------------
 
@@ -66,7 +74,7 @@ Pracovní technický směr:
 -   vanilla HTML/CSS/JavaScript,
 -   Cloudflare pro web/deployment,
 -   externí služba pro autentizaci, data a realtime,
--   Supabase pro autentizaci, data a realtime,
+-   aktuální pracovní kandidát: Supabase,
 -   Git pro zdrojový kód, nikoliv herní stav.
 
 Technologický směr není nezměnitelný. Stack se nemá měnit bez
@@ -112,21 +120,38 @@ dvě role nedokážou vyřešit.
 
 Platí:
 
-> **1 účet = 1 dítě. Jeden účet může mít více postav v čase. Každá postava má vlastní deník a právě jeden hráčský token se stejnou stabilní identitou jako postava.**
+> **1 účet = 1 dítě. Jeden účet může mít více postav.**
 
-Postava používá databázové `character_id` typu UUID. Hráčský token nepoužívá samostatné token ID; pro hráčskou postavu používá stejné `character_id`.
+Každá postava má vlastní deník a vlastní hráčský token.
 
-Hráč může číst a upravovat pouze svůj deník. Vedoucí může číst deníky
-všech hráčů, ale v MVP je neupravuje.
+Přesný způsob výběru aktivní postavy / přepínání mezi více postavami není
+zatím uzavřen. Současný flow přes `character_id` zůstává do dalšího
+produktového rozhodnutí beze změny.
+
+Hráč může číst a upravovat pouze deníky svých postav. Vedoucí může číst deníky
+všech hráčských postav, ale v MVP je neupravuje.
 
 ------------------------------------------------------------------------
 
 ## 5. Základní uživatelský flow
 
-Po přihlášení hráč uvidí jednoduchou domovskou stránku:
+Po přihlášení hráč uvidí jednoduchou domovskou stránku se dvěma hlavními
+akcemi:
 
 -   **Můj deník**
 -   **Vstoupit do hry**
+
+Aktuální hlavní stránky:
+
+-   `index.html` — homepage / rozcestník,
+-   `character.html` — Deník postavy,
+-   `game.html` — herní/mapová stránka.
+
+Navigace zachovává `character_id` v URL. Z `character.html` i `game.html`
+vede jednoduchý návrat `← Domů`.
+
+Toto flow bylo ručně UX ověřeno s Vypravěčem a bez konkrétního důvodu se
+nemění.
 
 Máme jednu skupinu/kampaň, takže neexistuje výběr kampaně.
 
@@ -156,40 +181,37 @@ odemykání sekcí, progression UI ani procenta dokončení.
 ## 7. Deník postavy
 
 Používáme označení **Deník postavy / školní deník**, nikoliv „character
-sheet".
+sheet“.
 
 Mentální model je školní deník / studentský průkaz.
 
 Existují dva pohledy nad stejnými daty:
 
-1.  **Plný deník** --- správa a učení.
-2.  **Kompaktní panel na mapě** --- rychlé použití během hry.
+1.  **Plný deník** — správa a učení.
+2.  **Kompaktní panel na mapě** — rychlé použití během hry.
 
 Nevytváříme dvě kopie dat.
 
-Kompaktní panel se otevře nad částí mapy a pravděpodobně bude mít
-několik záložek. Přesné členění zatím není uzavřené. Kandidáti jsou
-Přehled / Hody / Boj / Kouzla / Věci.
+### Listování Studentským průkazem
 
-Každá informace v mapovém panelu musí odpovědět na otázku: **potřebuje
-ji dítě běžně během session?**
+Studentský průkaz má být do budoucna možné jednoduše „listovat“ pomocí
+záložek. Záložky patří **dovnitř Studentského průkazu**, nejsou novou
+hlavní navigací aplikace.
 
-### První výukový řez deníku
+Implementace má zůstat jednoduchá:
 
-První session nezačíná plným deníkem. Pro první výukový řez stačí:
+-   běžné HTML/CSS + malý vanilla JS stav aktivní záložky,
+-   žádný router,
+-   žádný framework,
+-   žádná persistence aktivní záložky,
+-   žádná databázová logika kvůli listování.
 
-- **Studentský průkaz**: portrét/token, jméno, rasa, povolání, level,
-- **šest vlastností**: STR, DEX, CON, INT, WIS, CHA,
-- automaticky dopočítané modifikátory vlastností.
+Neimplementujeme prázdné budoucí stránky jen proto, že mohou jednou
+existovat. Další stránka vznikne až pro konkrétní obsah.
 
-HP, AC, rychlost, proficiency bonus, skills, saves, iniciativa, pasivní
-vnímání, útoky, kouzla, spell sloty, inventář a další části plného deníku
-zůstávají v celkovém scope, ale přidávají se až ve chvíli, kdy je děti
-při výuce skutečně potřebují.
-
-První výukový řez se má na běžném notebooku vejít na jednu obrazovku bez
-scrollování. Nezavádíme kvůli tomu progression UI ani odemykání sekcí;
-jde pouze o pořadí implementace a výuky řízené PJ.
+Kompaktní panel na mapě může mít vlastní jednoduché záložky. Jeho přesné
+členění zatím není uzavřené. Každá informace v mapovém panelu musí
+odpovědět na otázku: **potřebuje ji dítě běžně během session?**
 
 ------------------------------------------------------------------------
 
@@ -220,30 +242,45 @@ Web může mít také jednoduché obecné **Poznámky** pro situační informace
 
 ## 9. Studentský průkaz
 
-Studentský průkaz je kompaktní horní blok deníku. Pro první výukový řez
-obsahuje:
+Základní identita postavy:
 
--   kulatý portrét/token,
+-   portrét/token,
 -   jméno,
 -   rasa,
 -   povolání,
--   level.
+-   zázemí,
+-   level,
+-   XP.
 
-Další identitní údaje, například zázemí a XP, mohou být doplněny později
-v plném deníku podle toho, kdy je děti začnou používat.
+V aktuálním prvním výukovém řezu je ve Studentském průkazu stále
+viditelné také **HP (aktuální / maximum)**.
 
-Běžný stav průkazu je **read-only**. V rohu je nenápadná ikona tužky,
-která přepne celý průkaz do editace. Jméno je textové pole, rasa a
-povolání jsou výběry ze seznamu a level je jednoduché číselné pole.
-Jednotlivé změny se ukládají automaticky po opuštění pole; nepoužíváme
-samostatné tlačítko Uložit.
+Portrét postavy je zároveň obrázkem hráčského tokenu.
 
-Portrét postavy je zároveň obrázkem hráčského tokenu. Portrét i token se
-zobrazují jako kruh. Změna portrétu se spouští kliknutím přímo na portrét.
-V MVP používáme jednoduché automatické centrování a kruhové zobrazení;
-nevytváříme editor avatarů, cropper, zoom, rotaci ani ruční posun obrázku.
-Ruční posun je **Později**, pouze pokud se při skutečném použití ukáže
-jako potřebný.
+Hráč může vlastní obrázek změnit, pokud implementace zůstane jednoduchá.
+Nevytváříme editor avatarů, cropper ani složité zpracování obrázků.
+
+### XP
+
+-   ukládá se celkové XP,
+-   `NULL` je platný stav,
+-   XP je nezáporné číslo,
+-   aplikace může zobrazit jednoduchou informaci, kolik XP zbývá do další
+    úrovně,
+-   používají se standardní D&D 5e 2014 XP thresholds,
+-   level se nikdy nezvyšuje automaticky,
+-   pokud je XP dost na další level, stačí jednoduchá informace typu
+    „Máš dost XP na další úroveň.“,
+-   nevytváříme level-up wizard.
+
+### UX Studentského průkazu
+
+Read-only režim má být kompaktní, přehledný a primárně prezentační.
+Editace probíhá přes jednoduchou tužku; formulářový vzhled se nemá
+zbytečně propisovat do read-only stavu.
+
+Studentský průkaz má být vizuálně hlavním objektem horní části deníku a
+jeho struktura má počítat s budoucím jednoduchým listováním.
 
 V MVP neevidujeme:
 
@@ -261,21 +298,8 @@ V MVP neevidujeme:
 
 Pravidlovým základem je D&D 5e 2014.
 
-Rasa a povolání jsou v prvním výukovém řezu vybírány z pevného seznamu,
-nejsou free-text. V datech používáme stabilní systémové kódy a v UI
-zobrazujeme české názvy. Samostatné databázové tabulky ras a povolání pro
-MVP nevytváříme.
-
-Povolené rasy jsou základní rasy PHB 2014 používané v této kampani:
-člověk, elf, hobit, trpaslík, gnóm, půlelf, půlork a tiefling.
-**Drakorozený se v této kampani nepoužívá.** Podrasy a varianty jsou mimo
-MVP.
-
-Povolání vybíráme ze základních povolání PHB 2014. Multiclass v MVP
-neřešíme.
-
-Zázemí zůstává samostatným mechanickým D&D údajem plného deníku a dítě ho
-vyplní ve chvíli, kdy k němu příběh/PJ dojde.
+Rasa, povolání a zázemí jsou samostatná pole. Dítě je vyplňuje ve
+chvíli, kdy k nim příběh/PJ dojde.
 
 Princip:
 
@@ -283,10 +307,9 @@ Princip:
 > změny.**
 
 Aplikace automaticky neaplikuje mechanické důsledky rasy, povolání nebo
-zázemí. Stabilní kódy pouze ponechávají možnost později přidat konkrétní
-jednoznačnou automatiku, pokud pro ni vznikne ověřená potřeba.
+zázemí.
 
-Featy jsou Budoucnost.
+Podrasy/varianty jsou mimo MVP. Featy jsou Budoucnost.
 
 Případné části specifické pro povolání řešíme jako společné jádro
 deníku + malé specifické části, nikoliv jako 12 samostatných deníků.
@@ -304,47 +327,43 @@ Používáme šest vlastností:
 -   WIS — Moudrost,
 -   CHA — Charisma.
 
-Dítě zadává hodnoty vlastností samo. Hodnoty mohou zůstat prázdné, dokud
-se k nim při výuce nedojde. Nevyplněná hodnota nemá žádný zobrazený
-modifikátor.
+Dítě zadává hodnoty vlastností samo. Aktuální editace používá validaci
+`1–20`, autosave na blur a při neplatné hodnotě návrat k poslední platné
+hodnotě.
 
-Pro aktuální MVP je platná hodnota vlastnosti celé číslo **1--20**.
-Hodnota se edituje přímo v kartě vlastnosti a validuje se při opuštění
-pole. Neplatná hodnota se neuloží a UI vrátí poslední platnou hodnotu.
+Aplikace automaticky vypočítá:
 
-Aplikace automaticky vypočítá modifikátory vlastností jako rutinní
-matematiku. Modifikátory se do databáze neukládají; počítají se z aktuální
-hodnoty. Kladné hodnoty zobrazujeme se znaménkem `+`, záporné se `-` a
-nulový modifikátor jako `0`.
+-   modifikátory vlastností,
+-   proficiency bonus podle levelu,
+-   bonusy dovedností,
+-   bonusy záchranných hodů.
 
-V prvním výukovém řezu je všech šest vlastností vidět najednou jako šest
-stejně velkých karet v mřížce 3 × 2. Každá karta má malou jednoduchou
-ikonu, český název, anglickou zkratku a vedle sebe hodnotu a modifikátor.
-Všechny karty mají jednotný vizuální styl; nepoužíváme rozdílné barvy pro
-jednotlivé vlastnosti ani pomocné vysvětlující texty.
+Dítě označuje proficiency u skills/saves.
 
-Proficiency bonus, bonusy dovedností a bonusy záchranných hodů zůstávají
-součástí plného MVP deníku, ale v první session jsou skryté, dokud je PJ
-nezačne učit. Dítě označuje proficiency u skills/saves až v tomto pozdějším
-kroku. Samotný hod provádí dítě a samo přičítá zobrazený bonus.
+Samotný hod provádí dítě a samo přičítá zobrazený bonus.
 
-Ukládáme pouze aktuální hodnoty vlastností, ne jejich historii.
+### Prezentační model vlastnosti
 
-### Datový základ prvního řezu deníku
+Každá vlastnost má v read-only režimu zobrazovat:
 
-Tabulka `characters` zůstává hlavním záznamem postavy. Pro první řez se k
-existujícím `id`, `user_id` a `name` přidají:
+-   jednoduchý rozpoznávací **symbol vedle názvu**,
+-   název + zkratku,
+-   hlavní hodnotu vlastnosti,
+-   **Modifikátor** s textovým popisem,
+-   **Záchranný hod** s textovým popisem.
 
--   reference na portrét,
--   `race_code`,
--   `class_code`,
--   `level`,
--   `str`, `dex`, `con`, `int`, `wis`, `cha`.
+Symboly jsou orientační pomůcka, ne samostatná herní mechanika. Všech
+šest vlastností zůstává vizuálně rovnocenných.
 
-`race_code`, `class_code`, `level` a šest vlastností mohou být `NULL`,
-protože postava vzniká postupně. Level a vlastnosti používají rozsah
-1--20, pokud nejsou prázdné. Přesná podoba reference na soubor portrétu
-je implementační detail storage vrstvy.
+V read-only režimu nemá hodnota vypadat jako editovatelný input. Input
+se objeví až v edit režimu.
+
+Cílový desktopový layout prvního řezu zůstává `3 × 2` a spolu se
+Studentským průkazem má být na běžném notebooku viditelný bez zbytečného
+vertikálního scrollu.
+
+Způsob vizuálního označení proficiency u záchranného hodu zatím není
+definitivně uzavřen.
 
 ------------------------------------------------------------------------
 
@@ -353,7 +372,11 @@ je implementační detail storage vrstvy.
 **Iniciativa:** aplikace automaticky zobrazuje bonus odvozený z DEX.
 Dítě samo hodí k20 a bonus přičte.
 
-Initiative tracker nemáme. Pořadí boje řeší PJ.
+Initiative tracker v MVP nemáme. Pořadí boje řeší PJ.
+
+**Initiative tracker je Později.** Pravděpodobná potřeba vznikne až ve chvíli,
+kdy naroste počet útočících NPC a ruční správa pořadí začne být pro PJ
+nepraktická.
 
 **Pasivní vnímání:** aplikace ho může automaticky dopočítat z již
 známých údajů, pokud implementace zůstane jednoduchá. Pokud by výjimky
@@ -365,19 +388,29 @@ vyžadovaly výraznější rules engine, řešení se zjednoduší.
 
 ### HP
 
-Postava má:
+Aktuální MVP používá:
 
--   aktuální HP,
--   maximální HP,
--   dočasné HP.
+-   `current_hp`,
+-   `max_hp`.
 
-Dítě může během hry zadat jednoduchou změnu například `-5` nebo `+3`;
-aplikace provede aritmetiku.
+**Temporary HP je Později.**
+
+Běžná změna HP probíhá přímo v read-only režimu jednoduchým ovládáním
+typu:
+
+`[ - ] [ hodnota změny ] [ + ]`
+
+Pravidla:
+
+-   current HP se drží v rozsahu `0..max_hp`,
+-   při snížení max HP pod current HP se current HP automaticky sníží na
+    nové maximum,
+-   pokud `max_hp = NULL`, rychlé změny HP jsou blokované,
+-   pokud `current_hp = NULL`, rychlé změny HP jsou blokované,
+-   max HP a případná inicializace current HP se řeší v edit mode,
+-   případ snížení maxima pod current se zapisuje atomicky.
 
 Max HP aplikace automaticky neodvozuje z povolání/levelu.
-
-Dočasné HP jsou méně vizuálně výrazné a dítě je mění ručně. Aplikace
-automaticky neřeší pořadí absorpce zranění.
 
 Hit Dice jsou **Později**.
 
@@ -386,7 +419,7 @@ Hit Dice jsou **Později**.
 AC je ručně zadané číslo.
 
 Vedle něj existuje krátká **poznámka k AC**, například „kožená zbroj +
-obratnost", aby dítě chápalo, odkud hodnota pochází.
+obratnost“, aby dítě chápalo, odkud hodnota pochází.
 
 Aplikace AC nepočítá z vybavení.
 
@@ -394,12 +427,51 @@ Aplikace AC nepočítá z vybavení.
 
 Rychlost je ručně zapsaná hodnota, například `30 ft`.
 
-Aplikace podle ní neomezuje token, nepočítá pole ani vzdálenost a nekontroluje pravidla
-pohybu.
+Aplikace podle ní neomezuje token, nepočítá pole ani vzdálenost a
+nekontroluje pravidla pohybu.
 
 ------------------------------------------------------------------------
 
-## 14. Schopnosti a další znalosti
+## 14. Doplňující info — studijní vysvětlení pravidel
+
+Deník obsahuje jednu společnou **info ikonu / vstup do Doplňujícího
+infa**.
+
+Nejde o tooltipy u každého jednotlivého pole ani o tutorial systém.
+Jde o jednoduchý společný studijní prostor, který připomíná „sešit s
+pravidly“.
+
+Obsah se doplňuje ručně podle toho, co se děti během skutečných session
+stihly naučit. Nevíme dopředu, jak rychle budou jednotlivá témata
+probrána, proto nevytváříme automatický výukový plán.
+
+Doplňující info:
+
+-   je stejné pro všechny děti,
+-   neobsahuje lore ani příběhové spoilery,
+-   vysvětluje skutečnou mechaniku D&D 5e 2014,
+-   stručně popisuje **jak se číslo/pravidlo počítá, proč, z čeho vzniká a
+    co ovlivňuje**,
+-   může obsahovat krátký konkrétní příklad,
+-   doplňuje vysvětlení PJ a pomáhá dítěti pravidlo později znovu
+    pochopit a zapamatovat si ho.
+
+Příklad témat: modifikátor vlastnosti, zdatnost, záchranný hod nebo jiné
+mechaniky, které už byly ve hře skutečně vysvětlené.
+
+Implementace má být záměrně jednoduchá:
+
+-   obsah se upravuje přímo ve zdrojovém obsahu aplikace,
+-   žádný editor pro PJ,
+-   žádná databáze lekcí,
+-   žádné individuální odemykání,
+-   žádné sledování přečtení,
+-   žádný progression systém,
+-   žádné automatické rozhodování, co se má dítě učit.
+
+------------------------------------------------------------------------
+
+## 15. Schopnosti a další znalosti
 
 ### Schopnosti
 
@@ -429,7 +501,7 @@ Aplikace jejich obsah mechanicky neinterpretuje.
 
 ------------------------------------------------------------------------
 
-## 15. Bojové položky
+## 16. Bojové položky
 
 Zbraň nebo jiný útok má strukturu:
 
@@ -449,7 +521,7 @@ Nevytváříme databázi zbraní, automatické útoky ani automatické damage.
 
 ------------------------------------------------------------------------
 
-## 16. Kouzla
+## 17. Kouzla
 
 Kouzla jsou strukturovanější, protože jejich struktura má výukovou
 hodnotu.
@@ -506,7 +578,7 @@ Automatizujeme výpočet čísla, nikoliv použití pravidla.
 
 ------------------------------------------------------------------------
 
-## 17. Spell sloty
+## 18. Spell sloty
 
 Spell sloty jsou jednoduchý stav **aktuální / maximum**.
 
@@ -528,7 +600,7 @@ Seznam kouzel znamená kouzla, která dítě aktuálně zná/používá.
 
 ------------------------------------------------------------------------
 
-## 18. Inventář
+## 19. Inventář
 
 Inventář je pasivní seznam:
 
@@ -549,7 +621,7 @@ Nevytváříme:
 
 ------------------------------------------------------------------------
 
-## 19. Conditions a další mechaniky
+## 20. Conditions a další mechaniky
 
 Samostatný systém stavových efektů není v MVP.
 
@@ -562,7 +634,7 @@ Inspiration, death saves a Hit Dice jsou mimo MVP.
 
 ------------------------------------------------------------------------
 
-## 20. Kostky
+## 21. Kostky
 
 MVP obsahuje jednoduchou sadu:
 
@@ -597,7 +669,7 @@ Dice log nemusí být dlouhodobě persistentní.
 
 ------------------------------------------------------------------------
 
-## 21. Hlavní herní obrazovka
+## 22. Hlavní herní obrazovka
 
 Během hraní dítě primárně vidí:
 
@@ -613,23 +685,14 @@ může zůstat v plném deníku.
 
 ------------------------------------------------------------------------
 
-## 22. Mapy a čtvercová mřížka
+## 23. Mapy a čtvercová mřížka
 
-Pro první session připravíme základní balík map předem přímo v projektu. Mapy se nepřidávají přes UI během hry. Preferovaný formát mapových assetů pro MVP je **WebP** kvůli menší velikosti souborů a rychlejšímu načítání. Upload nových map přes UI pro Vedoucího je **Později**.
+PJ může předem nahrát mapy, pravděpodobně PNG.
 
 Zdrojové mapy jsou bez gridu. Aplikace přes ně vytvoří vlastní čtvercovou mřížku.
 
-PJ při přípravě nastaví velikost pole a vidí okamžitý náhled. Každé pole představuje 5 ft. Velikost pole je editovatelná číselným vstupem s live preview a validací. Pro aktuální MVP používáme povolený rozsah 20--300 px; meze mohou být později upraveny podle reálných map.
-
-Velikost pole je vlastnost konkrétní mapy a je součástí sdíleného herního
-stavu. Ukládá se serverově a všichni klienti používají stejnou hodnotu.
-Platná změna velikosti pole se ostatním otevřeným klientům propíše v
-realtime. V datovém modelu je konfigurace mapy reprezentována tabulkou `map_config`, kde stabilní textové `map_id` identifikuje mapu a `cell_size` ukládá velikost pole. Seznam map je pro MVP statický v kódu; databáze neobsahuje samostatnou knihovnu map.
-
-Mřížka začíná v levém horním rohu mapového souřadnicového prostoru `(0,0)`.
-Velikost pole je udaná v pixelech map-space. Na pravém a spodním okraji mohou
-vzniknout neúplná pole; ta se mohou vizuálně zobrazit, ale nejsou platným
-cílem pro snap tokenu.
+PJ při přípravě nastaví velikost pole a vidí okamžitý náhled. Každé pole
+představuje 5 ft. Jakmile se mapa používá, velikost gridu už neměníme.
 
 V MVP nemáme:
 
@@ -645,43 +708,54 @@ V MVP nemáme:
 
 ------------------------------------------------------------------------
 
-## 23. Knihovna map a aktivní scéna
+## 24. Knihovna map a aktivní scéna
 
-Vedoucí má jednoduchý seznam předem připravených map. Pro MVP stačí obyčejný dropdown; nevytváříme plnohodnotnou map library UI.
+Vedoucí má seznam připravených map.
 
-Hráči tento seznam nevidí a nemají dostávat názvy, náhledy ani data neaktivních map.
+Hráči tento seznam nevidí a nemají dostávat názvy, náhledy ani data
+neaktivních map.
 
-Vedoucí nastaví aktivní mapu a hráči jsou automaticky přepnuti v realtime. Aktivní mapa je uložená v singleton řádku `game_state.id = 1` jako `active_map_id`.
-
-Mapové obrázky se nenačítají všechny dopředu. Klient načítá pouze aktuálně aktivní mapu; ostatní mapy se načtou až při přepnutí.
+Vedoucí nastaví aktivní mapu a hráči jsou automaticky přepnuti v
+realtime.
 
 PJ řídí scénu. Hráč mapu nevybírá.
 
 ------------------------------------------------------------------------
 
-## 24. Zoom a pan
+## 25. Zoom a pan
 
-Každý uživatel ovládá vlastní lokální zoom/pan.
+Aktuální MVP nepoužívá ruční zoom ani pan mapy.
 
-Camera state se nesynchronizuje.
+Hotový směr je **responsivní fit mapy do dostupného viewportu**:
 
-Mapa, čtvercová mřížka a tokeny musí být v jednom vizuálním/souřadnicovém
-prostoru.
+-   celá mapa se vejde do dostupné plochy bez scrollbarů,
+-   zachovává poměr stran,
+-   nezvětšuje se nad 100 %,
+-   mapa, grid a tokeny se škálují společně,
+-   škálovaný map-space je ve viewportu vycentrovaný horizontálně i
+    vertikálně.
 
-Důležitý acceptance test:
+Interní map-space zůstává v původních pixelech mapy. Uložené `x/y`
+znamenají střed tokenu v map-space. Resize mění pouze vizuální scale a
+nesmí přepisovat uložené souřadnice.
 
-> Umístit token na pole → opakovaně změnit zoom a posun mapy → token
-> zůstává přesně na stejném poli.
+Jakákoli FE změna, která by vyžadovala zásah do map-space, drag
+matematiky, snapu, persistence nebo realtime, se nejdřív samostatně
+posoudí.
+
+**Později:**
+
+-   ruční zoom,
+-   pan celé mapy,
+-   pinch zoom,
+-   fullscreen,
+-   další map controls.
 
 ------------------------------------------------------------------------
 
-## 25. Hráčské tokeny
+## 26. Hráčské tokeny
 
 Hráčský token používá portrét postavy.
-
-Hráčský token logicky zabírá jedno pole. Je kruhový a jeho vizuální průměr je
-90 % velikosti pole, aby kolem tokenu zůstala malá mezera a mřížka byla
-čitelná. Uložené souřadnice `x/y` označují střed tokenu v map-space.
 
 Vedoucí umisťuje hráčské tokeny na mapu.
 
@@ -691,46 +765,24 @@ kterýmkoliv hráčským tokenem.
 Pohyb:
 
 1.  drag probíhá lokálně,
-2.  po skutečném drag/dropu se střed tokenu snapne na střed nejbližšího
-    platného úplného pole,
+2.  po puštění se token snapne na nejbližší pole,
 3.  výsledná pozice se synchronizuje ostatním.
-
-Pouhý klik bez skutečného tažení pozici nemění. Při načtení aplikace se stará
-nesnapnutá pozice automaticky nepřepočítává. Pokud je token puštěn nad
-neúplnou částí gridu na pravém nebo spodním okraji, snapne se na nejbližší
-platné úplné pole.
 
 Nesynchronizujeme kontinuálně každý pixel pohybu.
 
 Každá mapa si pamatuje poslední pozice tokenů.
 
-Postava může na konkrétní mapě nemít žádnou pozici. Tento stav reprezentujeme **absencí řádku** v `token_positions` pro dvojici `character_id + map_id`; nepoužíváme `x = NULL` / `y = NULL`. To znamená, že postava není v dané scéně.
-
-Pokud postava na aktivní mapě nemá pozici, Vedoucí může použít jednoduchou akci **„Přidat postavu na mapu“**. Aplikace vytvoří map-specific pozici na platném poli poblíž středu mapy a Vedoucí ji potom běžným drag/dropem přesune. Nevytváříme placement mode ani klikání do mapy pro výběr startovní pozice.
+Postava může na konkrétní mapě nemít žádnou pozici. To znamená, že není
+v dané scéně.
 
 Vedoucí může token z mapy odebrat bez smazání účtu, postavy nebo deníku.
 
 Token zůstává na mapě i při odpojení hráče. Nesledujeme online/offline
 presence.
 
-### Stabilní datový model map a hráčských tokenů
-
-Pro MVP používáme tento základ:
-
-- `characters`: `id uuid` jako primární klíč, `user_id uuid NULL`, `name text NOT NULL`,
-- `characters.user_id` odkazuje na `auth.users.id`; při smazání účtu se použije `ON DELETE SET NULL`,
-- jeden účet může mít více postav v čase,
-- `map_config`: `map_id text` jako primární klíč a `cell_size int4`,
-- `game_state`: singleton řádek `id = 1` s `active_map_id text`,
-- `token_positions`: složený primární klíč `(character_id, map_id)`, souřadnice `x/y` typu `double precision`,
-- `token_positions.character_id` odkazuje na `characters.id` s `ON DELETE CASCADE`,
-- `token_positions.map_id` odkazuje na `map_config.map_id` s `ON DELETE CASCADE`.
-
-`x/y` jsou map-space pixely a mohou být desetinné hodnoty. To umožňuje přesně uložit středy polí i při liché hodnotě `cell_size`.
-
 ------------------------------------------------------------------------
 
-## 26. NPC tokeny
+## 27. NPC tokeny
 
 NPC jsou lokální pro konkrétní mapu.
 
@@ -754,8 +806,12 @@ NPC nemá:
 -   inventář,
 -   schopnosti.
 
-Nevytváříme globální NPC databázi. Pokud se stejné NPC objeví na jiné
-mapě, PJ ho může vytvořit znovu.
+V aktuálním MVP nevytváříme globální / znovupoužitelnou NPC databázi.
+Pokud se stejné NPC objeví na jiné mapě, PJ ho zatím může vytvořit znovu.
+
+**Globální / znovupoužitelná databáze NPC je Později.** Dává smysl až ve
+chvíli, kdy začne růst počet opakovaně používaných NPC a ruční vytváření
+začne být reálnou zátěží.
 
 Každá mapa si pamatuje svá NPC a jejich pozice.
 
@@ -779,27 +835,6 @@ vizuálně více prostoru než goblin, ale v MVP to neřešíme.
 
 ------------------------------------------------------------------------
 
-## 27. Uživatelské chyby a stavové zprávy
-
-MVP má od začátku používat srozumitelné chybové zprávy. Uživatel nemá vidět technické chyby Supabase nebo JavaScriptu.
-
-Pravidla:
-
-- chyba konkrétní akce se zobrazí co nejblíž místu, kde vznikla,
-- globální zpráva se používá jen pro problém celé aplikace, mapy nebo připojení,
-- zpráva stručně popíše, co se nepovedlo, a pokud možno řekne, co má uživatel udělat dál,
-- technické detaily se zapisují do `console.error(...)`, ne do uživatelského UI,
-- nevytváříme kvůli tomu obecný error framework ani externí toast knihovnu; stačí malý společný helper a jednoduché stavy `error`, `warning`, `info`.
-
-Příklady uživatelských zpráv:
-
-- „Mapu se nepodařilo načíst. Zkus stránku obnovit.“
-- „Postavu se nepodařilo přidat na mapu. Zkus to znovu.“
-- „Pozici se nepodařilo uložit. Token může být po obnovení na předchozím místě.“
-- „Spojení se hrou bylo přerušeno. Zkouším se znovu připojit.“
-
-------------------------------------------------------------------------
-
 ## 28. Persistence a realtime
 
 Po reloadu nebo reconnectu musí zůstat důležitý stav:
@@ -811,7 +846,6 @@ Po reloadu nebo reconnectu musí zůstat důležitý stav:
 -   útoky,
 -   kouzla,
 -   aktivní mapa,
--   map-specific konfigurace mřížky včetně velikosti pole,
 -   map-specific pozice tokenů,
 -   NPC a jejich potřebný stav.
 
@@ -842,24 +876,17 @@ ani komplexní undo.
 Implementace nemá bezdůvodně posílat request po každém stisku klávesy;
 použije se jednoduché rozumné ukládání/debounce.
 
-V prvním výukovém řezu se pole Studentského průkazu a vlastností ukládají
-po opuštění konkrétního pole. Neplatná hodnota se neukládá.
-
 ------------------------------------------------------------------------
 
 ## 30. MVP
 
 MVP zahrnuje:
 
-**Pořadí implementace deníku pro první session:** nejprve Studentský průkaz + šest
-vlastností + automatické modifikátory. Ostatní části deníku se přidávají podle
-výuky a reálné potřeby; nejde o progression engine.
-
 1.  jednoduché přihlášení předem vytvořených účtů,
 2.  dvě role Hráč / Vedoucí,
 3.  domovskou stránku Můj deník / Vstoupit do hry,
 4.  jednoduchý seznam hráčů pro Vedoucího,
-5.  jeden účet = jedno dítě; účet může mít více postav v čase,
+5.  jeden účet může mít více postav; každá postava má vlastní deník a token,
 6.  plný deník se sekcemi viditelnými od začátku,
 7.  portrét = token,
 8.  read-only přístup Vedoucího k deníkům hráčů,
@@ -872,12 +899,12 @@ výuky a reálné potřeby; nejde o progression engine.
 15. initiative bonus,
 16. jednoduché passive perception,
 17. HP current/max + jednoduché +/-,
-18. temporary HP,
-19. ruční AC + poznámka,
-20. rychlost,
-21. schopnosti jako název + poznámka,
-22. jazyky, odbornosti a obrany jako jednoduchá pole,
-23. XP + level a jednoduchý threshold hint; změna levelu zůstává ruční,
+18. ruční AC + poznámka,
+19. rychlost,
+20. schopnosti jako název + poznámka,
+21. jazyky, odbornosti a obrany jako jednoduchá pole,
+22. XP + level a jednoduchý threshold hint; změna levelu zůstává ruční,
+23. společné Doplňující info s ručně doplňovaným vysvětlením již probraných D&D pravidel,
 24. ručně zadávané bojové položky,
 25. strukturovaná kouzla,
 26. spell attack bonus a spell save DC jako rutinní matematika,
@@ -886,21 +913,18 @@ výuky a reálné potřeby; nejde o progression engine.
 29. Příběhové pozadí + Poznámky,
 30. plný deník + kompaktní mapový panel nad stejnými daty,
 31. mapa + tokeny + kostky + panel deníku,
-32. předem připravený balík WebP map v projektu; upload přes UI je Později,
+32. upload/příprava map Vedoucím,
 33. generovaná čtvercová mřížka a nastavení velikosti pole,
-34. lokální zoom/pan,
-35. knihovna připravených map pouze pro Vedoucího,
-36. jedna aktivní mapa a realtime přepnutí hráčů,
-37. hráčské tokeny s map-specific pozicemi a akcí Přidat postavu na mapu,
-38. drag/drop + snap na pole + synchronizace po dropu,
-39. NPC tokeny lokální pro mapu,
-40. srozumitelné kontextové chybové zprávy; technické detaily pouze do konzole,
-40. NPC bez obrázku s jednoduchým placeholderem,
-41. NPC visible/hidden, pokud nezkomplikuje MVP,
-42. jednoduché kostky,
-43. krátkodobý společný roll log,
-44. persistence důležitého stavu a reconnect.
-
+34. knihovna připravených map pouze pro Vedoucího,
+35. jedna aktivní mapa a realtime přepnutí hráčů,
+36. hráčské tokeny s map-specific pozicemi,
+37. drag/drop + snap na pole + synchronizace po dropu,
+38. NPC tokeny lokální pro mapu,
+39. NPC bez obrázku s jednoduchým placeholderem,
+40. NPC visible/hidden, pokud nezkomplikuje MVP,
+41. jednoduché kostky,
+42. krátkodobý společný roll log,
+43. persistence důležitého stavu a reconnect.
 ------------------------------------------------------------------------
 
 ## 31. Výslovně mimo MVP
@@ -912,7 +936,6 @@ Toto je obranná zeď proti scope creepu:
 -   audio/video,
 -   animované kostky,
 -   combat engine,
--   initiative tracker,
 -   automatické útoky,
 -   automatické damage,
 -   automatické odvozování attack bonusu z vybavení,
@@ -924,7 +947,6 @@ Toto je obranná zeď proti scope creepu:
 -   efekty,
 -   složité mapové vrstvy,
 -   komplexní NPC sheets,
--   globální NPC databáze,
 -   quest manager,
 -   item database,
 -   bestiary,
@@ -939,6 +961,8 @@ Toto je obranná zeď proti scope creepu:
 -   inspiration,
 -   death saves,
 -   Hit Dice,
+-   initiative tracker,
+-   globální / znovupoužitelná databáze NPC,
 -   level-up wizard,
 -   movement history,
 -   dlouhodobá dice history,
@@ -961,7 +985,7 @@ Toto je obranná zeď proti scope creepu:
 První verze je úspěšná, pokud:
 
 -   dítě se jednoduše přihlásí,
--   najde svůj deník a chápe, kam postupně zapisovat informace,
+-   najde deník své zvolené postavy a chápe, kam postupně zapisovat informace,
 -   vstoupí do hry,
 -   vidí pouze aktuální mapu,
 -   vidí ostatní postavy a viditelná NPC,
@@ -1004,7 +1028,7 @@ Malé tickety, minimum abstrakcí a závislostí, pochopitelný kód.
 ### Střední
 
 **Velké mapy/AI obrázky**\
-Mohou ovlivnit načítání a výkon. Pro MVP používáme WebP a načítáme pouze aktivní mapu; nepreloadujeme celý balík.
+Mohou ovlivnit načítání a výkon.
 
 **Persistence vs. realtime**\
 Je nutné jasně oddělit trvalý stav od krátkodobých událostí.
@@ -1035,7 +1059,7 @@ Pokud ne, řešíme architekturu/realtime, nikoliv CSS.
 
 ### Dny 4--7 --- Mapa
 
--   WebP mapa,
+-   PNG mapa,
 -   čtvercová mřížka,
 -   nastavení velikosti pole,
 -   zoom/pan,
@@ -1043,21 +1067,23 @@ Pokud ne, řešíme architekturu/realtime, nikoliv CSS.
 -   drag/snap,
 -   realtime,
 -   map-specific pozice,
--   více předem připravených map,
--   aktivní mapa a lazy načítání pouze aktivního mapového assetu,
--   přidání postavy na aktivní mapu.
+-   více map,
+-   aktivní mapa.
 
 ### Dny 8--11 --- Deník
 
-Nejdřív dokončit a ověřit první výukový řez:
-
--   Studentský průkaz: portrét, jméno, rasa, povolání, level,
--   šest vlastností včetně validace a automatických modifikátorů,
--   ukládání/autosave a srozumitelné chyby.
-
-Teprve potom podle dostupného času a pořadí výuky pokračovat dalšími částmi
-plného MVP deníku: skills/saves, HP/AC, XP, schopnosti, bojové položky,
-kouzla, spell sloty, inventář a poznámková pole.
+-   identita,
+-   atributy,
+-   skills/saves,
+-   HP/AC,
+-   XP/level,
+-   schopnosti,
+-   bojové položky,
+-   kouzla,
+-   spell sloty,
+-   inventář,
+-   poznámková pole,
+-   ukládání/autosave.
 
 ### Dny 12--14 --- Herní obrazovka a integrace
 
@@ -1124,6 +1150,8 @@ Vysoká hodnota, ale první session může proběhnout bez toho.
 Aktuálně sem patří například:
 
 -   Hit Dice,
+-   temporary HP,
+-   ruční zoom/pan, pinch zoom a fullscreen mapy,
 -   různé velikosti NPC tokenů,
 -   další pohodlné funkce potvrzené reálnou potřebou.
 
@@ -1158,42 +1186,20 @@ Následující věci zatím nejsou definitivně uzavřené a mají se řešit a�
 chvíli, kdy jsou potřeba:
 
 -   přesná informační architektura záložek kompaktního deníku,
--   finální pravidla RLS/oprávnění po napojení autentizace,
--   technické řešení uploadu/omezení portrétu postavy; UX je jednoduchý klik na portrét bez cropperu,
+-   finální technické řešení backendu/realtime (Supabase je pracovní
+    kandidát),
+-   přesný datový model,
+-   přesná implementace souřadnic čtvercové mřížky a snapu,
+-   konkrétní způsob uploadu/omezení obrázků,
 -   rozsah class-specific částí deníku,
 -   zda hidden NPC zůstane v MVP po technickém spike,
--   detaily jednoduché pomůcky pro generování hodnot vlastností.
+-   detaily jednoduché pomůcky pro generování hodnot vlastností,
+-   přesný způsob výběru aktivní postavy / přepínání mezi více postavami na jednom účtu,
+-   přesný počet a obsah budoucích stran Studentského průkazu,
+-   přesné vizuální označení proficiency u záchranných hodů,
+-   finální barevná paleta a vizuální charakter „D&D akademie“ (směr je přívětivější a barevnější, přesné řešení ještě není uzavřené).
 
 Neřešit je předčasně jen kvůli „kompletnímu návrhu".
-
-
-------------------------------------------------------------------------
-
-### Změny ve verzi 1.0.4
-
-- uzavřen první výukový řez deníku: Studentský průkaz + šest vlastností,
-- první session schovává pokročilejší mechaniky, dokud je PJ nezačne učit,
-- Studentský průkaz je běžně read-only a edituje se přes jednu ikonu tužky,
-- portrét/token je kruhový; bez cropperu a ručního posunu v MVP,
-- rasa a povolání používají pevné seznamy a stabilní systémové kódy,
-- drakorozený není v této kampani povolen; podrasy/varianty a multiclass nejsou MVP,
-- vlastnosti mohou být prázdné, používají rozsah 1--20 a modifikátory se pouze dopočítávají,
-- první sheet se má vejít na běžný notebook bez scrollování,
-- rozšířen minimální datový základ `characters` pro první řez deníku,
-- opraven starší rozpor: jeden účet může mít více postav v čase.
-
-------------------------------------------------------------------------
-
-### Změny ve verzi 1.0.3
-
-- mapové assety pro MVP jsou předem připravené v projektu a preferují WebP,
-- klient načítá pouze aktivní mapu; upload map přes UI je Později,
-- jeden účet může mít více postav v čase,
-- hráčský token používá stejné `character_id` jako postava,
-- uzavřen stabilní základ `characters`, `map_config`, `game_state`, `token_positions`,
-- absence `token_positions` znamená, že postava na mapě není,
-- přidání postavy na aktivní mapu je MVP,
-- zavedené MVP UX pravidlo pro srozumitelné chybové a stavové zprávy.
 
 ------------------------------------------------------------------------
 
@@ -1218,7 +1224,89 @@ Neřešit je předčasně jen kvůli „kompletnímu návrhu".
 
 ------------------------------------------------------------------------
 
-## 39. Jak tento dokument používat
+## 39. UI/UX směr
+
+FE polish nemění produktové chování ani herní mechaniky.
+
+### Globální vizuální směr
+
+Schválený vizuální směr celé aplikace je:
+
+> **Akademický atlas / školní registr magické akademie.**
+
+Vizuální referencí je schválený návrh akademie **Academia Magna Illistrass**.
+Reference neurčuje přesný layout ani se nekopíruje 1:1. Slouží jako vodítko
+pro celkový vizuální jazyk aplikace:
+
+-   teplý papírový / ivory základ,
+-   tmavý inkoustový text,
+-   jemné lineární rámečky a dělení sekcí,
+-   tlumené zlato a hlubší heraldické akcenty,
+-   akademicko-kartografický charakter,
+-   kombinace výraznějšího serifového písma pro titulky a dobře čitelného
+    běžného písma pro obsah a ovládací prvky.
+
+Atmosféra má připomínat školní registr, atlas, archivní kartu nebo studijní
+záznam z magické akademie. Nemá působit jako moderní SaaS/admin dashboard.
+
+### Použití napříč aplikací
+
+Tento vizuální jazyk je globální směr pro:
+
+-   `character.html`,
+-   `index.html`,
+-   okolní UI `game.html`,
+-   tlačítka, panely, navigaci a studijní informační plochy.
+
+Samotný **map-space je herní obsah**. Nemá se kvůli vizuálnímu sjednocení
+přebarvovat, filtrovat ani měnit jeho souřadnicová či drag logika.
+
+Styl se zavádí postupně:
+
+1.  `character.html` jako referenční stránka,
+2.  po ověření `index.html`,
+3.  následně okolní UI `game.html`.
+
+Tím omezujeme náklady na případnou změnu směru.
+
+### Preferujeme
+
+-   jasnou vizuální hierarchii,
+-   teplý světlý základ místo mintového admin vzhledu,
+-   serifové titulky / názvy sekcí v rozumné míře,
+-   velmi čitelný běžný text a formulářové prvky,
+-   jemné rámečky místo množství moderních „card“ boxů,
+-   konzistentní spacing,
+-   dostatečně velké click/tap targets,
+-   viditelné hover/focus/disabled/error stavy,
+-   tlumené heraldické akcenty,
+-   jednoduché symboly jako orientační pomůcku,
+-   read-only režim, který působí jako záznam / přehled, ne jako formulář,
+-   záložky Studentského průkazu, které mohou připomínat jednoduché
+    archivní/indexové záložky.
+
+### Nechceme
+
+-   těžké pergamenové textury přes celé UI,
+-   dekorativní fantasy rámy,
+-   ornamentální přeplácanost,
+-   špatně čitelné fantasy fonty,
+-   šest křiklavých barev pro šest vlastností,
+-   výrazné gradienty a efekty,
+-   CSS framework jen kvůli vzhledu,
+-   nový JS framework,
+-   design system jako samostatný projekt,
+-   animace pouze pro efekt,
+-   velké změny layoutu bez UX důvodu.
+
+Přesné hex hodnoty nejsou produktové rozhodnutí. Mohou se iterativně
+upravovat podle reálného vzhledu a čitelnosti.
+
+Referenční stránkou pro první ověření stylu zůstává `character.html`.
+
+------------------------------------------------------------------------
+
+## 40. Jak tento dokument používat
 
 Tento dokument je hlavní produktový zdroj pravdy pro projekt.
 

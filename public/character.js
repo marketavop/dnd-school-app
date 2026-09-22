@@ -10,6 +10,15 @@ const CLASSES = new Map([
   ['rogue', 'Tulák'], ['sorcerer', 'Čaroděj'], ['warlock', 'Černokněžník'], ['wizard', 'Kouzelník'],
 ]);
 const status = document.querySelector('#load-status');
+// Ticket 9: proficiency pouze podle základního povolání, bez ručních výjimek.
+const SAVE_PROFICIENCIES = new Map([
+  ['barbarian', ['str', 'con']], ['bard', ['dex', 'cha']],
+  ['fighter', ['str', 'con']], ['sorcerer', ['con', 'cha']],
+  ['warlock', ['wis', 'cha']], ['druid', ['int', 'wis']],
+  ['ranger', ['str', 'dex']], ['cleric', ['wis', 'cha']],
+  ['wizard', ['int', 'wis']], ['monk', ['str', 'dex']],
+  ['paladin', ['wis', 'cha']], ['rogue', ['dex', 'int']],
+]);
 const card = document.querySelector('#student-card');
 const ids = new URLSearchParams(window.location.search).getAll('character_id');
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -135,11 +144,24 @@ function enableEditing(db, character) {
       }
     }
     input.value = character[field.key] ?? '';
+    if (field.ability) {
+      input.readOnly = true;
+      input.tabIndex = -1;
+    }
+    let displayedScore = character[field.key];
     function showModifier(value) {
       if (!field.ability) return;
+      displayedScore = value;
       const modifier = value == null ? null : Math.floor((value - 10) / 2);
       document.querySelector(`#modifier-${field.key}`).textContent = modifier == null ? '' : modifier > 0 ? `+${modifier}` : String(modifier);
+      const proficient = SAVE_PROFICIENCIES.get(character.class_code)?.includes(field.key) ?? false;
+      const level = character.level;
+      const proficiencyBonus = Number.isInteger(level) && level >= 1 && level <= 20 ? 2 + Math.floor((level - 1) / 4) : 0;
+      const save = modifier == null ? null : modifier + (proficient ? proficiencyBonus : 0);
+      document.querySelector(`#save-${field.key}`).textContent = save == null ? '' : save > 0 ? `+${save}` : String(save);
+      document.querySelector(`#save-proficiency-${field.key}`).hidden = !proficient;
     }
+    if (field.ability) field.refreshSave = () => showModifier(displayedScore);
     showModifier(character[field.key]);
     function validate() {
       let value = input.value;
@@ -203,6 +225,9 @@ function enableEditing(db, character) {
         }
         // Jiný souběžný zápis mohl vrátit starší hodnoty ostatních polí.
         character[field.key] = updated[field.key];
+        if (field.key === 'level' || field.key === 'class_code') {
+          for (const ability of fields) ability.refreshSave?.();
+        }
         const display = field.choices ? label(updated[field.key], field.choices, 'Neznámá hodnota') : updated[field.key];
         if (!field.ability) showValue(`#character-${field.slot}`, display);
       } catch {
@@ -225,8 +250,12 @@ function enableEditing(db, character) {
     if (editing && fields.some(field => field.input === document.activeElement)) document.activeElement.blur();
     editing = !editing;
     for (const field of fields) {
-      if (field.ability) continue;
       if (!editing) field.clearValidation();
+      if (field.ability) {
+        field.input.readOnly = !editing;
+        field.input.tabIndex = editing ? 0 : -1;
+        continue;
+      }
       field.input.hidden = !editing;
       document.querySelector(`#character-${field.slot}`).hidden = editing;
     }
