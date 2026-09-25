@@ -6,6 +6,7 @@ const { resolve } = require('node:path');
 const dataSource = readFileSync(resolve(__dirname, '../public/characters.js'), 'utf8').replaceAll('export async', 'async');
 const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'utf8')
   .replace("import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';", dataSource)
+  .replace("import { getCurrentUser } from './login.js';", 'const getCurrentUser = () => ({ session_token: null });')
   .replace("await import('./config.local.js')", 'getConfig()')
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
@@ -13,8 +14,8 @@ const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 const base = { id, name: 'Eliška', race_code: null, class_code: null, level: null, portrait_path: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
-async function page(query, row = base, error = null) {
-  const elements = Object.fromEntries(['load-status', 'student-card', 'character-name', 'character-race',
+async function page(query, row = base, error = null, leader = false) {
+  const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
     'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['xp', 'current_hp', 'max_hp'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
@@ -24,7 +25,7 @@ async function page(query, row = base, error = null) {
     setAttribute(key, value) { this.attributes[key] = value; },
     addEventListener(event, handler) { this.handlers[event] = handler; },
   }]));
-  let configs = 0, clients = 0, reads = 0;
+  let configs = 0, clients = 0, reads = 0, leaderReads = 0;
   const logs = [];
   const writes = [];
   const control = { error: null, wait: null };
@@ -47,7 +48,12 @@ async function page(query, row = base, error = null) {
   } };
   const context = vm.createContext({
     URL, URLSearchParams,
-    window: { location: { search: query, href: `https://example.test/character.html${query}`, origin: 'https://example.test' } },
+    window: { location: { search: query, href: `https://example.test/character.html${query}`, origin: 'https://example.test' },
+      parent: leader ? { location: { origin: 'https://example.test' }, async loadLeaderCharacter(characterId) {
+        leaderReads++; assert.equal(characterId, id);
+        if (error) throw error;
+        return { ...row };
+      } } : undefined },
     document: { createElement: () => ({}), querySelector: selector => { assert.ok(elements[selector.slice(1)], selector); return elements[selector.slice(1)]; } },
     console: { error: (...args) => logs.push(args) },
     getConfig() { configs++; return { SUPABASE_URL: 'https://project.supabase.co', SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' }; },
@@ -58,10 +64,44 @@ async function page(query, row = base, error = null) {
     } },
   });
   await vm.runInContext(`(async () => { ${pageSource}\n })()`, context);
-  return { elements, configs, clients, reads, logs, writes, control };
+  return { elements, configs, clients, reads, leaderReads, logs, writes, control };
 }
 
 (async () => {
+  const leaderSheet = await page(`?mode=leader&character_id=${id}`, {
+    ...base, name: 'Test Postava', class_code: 'wizard', level: 3,
+    int: 16, xp: 500, current_hp: 8, max_hp: 12,
+  }, null, true);
+  assert.equal(leaderSheet.leaderReads, 1);
+  assert.equal(leaderSheet.configs, 0);
+  assert.equal(leaderSheet.clients, 0);
+  assert.equal(leaderSheet.reads, 0, 'leader never loads from anonymous table API');
+  assert.equal(leaderSheet.elements['character-name'].textContent, 'Test Postava');
+  assert.equal(leaderSheet.elements['modifier-int'].textContent, '+3');
+  assert.equal(leaderSheet.elements['save-int'].textContent, '+5');
+  assert.equal(leaderSheet.elements['character-current_hp'].textContent, 8);
+  assert.equal(leaderSheet.elements['xp-next'].textContent, 'Do další úrovně: 2200');
+  assert.equal(leaderSheet.elements['save-status'].textContent, 'Pouze pro čtení');
+  for (const [key, control] of Object.entries(leaderSheet.elements)) {
+    if (key.startsWith('edit-') && !['edit-icon'].includes(key) || ['hp-minus', 'hp-plus', 'hp-delta'].includes(key)) {
+      assert.equal(control.disabled, true, key);
+      assert.deepEqual(Object.keys(control.handlers), [], `no write handlers: ${key}`);
+    }
+  }
+  assert.equal(leaderSheet.elements['edit-toggle'].hidden, true);
+  assert.equal(leaderSheet.elements['hp-plus'].hidden, true);
+  assert.equal(leaderSheet.writes.length, 0);
+  for (const [query, embedded, error] of [
+    [`?mode=leader&character_id=${id}`, false, null],
+    [`?mode=other&character_id=${id}`, true, null],
+    [`?character_id=${id}`, true, null],
+    [`?mode=leader&character_id=${id}`, true, new Error('expired')],
+  ]) {
+    const denied = await page(query, base, error, embedded);
+    assert.equal(denied.elements['student-card'].hidden, true);
+    assert.equal(denied.clients, 0);
+    assert.equal(denied.writes.length, 0);
+  }
   for (const query of ['', '?character_id=', '?character_id=invalid', `?character_id=${id}&character_id=${id}`,
     '?character_id=%3Cscript%3E', `?character_id=${id}x`]) {
     const result = await page(query);

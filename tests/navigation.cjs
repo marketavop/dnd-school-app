@@ -1,17 +1,23 @@
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
-const source = readFileSync('public/navigation.js', 'utf8').replace("await import('./app.js')", 'startGame()');
-async function render(path, search) {
+const source = readFileSync('public/navigation.js', 'utf8').replace("await import('./app.js')", 'startGame()')
+  .replace("await import('./session-page.js')", 'guard')
+  .replace("await import('./game-session.js')", 'bridge');
+async function render(path, search, role = null) {
   const ids = path === 'index.html' ? ['diary-link', 'game-link', 'navigation-status']
     : path === 'game.html' ? ['home-link', 'navigation-status', 'game-content'] : ['home-link'];
   const elements = Object.fromEntries(ids.map(id => [id, { hidden: id === 'game-content', textContent: '',
     removeAttribute() {} }]));
   let starts = 0;
   await vm.runInNewContext(`(async () => { ${source} })()`, {
-    URLSearchParams, window: { location: { search } },
+    URLSearchParams, window: { location: { search }, parent: { getGameIdentity() {
+      if (!role) throw new Error('No session'); return { role };
+    } } },
     document: { querySelector: selector => elements[selector.slice(1)] },
     startGame: () => { starts++; }, console,
+    guard: { requireSession: async () => role ? { role } : null },
+    bridge: { installGameSession() {} },
   });
   return { elements, starts };
 }
@@ -24,7 +30,7 @@ async function render(path, search) {
       assert.equal(home.elements[link].href, `./${path}${query}`);
       const destination = await render(path, query);
       assert.equal(destination.elements['home-link'].href, `./index.html${query}`);
-      assert.equal(destination.starts, path === 'game.html' ? 1 : 0);
+      assert.equal(destination.starts, 0, 'A character_id URL alone is not a game session');
     }
   }
   for (const query of ['', '?character_id=', '?character_id=bad', '?character_id=12345678-1234-4321-9876-123456789abc&character_id=bad']) {
@@ -39,6 +45,12 @@ async function render(path, search) {
     }
   }
   const game = readFileSync('public/game.html', 'utf8');
+  for (const role of ['player', 'leader']) {
+    const session = await render('game.html', '?character_id=forged&mode=leader', role);
+    assert.equal(session.starts, 1);
+    assert.equal(session.elements['home-link'].hidden, true);
+  }
+  assert.equal((await render('game.html', '?mode=leader', 'admin')).starts, 0);
   const homepage = readFileSync('public/index.html', 'utf8');
   assert.ok(!homepage.includes('id="map"'));
   assert.ok(game.includes('id="map"'));

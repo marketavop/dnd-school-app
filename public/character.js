@@ -1,4 +1,5 @@
 import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';
+import { getCurrentUser } from './login.js';
 
 const RACES = new Map([
   ['human', 'Člověk'], ['elf', 'Elf'], ['halfling', 'Půlčík'], ['dwarf', 'Trpaslík'],
@@ -21,6 +22,9 @@ const SAVE_PROFICIENCIES = new Map([
 ]);
 const card = document.querySelector('#student-card');
 const ids = new URLSearchParams(window.location.search).getAll('character_id');
+const readOnly = new URLSearchParams(window.location.search).has('mode')
+  || Boolean(window.parent && window.parent !== window);
+const playerSessionToken = readOnly ? null : getCurrentUser()?.session_token;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function showError(message) {
@@ -86,7 +90,7 @@ function enableEditing(db, character) {
     for (const key of ['current_hp', 'max_hp']) document.querySelector(`#edit-${key}`).disabled = hpBusy;
   }
   refreshResources();
-  delta.addEventListener('input', () => {
+  if (!readOnly) delta.addEventListener('input', () => {
     if (validHpAmount()) {
       hpError.textContent = failures.has('hp-delta') ? 'Nepodařilo se uložit. Zkuste změnu znovu.' : '';
       delta.setAttribute('aria-invalid', 'false');
@@ -96,7 +100,7 @@ function enableEditing(db, character) {
     return !delta.validity.badInput && /^\d+$/.test(delta.value) && Number.isSafeInteger(Number(delta.value)) && Number(delta.value) > 0;
   }
   async function changeHp(direction) {
-    if (delta.disabled || hpBusy) return;
+    if (readOnly || delta.disabled || hpBusy) return;
     if (!validHpAmount()) {
       hpError.textContent = 'Zadej kladný celý počet HP.';
       delta.setAttribute('aria-invalid', 'true');
@@ -108,7 +112,7 @@ function enableEditing(db, character) {
     if (value === character.current_hp) return;
     hpBusy = true; pending++; failures.delete('hp-delta'); refreshResources(); updateStatus();
     try {
-      const updated = await updateCharacterField(db, character.id, 'current_hp', value);
+      const updated = await updateCharacterField(db, character.id, 'current_hp', value, playerSessionToken);
       character.current_hp = updated.current_hp;
       document.querySelector('#edit-current_hp').value = character.current_hp ?? '';
     } catch {
@@ -118,8 +122,10 @@ function enableEditing(db, character) {
       hpBusy = false; pending--; refreshResources(); updateStatus();
     }
   }
-  hpMinus.addEventListener('click', () => changeHp(-1));
-  hpPlus.addEventListener('click', () => changeHp(1));
+  if (!readOnly) {
+    hpMinus.addEventListener('click', () => changeHp(-1));
+    hpPlus.addEventListener('click', () => changeHp(1));
+  }
   function updateStatus() {
     saveStatus.textContent = failures.size ? 'Nepodařilo se uložit' : pending ? 'Ukládám…' : 'Uloženo';
     saveStatus.dataset.error = String(failures.size > 0);
@@ -163,6 +169,12 @@ function enableEditing(db, character) {
     }
     if (field.ability) field.refreshSave = () => showModifier(displayedScore);
     showModifier(character[field.key]);
+    if (readOnly) {
+      input.disabled = true;
+      input.readOnly = true;
+      input.tabIndex = -1;
+      continue;
+    }
     function validate() {
       let value = input.value;
       let message = '';
@@ -218,7 +230,7 @@ function enableEditing(db, character) {
       updateStatus();
       try {
         const lowerHp = field.key === 'max_hp' && value !== null && character.current_hp > value;
-        const updated = lowerHp ? await lowerCharacterHp(db, character.id, value) : await updateCharacterField(db, character.id, field.key, value);
+        const updated = lowerHp ? await lowerCharacterHp(db, character.id, value, playerSessionToken) : await updateCharacterField(db, character.id, field.key, value, playerSessionToken);
         if (lowerHp) {
           character.current_hp = updated.current_hp;
           document.querySelector('#edit-current_hp').value = updated.current_hp;
@@ -244,6 +256,17 @@ function enableEditing(db, character) {
         updateStatus();
       }
     });
+  }
+  if (readOnly) {
+    toggle.hidden = true;
+    toggle.disabled = true;
+    for (const control of [delta, hpMinus, hpPlus]) {
+      control.disabled = true;
+      control.hidden = true;
+    }
+    document.querySelector('#hp-hint').textContent = '';
+    saveStatus.textContent = 'Pouze pro čtení';
+    return;
   }
   toggle.addEventListener('click', () => {
     // I klávesové/programové zavření vyvolá běžný blur před skrytím pole.
@@ -273,16 +296,28 @@ if (!ids.length) {
   showError('Odkaz na postavu není platný. Parametr character_id musí obsahovat jedno platné UUID.');
 } else {
   try {
-    const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = await import('./config.local.js');
-    if (!SUPABASE_URL?.startsWith('https://') || SUPABASE_URL.includes('YOUR_PROJECT') ||
-        !SUPABASE_PUBLISHABLE_KEY?.startsWith('sb_publishable_') || SUPABASE_PUBLISHABLE_KEY.includes('REPLACE_ME')) {
-      throw new Error('Neplatná konfigurace Supabase.');
+    let db, character;
+    if (readOnly) {
+      const modes = new URLSearchParams(window.location.search).getAll('mode');
+      if (modes.length !== 1 || modes[0] !== 'leader' || window.parent === window
+          || window.parent.location.origin !== window.location.origin
+          || typeof window.parent.loadLeaderCharacter !== 'function') {
+        throw new Error('Leader session required');
+      }
+      document.querySelector('#home-link').hidden = true;
+      character = await window.parent.loadLeaderCharacter(ids[0]);
+    } else {
+      const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = await import('./config.local.js');
+      if (!SUPABASE_URL?.startsWith('https://') || SUPABASE_URL.includes('YOUR_PROJECT') ||
+          !SUPABASE_PUBLISHABLE_KEY?.startsWith('sb_publishable_') || SUPABASE_PUBLISHABLE_KEY.includes('REPLACE_ME')) {
+        throw new Error('Neplatná konfigurace Supabase.');
+      }
+      const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm');
+      db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      });
+      character = await loadCharacter(db, ids[0], playerSessionToken);
     }
-    const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm');
-    const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    });
-    const character = await loadCharacter(db, ids[0]);
     showValue('#character-name', character.name);
     showValue('#character-race', label(character.race_code, RACES, 'Neznámá rasa'));
     showValue('#character-class', label(character.class_code, CLASSES, 'Neznámé povolání'));

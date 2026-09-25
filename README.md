@@ -1,5 +1,14 @@
 # D&D mapa – realtime spike a MAP-001 až MAP-007
 
+Velikost gridu se nyní nastavuje přes **Mapy → Připravit → Uložit**,
+nikoli ve hře. Nasazení a ověření: [MAP_PREPARATION.md](supabase/MAP_PREPARATION.md).
+
+Upload nových připravených map: [MAP_UPLOAD.md](supabase/MAP_UPLOAD.md).
+
+Aktuální správa hráčských tokenů a zabezpečené RPC jsou popsané v
+[PLAYER_TOKENS.md](supabase/PLAYER_TOKENS.md). Starší popisy jednoho tokenu
+a přímých zápisů níže zachycují předchozí etapy implementace.
+
 Dvě připravené PNG mapy, jedna sdílená aktivní mapa a jeden token (průměr `cellSize × TOKEN_SCALE`).
 Jeho pozice je v `public.token_positions` podle `character_id + map_id`. Souřadnice x/y jsou **střed tokenu**
 v přirozených pixelech mapy, počátek (0,0) je vlevo nahoře.
@@ -7,10 +16,41 @@ v přirozených pixelech mapy, počátek (0,0) je vlevo nahoře.
 
 ## Jednoduché přihlášení — Ticket 1
 
+Ticket 3B aktivuje „Hráči“ pro Vedoucího. Seznam a detail načítají nové RPC
+ověřující leader session. Otevírá se původní deník v režimu pouze pro čtení,
+bez nové šablony. Nasazení a testy: [supabase/LEADER_PLAYERS.md](supabase/LEADER_PLAYERS.md).
+
+Ticket 10 zachovává vlastní `public.login` a `session_token`, ale po loginu jej
+uloží do `sessionStorage` a při refreshi ověří přes `public.validate_session`.
+Chráněné stránky čekají na ověření před inicializací deníku/mapy; neplatná
+session se smaže, dočasná síťová chyba ji nemaže. Logout smaže paměť i storage.
+Nové tokeny mají po migraci `20260924160000_session_ttl_8_hours.sql` platnost
+8 hodin. Supabase Auth, cookies ani refresh tokeny se nepřidávají.
+
+Ticket 6A převádí hráčský deník na serverově autorizované RPC s kontrolou
+session, role a vazby účtu na `character_id`. Přímý klientský přístup k tabulce
+`characters` je migrací odebrán; postup a SQL test jsou v
+[supabase/PLAYER_CHARACTER.md](supabase/PLAYER_CHARACTER.md).
+
+Ticket 3A přidává `session_token` pouze v paměti klienta. Server ukládá jeho hash
+a ověřuje identitu, roli a pevnou expiraci za 30 minut. Před novým frontendem
+nasaďte migraci `20260923120000_session_tokens.sql`; podrobnosti a rozhraní
+validátoru jsou v [supabase/LOGIN.md](supabase/LOGIN.md#ticket-3a--krátkodobý-token).
+Herní RPC ani UI se tímto ticketem nemění.
+
+Ticket 2 rozděluje vstup podle `getCurrentUser().role`: hráč dostane původní
+nabídku, Vedoucí samostatný pohled bez „Můj deník“, s položkami „Vstoupit do hry“,
+„Hráči“ a „Mapy“. Mapy jsou neaktivní, Hráče aktivuje Ticket 3B. Odkazy do existujících
+obrazovek využijí přiřazené `character_id`; pokud chybí, zůstává dosavadní
+odkaz z URL. Bez obojího je vstup do hry neaktivní. Neplatná role neotevře žádný
+pohled. Login mechanismus, SQL, hráčské obrazovky i herní oprávnění se nemění.
+`node tests/role-home.cjs` ověřuje rozdělení rolí, izolaci, odkazy a reload
+s náhradou backendu; živé účty `testplayer` a `testleader` tím nejsou ověřené.
+
 Úvodní stránka nyní nejprve zobrazí username + heslo. Identita (`user_id`,
 `role`, `character_id`) existuje pouze v paměti; reload znovu zobrazí login.
-Po úspěchu se odkryje původní nabídka bez změny hráčského UI nebo navigace
-podle rolí. SQL migraci je před použitím nutné nasadit a účty předem připravit.
+Po úspěchu se odkryje nabídka podle role (Ticket 2 výše). SQL migraci je před
+použitím nutné nasadit a účty předem připravit.
 Postup, hranice ticketu a ruční testy jsou v [supabase/LOGIN.md](supabase/LOGIN.md).
 
 Všech šest JavaScript testovacích sad prošlo včetně `node tests/login.cjs`.

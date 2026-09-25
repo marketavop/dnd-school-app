@@ -1,10 +1,61 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.2  
+**Verze:** 1.1.7  
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.7
+
+- ruční zoom a pan mapy jsou po implementaci a živém ověření součástí aktuálního MVP; kamera každého uživatele zůstává čistě lokální,
+- zoom/pan se nepersistuje ani nesynchronizuje a nesmí měnit mapové souřadnice, grid, token positions ani realtime herní stav,
+- player přístup k Studentskému průkazu musí být serverově autorizovaný platnou session a vlastnictvím postavy; `character_id` v URL je navigační údaj, nikoli autorizační důkaz,
+- hráč smí číst a měnit pouze své postavy; přímý pokus o čtení nebo změnu cizí postavy musí být odmítnut i mimo UI,
+- nejbližší priorita po mapách/NPC je zabezpečit player cestu deníku a až poté doplňovat další chybějící části deníku.
+
+### Změny ve verzi 1.1.6
+
+- změněn produktový model NPC na základě reálné potřeby Vedoucího při přípravě hry,
+- NPC nyní existuje jednou v jednoduchém globálním seznamu a může být přidáno na libovolný počet map,
+- oddělujeme **definici NPC** (jméno + volitelný obrázek) od **umístění NPC na mapě** (mapa, pozice, visible/hidden),
+- `Přidat na mapu` vytváří pouze umístění; `Odebrat z mapy` maže pouze umístění a NPC zůstává v seznamu,
+- `Smazat NPC` je samostatná destruktivní akce nad globálním seznamem a musí být v UI jasně odlišena od odebrání z mapy,
+- stejné NPC se v MVP nezadává opakovaně pro každou mapu; tím naplňujeme pravidlo „jednu informaci zadáváme pokud možno pouze jednou“,
+- hidden NPC zůstává součástí MVP; hráči hidden umístění nesmí dostávat jako spoiler data.
+
+### Změny ve verzi 1.1.5
+
+- Supabase je potvrzený backend pro aktuální MVP; už není veden pouze jako pracovní kandidát,
+- upload map v MVP podporuje formáty PNG, JPEG a WebP,
+- jedna nahrávaná mapa může mít maximálně 50 MB a maximální rozměry 6144 × 6144 px,
+- aplikace v MVP mapy automaticky nezmenšuje, nepřevádí ani nekomprimuje; soubor mimo limity se odmítne,
+- omezení velikosti a rozměrů chrání výkon klientů před příliš velkými AI generovanými mapami; automatické zpracování obrázků je Později.
+
+### Změny ve verzi 1.1.4
+
+- dokončena persistence současného custom loginu přes `sessionStorage`,
+- chráněné stránky `index.html`, `character.html` a `game.html` po načtení nejdřív ověřují uloženou session přes `public.validate_session`,
+- platná session přežije refresh bez nového zadání hesla; neplatná nebo expirovaná session se odstraní a uživatel se vrátí na login,
+- přechodná síťová chyba sama o sobě uloženou session nemaže,
+- explicitní logout čistí paměťový auth stav i `sessionStorage`,
+- platnost nově vydávaných custom session tokenů byla prodloužena z 30 minut na 8 hodin,
+- záchranné hody jsou zobrazené přímo v kartách vlastností,
+- save proficiency se v aktuálním MVP automaticky odvozuje z `class_code`; pro saves nepřidáváme nové DB sloupce ani ruční checkboxy,
+- výsledný bonus záchranného hodu je dopočítaný z modifikátoru vlastnosti a proficiency bonusu podle levelu,
+- proficiency u záchranného hodu je v read-only UI označena malou plnou tečkou `●`.
+
+### Změny ve verzi 1.1.3
+
+- zpřesněna informační architektura hráčského `game.html`,
+- ve viditelném UI již nepoužíváme označení „deník“; používáme `Studentský průkaz` a `Studijní panel`,
+- jméno postavy v horní liště slouží jako ovladač Studijního panelu,
+- kostky mají samostatný ovladač s ikonou kostky vedle jména postavy,
+- Studijní panel a panel Kostky používají stejný pravý prostor a jsou vzájemně výlučné,
+- Studijní panel obsahuje záložky `Přehled` a `Vlastnosti`,
+- panel Kostky obsahuje kostky, poslední hod a společný realtime roll log,
+- každý záznam roll logu obsahuje jméno postavy, typ kostky a výsledek,
+- spodní herní lišta s kostkami se nepoužívá.
 
 ### Změny ve verzi 1.1.2
 
@@ -74,7 +125,7 @@ Pracovní technický směr:
 -   vanilla HTML/CSS/JavaScript,
 -   Cloudflare pro web/deployment,
 -   externí služba pro autentizaci, data a realtime,
--   aktuální pracovní kandidát: Supabase,
+-   backend pro autentizaci, data a realtime: Supabase,
 -   Git pro zdrojový kód, nikoliv herní stav.
 
 Technologický směr není nezměnitelný. Stack se nemá měnit bez
@@ -128,8 +179,39 @@ Přesný způsob výběru aktivní postavy / přepínání mezi více postavami 
 zatím uzavřen. Současný flow přes `character_id` zůstává do dalšího
 produktového rozhodnutí beze změny.
 
-Hráč může číst a upravovat pouze deníky svých postav. Vedoucí může číst deníky
-všech hráčských postav, ale v MVP je neupravuje.
+`character_id` v URL slouží pouze k navigaci a výběru konkrétní postavy.
+Nesmí fungovat jako autorizační důkaz.
+
+Hráč může číst a upravovat pouze deníky svých postav. Každé chráněné čtení
+a každý zápis player cesty musí serverově ověřit:
+
+-   platnou `session_token`,
+-   identitu přihlášeného hráče,
+-   že požadovaná postava patří tomuto hráči.
+
+Přímý request s cizím `character_id` musí být odmítnut i v případě, že uživatel
+obejde běžné UI.
+
+Vedoucí může číst deníky všech hráčských postav, ale v MVP je neupravuje.
+
+### Přihlášení a session
+
+Aktuální MVP používá stávající custom login nad backendovým RPC, nikoli Supabase Auth.
+Po úspěšném přihlášení se ověřená identita a `session_token` uloží do
+`sessionStorage`. Při načtení `index.html`, `character.html` a `game.html` se
+uložený token nejdřív ověří přes `public.validate_session`.
+
+Platí:
+
+-   platná session přežije refresh bez nového zadání hesla,
+-   chráněný obsah se inicializuje až po úspěšném ověření session,
+-   neplatný nebo expirovaný token se odstraní a uživatel se vrátí na login,
+-   přechodná síťová chyba sama o sobě uloženou session nemaže,
+-   explicitní logout čistí paměťový auth stav i `sessionStorage`,
+-   nové session tokeny mají platnost 8 hodin.
+
+Pro MVP nevytváříme refresh-token systém, `Remember me` ani širší auth
+refaktor.
 
 ------------------------------------------------------------------------
 
@@ -178,19 +260,17 @@ odemykání sekcí, progression UI ani procenta dokončení.
 
 ------------------------------------------------------------------------
 
-## 7. Deník postavy
+## 7. Studentský průkaz a Studijní panel
 
-Používáme označení **Deník postavy / školní deník**, nikoliv „character
-sheet“.
+Ve viditelném UI nepoužíváme označení „deník“.
 
-Mentální model je školní deník / studentský průkaz.
+Používáme:
 
-Existují dva pohledy nad stejnými daty:
+1.  **Studentský průkaz** — plný pohled na postavu pro správu a učení.
+2.  **Studijní panel** — kompaktní pohled během hry.
 
-1.  **Plný deník** — správa a učení.
-2.  **Kompaktní panel na mapě** — rychlé použití během hry.
-
-Nevytváříme dvě kopie dat.
+Oba pohledy používají stejná data. Nevytváříme dvě kopie dat ani
+samostatné výpočty pro herní panel.
 
 ### Listování Studentským průkazem
 
@@ -209,10 +289,28 @@ Implementace má zůstat jednoduchá:
 Neimplementujeme prázdné budoucí stránky jen proto, že mohou jednou
 existovat. Další stránka vznikne až pro konkrétní obsah.
 
-Kompaktní panel na mapě může mít vlastní jednoduché záložky. Jeho přesné
-členění zatím není uzavřené. Každá informace v mapovém panelu musí
-odpovědět na otázku: **potřebuje ji dítě běžně během session?**
+### Studijní panel na herní obrazovce
 
+Studijní panel je pravý postranní panel na `game.html`.
+
+Aktuální MVP obsahuje záložky:
+
+-   `Přehled`,
+-   `Vlastnosti`.
+
+`Přehled` obsahuje aktuálně zejména HP.
+`Vlastnosti` obsahují šest vlastností, jejich hodnotu, modifikátor
+a záchranný hod.
+
+Každá další informace ve Studijním panelu musí odpovědět na otázku:
+**potřebuje ji dítě běžně během session?**
+
+Jméno aktuální postavy v horní liště funguje jako ovladač
+otevření/zavření Studijního panelu.
+
+Panel je po načtení stránky zavřený.
+Otevření panelu nepřekrývá mapu; mapa se pouze responsivně přizpůsobí
+menší dostupné ploše.
 ------------------------------------------------------------------------
 
 ## 8. Web vs. papírový deník
@@ -338,7 +436,14 @@ Aplikace automaticky vypočítá:
 -   bonusy dovedností,
 -   bonusy záchranných hodů.
 
-Dítě označuje proficiency u skills/saves.
+V aktuálním MVP se proficiency u **záchranných hodů** automaticky odvozuje z
+`class_code` podle základních povolání D&D 5e 2014. Pro saves proto
+neukládáme šest samostatných booleanů a dítě proficiency ručně nezaškrtává.
+
+Výsledný bonus záchranného hodu je:
+
+`modifikátor vlastnosti + proficiency bonus`, pokud je daný save pro povolání
+zdatný; jinak pouze `modifikátor vlastnosti`.
 
 Samotný hod provádí dítě a samo přičítá zobrazený bonus.
 
@@ -362,8 +467,8 @@ Cílový desktopový layout prvního řezu zůstává `3 × 2` a spolu se
 Studentským průkazem má být na běžném notebooku viditelný bez zbytečného
 vertikálního scrollu.
 
-Způsob vizuálního označení proficiency u záchranného hodu zatím není
-definitivně uzavřen.
+Proficiency u záchranného hodu je v read-only kartě označena malou plnou
+tečkou `●`. Tečka je pouze informační, není klikací ani editovatelná.
 
 ------------------------------------------------------------------------
 
@@ -648,9 +753,30 @@ MVP obsahuje jednoduchou sadu:
 
 Kliknutí na kostku provede jeden čistý náhodný hod.
 
-Výsledek se zobrazí ve společném krátkodobém logu, například:
+Kostky mají na herní obrazovce vlastní samostatný pravý panel.
+Panel Kostky se otevírá ikonou kostky v horní liště vedle jména postavy.
 
-`Eliška: k20 → 14`
+Studijní panel a panel Kostky používají stejný pravý prostor a jsou
+vzájemně výlučné. Otevřený může být vždy maximálně jeden z nich.
+
+Panel Kostky obsahuje:
+
+-   k4, k6, k8, k10, k12, k20 a k100,
+-   výrazný poslední hod,
+-   společný realtime roll log.
+
+Poslední hod i každý záznam roll logu obsahují:
+
+`<jméno postavy> · <kostka> → <výsledek>`
+
+například:
+
+`Eliška · k20 → 14`
+
+Jméno je jméno postavy, nikoli jméno uživatelského účtu.
+
+Roll log je krátkodobý společný herní stav.
+V MVP zobrazujeme omezený počet posledních hodů, aktuálně maximálně 10.
 
 Nevytváříme:
 
@@ -659,14 +785,17 @@ Nevytváříme:
 -   makra,
 -   automatické modifikátory,
 -   advantage/disadvantage switch,
--   attack buttons.
+-   attack buttons,
+-   dlouhodobou historii celé session,
+-   statistiky hodů,
+-   filtry,
+-   audit log.
 
 Když dítě potřebuje 2k6, hodí k6 dvakrát.
 
 > **Kostky simulují fyzickou kostku. Nic víc.**
 
 Dice log nemusí být dlouhodobě persistentní.
-
 ------------------------------------------------------------------------
 
 ## 22. Hlavní herní obrazovka
@@ -675,19 +804,60 @@ Během hraní dítě primárně vidí:
 
 -   mapu,
 -   tokeny,
+-   tenkou horní lištu,
+-   podle potřeby jeden pravý postranní panel.
+
+Mapa zůstává hlavním obsahem obrazovky.
+
+Horní lišta obsahuje:
+
+-   `← Domů`,
+-   `Aktivní mapa: <název>`,
+-   jméno aktuální postavy,
+-   ikonu kostky.
+
+Jméno postavy otevírá/zavírá **Studijní panel**.
+
+Ikona kostky otevírá/zavírá **panel Kostky**.
+
+Studijní panel a panel Kostky jsou vzájemně výlučné.
+Nikdy nejsou otevřené současně.
+
+Oba používají stejný pravý layoutový prostor a nepřekrývají mapu.
+Při otevření, zavření nebo přepnutí panelu se mapa pouze responsivně
+refitne do aktuálně dostupné plochy.
+
+Studijní panel obsahuje:
+
+-   `Přehled`,
+-   `Vlastnosti`.
+
+Panel Kostky obsahuje:
+
 -   jednoduché kostky,
--   otevíratelný kompaktní deník.
+-   poslední hod,
+-   společný krátkodobý roll log.
 
-Dítě by kvůli běžnému hraní nemělo potřebovat opustit mapu.
+Dítě by kvůli běžnému hraní nemělo potřebovat opustit mapovou stránku.
 
-Panel může umožnit rychle měnit běžný stav, zejména HP a spell sloty. XP
-může zůstat v plném deníku.
-
+XP a další méně často používané informace mohou zůstat pouze
+ve Studentském průkazu.
 ------------------------------------------------------------------------
 
 ## 23. Mapy a čtvercová mřížka
 
-PJ může předem nahrát mapy, pravděpodobně PNG.
+PJ může předem nahrát mapy ve formátu **PNG, JPEG nebo WebP**.
+
+Pro upload map v MVP platí ochranné limity:
+
+-   maximální velikost jednoho souboru je **50 MB**,
+-   maximální rozměry obrázku jsou **6144 × 6144 px**,
+-   kontroluje se velikost souboru i rozměry obrázku,
+-   soubor mimo limity se odmítne se srozumitelnou chybou,
+-   aplikace mapu automaticky nezmenšuje, nepřevádí ani nekomprimuje.
+
+Automatický resize, konverze a optimalizace obrázků jsou **Později** a mají se řešit
+až podle zkušeností s reálnými mapami.
 
 Zdrojové mapy jsou bez gridu. Aplikace přes ně vytvoří vlastní čtvercovou mřížku.
 
@@ -724,31 +894,33 @@ PJ řídí scénu. Hráč mapu nevybírá.
 
 ## 25. Zoom a pan
 
-Aktuální MVP nepoužívá ruční zoom ani pan mapy.
+Ruční **zoom a pan jsou součástí aktuálního MVP**.
 
-Hotový směr je **responsivní fit mapy do dostupného viewportu**:
+Výchozí pohled po otevření mapy zůstává responsivní fit do dostupného
+viewportu. Uživatel si potom může vlastní kameru lokálně přiblížit,
+oddálit a posunout.
 
--   celá mapa se vejde do dostupné plochy bez scrollbarů,
--   zachovává poměr stran,
--   nezvětšuje se nad 100 %,
--   mapa, grid a tokeny se škálují společně,
--   škálovaný map-space je ve viewportu vycentrovaný horizontálně i
-    vertikálně.
+Platí:
 
-Interní map-space zůstává v původních pixelech mapy. Uložené `x/y`
-znamenají střed tokenu v map-space. Resize mění pouze vizuální scale a
-nesmí přepisovat uložené souřadnice.
+-   každý uživatel má vlastní lokální zoom/pan,
+-   kamera se nesynchronizuje ostatním klientům,
+-   zoom/pan se neukládá do DB, `localStorage` ani `sessionStorage`,
+-   po reloadu nebo změně aktivní mapy začíná pohled znovu ve výchozím fit režimu,
+-   mapa, grid a tokeny se transformují společně,
+-   interní map-space zůstává v původních pixelech mapy,
+-   uložené `x/y` tokenů se při zoomu/panu nemění,
+-   drag/snap musí používat převod pointeru zpět do původních mapových souřadnic,
+-   zoom/pan nevytváří DB zápisy ani realtime události.
 
-Jakákoli FE změna, která by vyžadovala zásah do map-space, drag
-matematiky, snapu, persistence nebo realtime, se nejdřív samostatně
-posoudí.
+Uživatel má jednoduchou možnost vrátit kameru na výchozí fit pohled.
+Vedoucí nesynchronizuje kameru hráčům a hráč nemá režim „follow GM“.
 
 **Později:**
 
--   ruční zoom,
--   pan celé mapy,
--   pinch zoom,
+-   pinch zoom pro dotyková zařízení, pokud nebude potřeba pro první session,
 -   fullscreen,
+-   minimapa,
+-   synchronizovaná kamera / follow GM,
 -   další map controls.
 
 ------------------------------------------------------------------------
@@ -784,19 +956,22 @@ presence.
 
 ## 27. NPC tokeny
 
-NPC jsou lokální pro konkrétní mapu.
+NPC v MVP používají jednoduchý **globální seznam NPC + umístění na mapách**.
 
-NPC v MVP obsahuje pouze:
+Důvodem změny je reálná potřeba Vedoucího při přípravě hry: stejné NPC se může
+objevit na více mapách a opakované vytváření stejného jména a obrázku pro každou
+mapu zvlášť je zbytečná práce. Platí pravidlo **jednu informaci zadáváme pokud
+možno pouze jednou**.
+
+### Definice NPC
+
+NPC existuje jednou v jednoduchém seznamu a obsahuje pouze:
 
 -   jméno,
--   volitelný obrázek,
--   pozici,
--   visible/hidden.
+-   volitelný obrázek.
 
-NPC může vzniknout bez obrázku; aplikace může zobrazit jednoduchý
-placeholder se jménem nebo iniciálou.
-
-Vedoucí NPC přidává, přesouvá a odstraňuje.
+NPC může vzniknout bez obrázku; aplikace může zobrazit jednoduchý placeholder
+se jménem nebo iniciálou.
 
 NPC nemá:
 
@@ -806,36 +981,62 @@ NPC nemá:
 -   inventář,
 -   schopnosti.
 
-V aktuálním MVP nevytváříme globální / znovupoužitelnou NPC databázi.
-Pokud se stejné NPC objeví na jiné mapě, PJ ho zatím může vytvořit znovu.
+Nevytváříme bestiary, monster database ani rules engine. Globální seznam NPC je
+pouze malý znovupoužitelný seznam jmen a obrázků pro přípravu map.
 
-**Globální / znovupoužitelná databáze NPC je Později.** Dává smysl až ve
-chvíli, kdy začne růst počet opakovaně používaných NPC a ruční vytváření
-začne být reálnou zátěží.
+### Umístění NPC na mapě
 
-Každá mapa si pamatuje svá NPC a jejich pozice.
+Vedoucí může existující NPC ze seznamu **přidat na mapu**. Umístění obsahuje
+pouze:
+
+-   `npc_id`,
+-   `map_id`,
+-   pozici,
+-   visible/hidden.
+
+Stejné NPC může být přidané na více mapách. V MVP stačí nejvýše jedno umístění
+konkrétního NPC na jedné mapě.
+
+Každá mapa si pamatuje umístění NPC a jejich pozice.
+
+Vedoucí může umístění:
+
+-   přidat na mapu,
+-   přesouvat,
+-   skrýt/odhalit,
+-   **odebrat z mapy**.
+
+`Odebrat z mapy` maže pouze umístění. NPC zůstává v globálním seznamu a může
+být znovu přidáno na stejnou nebo jinou mapu.
+
+### Smazání NPC
+
+`Smazat NPC` je samostatná destruktivní akce nad globálním seznamem NPC.
+V UI musí být jasně odlišena od `Odebrat z mapy` a musí mít potvrzení.
+
+Smazání NPC odstraní také jeho mapová umístění. Pro MVP nevytváříme archiv,
+koš ani undo.
 
 ### Visibility
 
-NPC může být visible nebo hidden.
+Umístění NPC může být visible nebo hidden.
 
-Vedoucí skryté NPC při přípravě vidí. Hráči ho nemají vidět/dostávat,
-dokud není odhaleno.
+Vedoucí skryté NPC při přípravě a hře vidí. Hráči ho nemají vidět ani dostávat,
+dokud není odhaleno. Hidden údaje nesmí být pouze schované v UI; player API a
+realtime nesmí spoiler data posílat.
 
-Nevytváříme individuální visibility, stealth engine ani perception
-engine.
-
-Pokud bezpečná implementace hidden NPC výrazně zkomplikuje realtime nebo
-permissions, je funkce kandidátem k odkladu.
+Nevytváříme individuální visibility, stealth engine ani perception engine.
 
 ### Velikost NPC
 
 Různá velikost NPC tokenů je **Později**. V budoucnu může drak zabírat
 vizuálně více prostoru než goblin, ale v MVP to neřešíme.
 
-------------------------------------------------------------------------
-
 ## 28. Persistence a realtime
+
+Kromě herních dat musí běžný refresh zachovat také platnou přihlášenou session
+po dobu životnosti custom session tokenu. Session persistence používá
+`sessionStorage`; token se při startu chráněné stránky ověřuje backendem.
 
 Po reloadu nebo reconnectu musí zůstat důležitý stav:
 
@@ -882,7 +1083,7 @@ použije se jednoduché rozumné ukládání/debounce.
 
 MVP zahrnuje:
 
-1.  jednoduché přihlášení předem vytvořených účtů,
+1.  jednoduché přihlášení předem vytvořených účtů + zachování platné session po refreshi,
 2.  dvě role Hráč / Vedoucí,
 3.  domovskou stránku Můj deník / Vstoupit do hry,
 4.  jednoduchý seznam hráčů pro Vedoucího,
@@ -895,7 +1096,7 @@ MVP zahrnuje:
 11. rasa/povolání/zázemí bez character-builder automatiky,
 12. vlastnosti a automatické modifikátory,
 13. proficiency bonus,
-14. skills/saves + jednoduché automatické bonusy,
+14. skills/saves + jednoduché automatické bonusy; save proficiency se odvozuje z `class_code`,
 15. initiative bonus,
 16. jednoduché passive perception,
 17. HP current/max + jednoduché +/-,
@@ -919,9 +1120,9 @@ MVP zahrnuje:
 35. jedna aktivní mapa a realtime přepnutí hráčů,
 36. hráčské tokeny s map-specific pozicemi,
 37. drag/drop + snap na pole + synchronizace po dropu,
-38. NPC tokeny lokální pro mapu,
-39. NPC bez obrázku s jednoduchým placeholderem,
-40. NPC visible/hidden, pokud nezkomplikuje MVP,
+38. jednoduchý globální seznam NPC (jméno + volitelný obrázek),
+39. přidání/odebrání NPC na konkrétní mapu přes samostatné mapové umístění,
+40. map-specific pozice NPC + visible/hidden bez posílání hidden dat hráčům,
 41. jednoduché kostky,
 42. krátkodobý společný roll log,
 43. persistence důležitého stavu a reconnect.
@@ -962,7 +1163,6 @@ Toto je obranná zeď proti scope creepu:
 -   death saves,
 -   Hit Dice,
 -   initiative tracker,
--   globální / znovupoužitelná databáze NPC,
 -   level-up wizard,
 -   movement history,
 -   dlouhodobá dice history,
@@ -1028,7 +1228,8 @@ Malé tickety, minimum abstrakcí a závislostí, pochopitelný kód.
 ### Střední
 
 **Velké mapy/AI obrázky**\
-Mohou ovlivnit načítání a výkon.
+Mohou ovlivnit načítání a výkon. MVP proto omezuje upload na 50 MB a 6144 × 6144 px;
+automatické zpracování obrázků nyní nepřidáváme.
 
 **Persistence vs. realtime**\
 Je nutné jasně oddělit trvalý stav od krátkodobých událostí.
@@ -1087,7 +1288,7 @@ Pokud ne, řešíme architekturu/realtime, nikoliv CSS.
 
 ### Dny 12--14 --- Herní obrazovka a integrace
 
--   mapový panel deníku,
+-   Studijní panel na mapě,
 -   kostky,
 -   roll log,
 -   NPC,
@@ -1186,17 +1387,12 @@ Následující věci zatím nejsou definitivně uzavřené a mají se řešit a�
 chvíli, kdy jsou potřeba:
 
 -   přesná informační architektura záložek kompaktního deníku,
--   finální technické řešení backendu/realtime (Supabase je pracovní
-    kandidát),
 -   přesný datový model,
 -   přesná implementace souřadnic čtvercové mřížky a snapu,
--   konkrétní způsob uploadu/omezení obrázků,
 -   rozsah class-specific částí deníku,
--   zda hidden NPC zůstane v MVP po technickém spike,
 -   detaily jednoduché pomůcky pro generování hodnot vlastností,
 -   přesný způsob výběru aktivní postavy / přepínání mezi více postavami na jednom účtu,
 -   přesný počet a obsah budoucích stran Studentského průkazu,
--   přesné vizuální označení proficiency u záchranných hodů,
 -   finální barevná paleta a vizuální charakter „D&D akademie“ (směr je přívětivější a barevnější, přesné řešení ještě není uzavřené).
 
 Neřešit je předčasně jen kvůli „kompletnímu návrhu".
