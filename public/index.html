@@ -1,29 +1,14 @@
 <!doctype html>
-<html lang="cs">
+<html lang="cs" class="home-page">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Domů</title>
-  <style>
-    body { margin: 32px; font: 16px/1.5 system-ui, sans-serif; color: #172536; background: #f5f7fa; }
-    main { max-width: 440px; margin: 12vh auto 0; }
-    nav { display: grid; gap: 20px; }
-    nav a { display: block; padding: 28px 20px; border: 1px solid #c9d2dc; border-radius: 8px; background: white; color: #172536; text-align: center; font-size: 24px; font-weight: 600; text-decoration: none; }
-    nav a[href]:hover { border-color: #345bb8; }
-    nav a[aria-disabled="true"] { color: #667788; background: #edf1f6; }
-    #navigation-status { color: #526171; }
-    [hidden] { display: none !important; }
-    #login-form { display: grid; gap: 16px; padding: 24px; background: white; border: 1px solid #c9d2dc; border-radius: 8px; }
-    #login-form h1 { margin: 0; font-size: 24px; }
-    #login-form label { display: grid; gap: 6px; }
-    #login-form input, #login-submit { padding: 12px; font: inherit; border: 1px solid #c9d2dc; border-radius: 6px; }
-    #login-submit { background: #345bb8; color: white; cursor: pointer; }
-    #login-submit:disabled { opacity: .6; cursor: wait; }
-  </style>
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <main>
-    <form id="login-form" method="post">
+    <form id="login-form" method="post" hidden>
       <h1>Přihlášení</h1>
       <label>Uživatelské jméno<input id="username" name="username" autocomplete="username" maxlength="100" required></label>
       <label>Heslo<input id="password" name="password" type="password" autocomplete="current-password" required></label>
@@ -38,9 +23,63 @@
     </nav>
     <p id="navigation-status" role="status">Načítám odkaz na postavu…</p>
     </section>
+    <section id="leader-content" hidden>
+      <h1>Vedoucí</h1>
+      <nav aria-label="Akce Vedoucího">
+        <a id="leader-game-link" aria-disabled="true">Vstoupit do hry</a>
+        <a id="leader-players-link" href="#leader-players">Hráči</a>
+        <a id="leader-maps-link" href="#leader-maps">Mapy</a>
+      </nav>
+      <p id="leader-status" role="status"></p>
+    </section>
+    <section id="leader-players" hidden>
+      <button id="players-back" type="button">← Vedoucí</button>
+      <h1>Hráči</h1>
+      <p id="players-status" role="status" aria-live="polite"></p>
+      <ul id="players-list"></ul>
+      <iframe id="leader-sheet" title="Deník postavy — pouze pro čtení" hidden></iframe>
+    </section>
+    <section id="leader-maps" hidden>
+      <button id="maps-back" type="button">← Vedoucí</button>
+      <h1>Mapy</h1>
+      <button id="add-map-button" type="button">+ Přidat mapu</button>
+      <form id="map-upload-form" hidden>
+        <label>Název mapy<input id="map-upload-name" required maxlength="120"></label>
+        <label>Obrázek<input id="map-upload-file" type="file" accept="image/png,image/jpeg,image/webp" required></label>
+        <button type="submit">Přidat mapu</button>
+        <button id="map-upload-cancel" type="button">Zrušit</button>
+        <p id="map-upload-error" role="alert"></p>
+      </form>
+      <p id="maps-status" role="status" aria-live="polite"></p>
+      <ul id="maps-list" style="list-style: none; padding-left: 0;"></ul>
+    </section>
+    <section id="map-preparation" hidden>
+      <button id="prep-back" type="button">← Mapy</button>
+      <h1 id="prep-name">Příprava mapy</h1>
+      <label for="prep-cell-size">Velikost pole (px)</label>
+      <input id="prep-cell-size" type="number" step="any" aria-describedby="prep-error" disabled>
+      <p id="prep-error" role="status" style="color: #b42318;"></p>
+      <div id="prep-viewport" style="position: relative; width: 100%; height: 60vh; overflow: hidden; background: #d1d5db;">
+        <div id="prep-space" style="position: absolute; transform-origin: top left;">
+          <img id="prep-image" alt="" draggable="false" style="display: block; max-width: none;" hidden>
+          <svg id="prep-grid" style="position: absolute; left: 0; top: 0; pointer-events: none; fill: none; stroke: rgba(20,30,40,.5); stroke-width: 1;" aria-hidden="true"></svg>
+        </div>
+      </div>
+      <button id="prep-save" type="button" disabled>Uložit</button>
+      <p id="prep-status" role="status"></p>
+    </section>
+    <section id="leader-game" hidden>
+      <button id="leader-game-back" type="button">← Vedoucí</button>
+      <iframe id="leader-game-frame" title="Herní mapa" style="width: 100%; height: 85vh; border: 0;"></iframe>
+    </section>
+    <p id="role-error" role="alert" hidden></p>
     <noscript>Pro otevření deníku nebo hry povolte JavaScript.</noscript>
   </main>
   <script type="module" src="./navigation.js"></script>
   <script type="module" src="./login-page.js"></script>
+  <script type="module" src="./leader-players.js"></script>
+  <script type="module" src="./leader-maps.js"></script>
+  <script type="module" src="./map-upload.js"></script>
+  <script type="module" src="./leader-game.js"></script>
 </body>
 </html>

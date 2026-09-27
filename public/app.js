@@ -1,25 +1,76 @@
+import { renderGrid } from './grid.js';
 const map = document.querySelector('#map');
 const mapSpace = document.querySelector('#map-space');
 const mapViewport = document.querySelector('#map-viewport');
 let mapScale = 1;
+let userZoom = 1;
+let panX = 0;
+let panY = 0;
+let cameraDrag = null;
 
 function fitMap() {
   if (!map.naturalWidth || !map.naturalHeight || !mapViewport.clientWidth || !mapViewport.clientHeight) return;
-  mapScale = Math.min(1, mapViewport.clientWidth / map.naturalWidth, mapViewport.clientHeight / map.naturalHeight);
+  mapScale = Math.min(1, mapViewport.clientWidth / map.naturalWidth, mapViewport.clientHeight / map.naturalHeight) * userZoom;
   mapSpace.style.transform = `scale(${mapScale})`;
-  mapSpace.style.left = `${(mapViewport.clientWidth - map.naturalWidth * mapScale) / 2}px`;
-  mapSpace.style.top = `${(mapViewport.clientHeight - map.naturalHeight * mapScale) / 2}px`;
+  mapSpace.style.left = `${(mapViewport.clientWidth - map.naturalWidth * mapScale) / 2 + panX}px`;
+  mapSpace.style.top = `${(mapViewport.clientHeight - map.naturalHeight * mapScale) / 2 + panY}px`;
 }
+
+function resetCamera() {
+  if (cameraDrag) endPan({ pointerId: cameraDrag.id });
+  userZoom = 1;
+  panX = panY = 0;
+  fitMap();
+}
+mapViewport.addEventListener('wheel', event => {
+  if (!mapReady || drag || cameraDrag) return;
+  event.preventDefault();
+  const rect = mapViewport.getBoundingClientRect();
+  const x = event.clientX - rect.left - mapViewport.clientWidth / 2;
+  const y = event.clientY - rect.top - mapViewport.clientHeight / 2;
+  const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? mapViewport.clientHeight : 1);
+  const next = Math.max(0.5, Math.min(4, userZoom * Math.exp(-delta * 0.002)));
+  const ratio = next / userZoom;
+  panX = x - (x - panX) * ratio;
+  panY = y - (y - panY) * ratio;
+  userZoom = next;
+  fitMap();
+}, { passive: false });
+mapViewport.addEventListener('pointerdown', event => {
+  if (event.button !== 0 || !mapReady || drag || cameraDrag || event.target.closest('.token')) return;
+  event.preventDefault();
+  cameraDrag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX, panY };
+  mapViewport.setPointerCapture(event.pointerId);
+  mapViewport.classList.add('panning');
+});
+mapViewport.addEventListener('pointermove', event => {
+  if (!cameraDrag || event.pointerId !== cameraDrag.id) return;
+  panX = cameraDrag.panX + event.clientX - cameraDrag.x;
+  panY = cameraDrag.panY + event.clientY - cameraDrag.y;
+  fitMap();
+});
+function endPan(event) {
+  if (!cameraDrag || event.pointerId !== cameraDrag.id) return;
+  cameraDrag = null;
+  if (mapViewport.hasPointerCapture(event.pointerId)) mapViewport.releasePointerCapture(event.pointerId);
+  mapViewport.classList.remove('panning');
+}
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) mapViewport.addEventListener(type, endPan);
+document.querySelector('#fit-map').addEventListener('click', () => { if (!drag) resetCamera(); });
 
 new ResizeObserver(fitMap).observe(mapViewport);
 const grid = document.querySelector('#grid');
-// navigation.js spustí mapu pouze s platným character_id v URL.
-const CHARACTER_ID = new URLSearchParams(window.location.search).get('character_id').toLowerCase();
+// Session stays on the homepage. The server resolves player ownership again.
+const gameIdentity = window.parent.getGameIdentity();
+const leaderMode = gameIdentity.role === 'leader';
+import { configureMapImageUrl, resolveMapImage } from './map-image.js';
+
 const MAPS = [
   { id: 'test-map', name: 'Test map', src: './assets/maps/test-map.png' },
   { id: 'mapa-akademie', name: 'Mapa akademie', src: './assets/maps/mapa-akademie.png' },
 ];
 const mapSelect = document.querySelector('#map-select');
+let leaderMaps = [];
 const activeMapStatus = document.querySelector('#active-map-status');
 for (const entry of MAPS) {
   const option = document.createElement('option');
@@ -32,18 +83,25 @@ const CELL_SIZE = 100; // Přirozené pixely mapy; 1 čtvercové pole = 5 ft.
 const MIN_CELL_SIZE = 20;
 const MAX_CELL_SIZE = 300;
 let cellSize = CELL_SIZE;
-const cellSizeInput = document.querySelector('#cell-size');
-const cellSizeError = document.querySelector('#cell-size-error');
+const cellSizeOutput = document.querySelector('#cell-size');
 const cellSizeStatus = document.querySelector('#cell-size-status');
-cellSizeInput.min = MIN_CELL_SIZE;
-cellSizeInput.max = MAX_CELL_SIZE;
-cellSizeInput.value = CELL_SIZE;
+cellSizeOutput.value = CELL_SIZE;
 const TOKEN_SCALE = 0.9; // Hráčský token logicky zabírá jedno pole.
 let tokenDiameter = cellSize * TOKEN_SCALE;
 const mapStatus = document.querySelector('#map-status');
-const token = document.querySelector('#token');
-token.style.width = `${tokenDiameter}px`;
-token.style.height = `${tokenDiameter}px`;
+const tokens = new Map();
+const npcs = new Map();
+let npcDefinitions = [];
+const npcBusy = new Set();
+let npcRequest = 0;
+let npcAdding = false;
+const npcStatus = document.querySelector('#npc-status');
+const npcList = document.querySelector('#npc-list');
+const npcForm = document.querySelector('#npc-form');
+document.querySelector('#npc-controls').hidden = !leaderMode;
+const scenePlayers = document.querySelector('#scene-players');
+const scenePlayersList = document.querySelector('#scene-players-list');
+scenePlayers.hidden = !leaderMode;
 const status = document.querySelector('#status');
 const connection = document.querySelector('#connection');
 const position = document.querySelector('#position');
@@ -52,30 +110,25 @@ const addTokenMessage = document.querySelector('#add-token-message');
 const removeTokenButton = document.querySelector('#remove-token');
 const removeTokenMessage = document.querySelector('#remove-token-message');
 let db;
-let saved = null;
-let shown = null;
+let supabaseUrlForMaps = '';
 let drag = null;
-let saving = false;
 let connected = false;
 let loading = true;
 let realtimeRevision = 0;
+let positionLoadVersion = 0;
+const positionChanges = new Map();
 let positionChannel = null;
 let positionConnected = false;
 let mapReady = false;
 let configReady = false;
 let savedCellSize = null;
 let configRevision = 0;
-let inputRevision = 0;
-let pendingConfigWrites = 0;
-let configWriteQueue = Promise.resolve();
 let activeMapId = null;
 let mapVersion = 0;
 let gameStateRevision = 0;
 let gameStateReady = false;
 let savingMap = false;
 let positionLoaded = false;
-let addingToken = false;
-let removingToken = false;
 
 function showMessage(type, text, target = status) {
   target.textContent = text;
@@ -83,118 +136,300 @@ function showMessage(type, text, target = status) {
 }
 
 function updateAddTokenButton() {
-  addTokenButton.hidden = !positionLoaded || Boolean(saved) || !mapReady || !configReady;
-  addTokenButton.disabled = addingToken || !connected || !positionConnected;
-  removeTokenButton.hidden = !positionLoaded || !saved || !mapReady || !configReady;
-  removeTokenButton.disabled = removingToken || !connected || !positionConnected;
+  const own = tokens.values().next().value;
+  const ready = positionLoaded && mapReady && configReady;
+  addTokenButton.hidden = leaderMode || !ready || !own || Boolean(own.saved);
+  removeTokenButton.hidden = leaderMode || !ready || !own?.saved;
+  addTokenButton.disabled = removeTokenButton.disabled = !connected || !positionConnected || loading || Boolean(own?.busy);
+  for (const state of tokens.values()) {
+    if (!state.action) continue;
+    state.label.textContent = `${state.saved ? '●' : '○'} ${state.name}${state.saved ? ' — na mapě' : ''}`;
+    state.action.textContent = state.saved ? 'Odebrat' : 'Přidat';
+    state.action.disabled = !ready || !connected || !positionConnected || loading || state.busy || Boolean(drag);
+  }
 }
 
-removeTokenButton.addEventListener('click', async () => {
-  if (removingToken || !saved || !positionLoaded || !mapReady || !configReady || !connected || !positionConnected) return;
-  if (!window.confirm('Odebrat postavu z této mapy?')) return;
+function createToken(row, npc = false) {
+  const element = document.createElement('div');
+  element.className = 'token';
+  element.hidden = true;
+  element.style.width = element.style.height = `${tokenDiameter}px`;
+  element.setAttribute('aria-label', row.name || 'Postava');
+  element.textContent = (row.name || '?').slice(0, 1);
+  if (row.portrait_path) {
+    try {
+      const url = new URL(row.portrait_path, document.baseURI);
+      if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Invalid portrait URL');
+      const portrait = document.createElement('img');
+      portrait.alt = '';
+      portrait.draggable = false;
+      portrait.referrerPolicy = 'no-referrer';
+      portrait.addEventListener('error', () => portrait.remove());
+      portrait.src = url.href;
+      element.append(portrait);
+    } catch (error) { console.error('Portrét tokenu nelze načíst:', error); }
+  }
+  mapSpace.append(element);
+  const state = { id: row.character_id, name: row.name, npc, element, saved: null, shown: null, busy: false, revision: 0 };
+  (npc ? npcs : tokens).set(state.id, state);
+  if (leaderMode && !npc) {
+    state.item = document.createElement('li');
+    state.label = document.createElement('span');
+    state.action = document.createElement('button');
+    state.action.type = 'button';
+    state.message = document.createElement('p');
+    state.message.setAttribute('role', 'status');
+    state.action.addEventListener('click', () => editToken(state, state.saved ? 'remove' : 'add'));
+    state.item.append(state.label, state.action, state.message);
+    scenePlayersList.append(state.item);
+  }
+  element.addEventListener('pointerdown', event => beginDrag(state, event));
+  element.addEventListener('pointermove', move);
+  element.addEventListener('pointerup', endDrag);
+  element.addEventListener('pointercancel', cancelDrag);
+  element.addEventListener('lostpointercapture', cancelDrag);
+  return state;
+}
+
+async function editToken(state, action) {
+  if (!state || state.busy || drag || !positionLoaded || !mapReady || !configReady || !connected || !positionConnected || loading) return;
+  if (action === 'remove' && !window.confirm('Odebrat postavu z této mapy?')) return;
+  const destination = action === 'add' ? snapToCell({ x: map.naturalWidth / 2, y: map.naturalHeight / 2 }) : null;
+  if (action === 'add' && !destination) {
+    showMessage('error', 'Postavu nelze přidat: mapa neobsahuje celé pole.', state.message || addTokenMessage);
+    return;
+  }
+  await saveToken(state, action, destination);
+}
+
+async function saveToken(state, action, point) {
+  if (state.npc) return saveNpc(state, action, point);
   const mapId = activeMapId;
   const version = mapVersion;
-  removingToken = true;
+  const revision = state.revision;
+  const target = state.message || (action === 'add' ? addTokenMessage : action === 'remove' ? removeTokenMessage : status);
+  state.busy = true;
   updateAddTokenButton();
-  showMessage('info', 'Odebírám postavu z mapy…', removeTokenMessage);
+  showMessage('info', 'Ukládám…', target);
   try {
-    const { error } = await db.from('token_positions')
-      .delete().eq('character_id', CHARACTER_ID).eq('map_id', mapId);
-    if (error) throw error;
-    if (version !== mapVersion) return;
-    saved = null;
-    render(null);
-    showMessage('info', '', removeTokenMessage);
-    showMessage('info', 'Postava byla odebrána z mapy.');
+    const data = await window.parent.mutateGameToken(action, state.id, mapId, point);
+    if (version !== mapVersion || tokens.get(state.id) !== state) return;
+    // Realtime (including DELETE) arriving while saving is newer than this response.
+    if (revision === state.revision) {
+      state.saved = data;
+      state.revision++;
+      positionChanges.set(state.id, { point: data, revision: ++realtimeRevision });
+    }
+    showMessage('info', '', target);
+    status.textContent = 'Uloženo do DB.';
   } catch (error) {
-    console.error('Odebrání postavy z mapy selhalo:', { mapId, characterId: CHARACTER_ID, error });
-    if (version === mapVersion) showMessage('error', 'Postavu se nepodařilo odebrat z mapy. Zkus to znovu.', removeTokenMessage);
+    console.error('Změna tokenu selhala:', { action, mapId, characterId: state.id, error });
+    if (version !== mapVersion || tokens.get(state.id) !== state) return;
+    const text = action === 'add' ? 'Postavu se nepodařilo přidat na mapu. Zkus to znovu.'
+      : action === 'remove' ? 'Postavu se nepodařilo odebrat z mapy. Zkus to znovu.'
+      : 'Pozici postavy se nepodařilo uložit. Zkus obnovit stránku a přesunout ji znovu.';
+    showMessage('error', text, target);
   } finally {
-    if (version === mapVersion) {
-      removingToken = false;
+    if (version === mapVersion && tokens.get(state.id) === state) {
+      state.busy = false;
+      render(state, state.saved);
       updateAddTokenButton();
     }
   }
+}
+
+function clearNpcs() {
+  npcRequest++;
+  for (const state of npcs.values()) {
+    if (drag?.state === state) cancelDrag({ pointerId: drag.id });
+    state.element.remove(); state.item?.remove();
+  }
+  npcs.clear();
+  npcDefinitions = [];
+  npcList.replaceChildren();
+}
+
+async function refreshNpcs() {
+  if (!activeMapId) return;
+  const version = mapVersion;
+  const request = ++npcRequest;
+  try {
+    const [rows, definitions] = await Promise.all([
+      window.parent.loadNpcs(activeMapId),
+      leaderMode ? window.parent.loadNpcDefinitions() : Promise.resolve([]),
+    ]);
+    if (version !== mapVersion || request !== npcRequest) return;
+    if (!Array.isArray(rows) || !Array.isArray(definitions)) throw new Error('Invalid NPC list');
+    npcDefinitions = definitions;
+    const ids = new Set(rows.map(row => row.id));
+    for (const [id, state] of npcs) {
+      if (ids.has(id)) continue;
+      if (drag?.state === state) cancelDrag({ pointerId: drag.id });
+      state.element.remove(); state.item?.remove(); npcs.delete(id);
+    }
+    for (const row of rows) {
+      const state = npcs.get(row.id) || createToken({ character_id: row.id,
+        name: row.name || 'NPC', portrait_path: row.image_url }, true);
+      state.saved = { x: row.x, y: row.y };
+      state.npcId = row.npc_id;
+      state.visible = row.visible;
+      state.element.title = `${row.name || 'NPC'}${row.visible ? '' : ' (skryté hráčům)'}`;
+      state.element.style.opacity = row.visible ? '1' : '0.5';
+      if (!state.busy && drag?.state !== state) render(state, state.saved);
+    }
+    drawNpcList();
+  } catch (error) {
+    console.error('Načtení NPC selhalo:', error);
+    if (version === mapVersion && request === npcRequest) {
+      clearNpcs();
+      npcStatus.textContent = 'NPC se nepodařilo načíst. Zkus obnovit stránku.';
+    }
+  }
+}
+
+function drawNpcList() {
+  if (!leaderMode) return;
+  npcList.replaceChildren();
+  for (const definition of npcDefinitions) {
+    const state = [...npcs.values()].find(item => item.npcId === definition.id);
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = `${definition.name || 'NPC'}${state ? state.visible ? ' — na mapě' : ' — skryté na mapě' : ''} `;
+    item.append(label);
+    const button = (text, action) => {
+      const element = document.createElement('button');
+      element.type = 'button'; element.textContent = text;
+      element.disabled = npcBusy.has(definition.id) || Boolean(state?.busy);
+      element.addEventListener('click', action); item.append(element);
+    };
+    button(state ? 'Odebrat z mapy' : 'Přidat na mapu', () => state
+      ? saveNpc(state, 'remove') : changeNpcDefinition(definition, 'add'));
+    if (state) button(state.visible ? 'Skrýt' : 'Odhalit', () => saveNpc(state, 'visibility'));
+    button('Smazat NPC', () => {
+      if (window.confirm('Opravdu smazat NPC? Tato akce odstraní NPC ze seznamu a ze všech map.')) {
+        return changeNpcDefinition(definition, 'delete');
+      }
+    });
+    npcList.append(item);
+  }
+}
+
+async function changeNpcDefinition(definition, action) {
+  if (!leaderMode || npcBusy.has(definition.id) || drag) return;
+  const version = mapVersion;
+  const args = { p_npc_id: definition.id };
+  if (action === 'add') {
+    if (!mapReady || !configReady) return;
+    const point = snapToCell({ x: map.naturalWidth / 2, y: map.naturalHeight / 2 });
+    if (!point) { npcStatus.textContent = 'Mapa neobsahuje celé pole pro NPC.'; return; }
+    Object.assign(args, { p_map_id: activeMapId, p_x: point.x, p_y: point.y });
+  }
+  npcBusy.add(definition.id); drawNpcList();
+  npcStatus.textContent = 'Ukládám NPC…';
+  try {
+    await window.parent.mutateNpc(action, args);
+    if (version === mapVersion) npcStatus.textContent = '';
+  } catch (error) {
+    console.error('Změna NPC selhala:', error);
+    if (version === mapVersion) npcStatus.textContent = 'Změnu NPC se nepodařilo uložit. Zkus to znovu.';
+  } finally {
+    npcBusy.delete(definition.id);
+    if (version === mapVersion) await refreshNpcs();
+  }
+}
+
+async function saveNpc(state, action, point) {
+  if (!leaderMode || state.busy || npcBusy.has(state.npcId) || npcs.get(state.id) !== state || drag) return;
+  const version = mapVersion;
+  state.busy = true;
+  drawNpcList();
+  npcStatus.textContent = 'Ukládám NPC…';
+  try {
+    const args = { p_placement_id: state.id };
+    if (action === 'move') Object.assign(args, { p_x: point.x, p_y: point.y });
+    if (action === 'visibility') args.p_visible = !state.visible;
+    await window.parent.mutateNpc(action, args);
+    if (version === mapVersion) npcStatus.textContent = '';
+  } catch (error) {
+    console.error('Změna NPC selhala:', error);
+    if (version === mapVersion) npcStatus.textContent = 'Změnu NPC se nepodařilo uložit. Zkus to znovu.';
+  } finally {
+    state.busy = false;
+    if (version === mapVersion) {
+      render(state, state.saved);
+      await refreshNpcs();
+    }
+  }
+}
+
+npcForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!leaderMode || npcAdding) return;
+  const name = document.querySelector('#npc-name').value.trim();
+  if (!name) { npcStatus.textContent = 'Zadej název NPC.'; return; }
+  const version = mapVersion;
+  npcAdding = true;
+  const button = npcForm.querySelector('button');
+  button.disabled = true;
+  npcStatus.textContent = 'Vytvářím NPC…';
+  try {
+    await window.parent.mutateNpc('create', { p_name: name,
+      p_image_url: document.querySelector('#npc-image').value.trim() || null });
+    if (version === mapVersion) { npcForm.reset(); npcStatus.textContent = ''; await refreshNpcs(); }
+  } catch (error) {
+    console.error('Přidání NPC selhalo:', error);
+    if (version === mapVersion) npcStatus.textContent = 'NPC se nepodařilo přidat. Zkus to znovu.';
+  } finally { npcAdding = false; button.disabled = false; }
 });
 
-addTokenButton.addEventListener('click', async () => {
-  if (addingToken || saved || !positionLoaded || !mapReady || !configReady || !connected || !positionConnected) return;
-  const mapId = activeMapId;
-  const version = mapVersion;
-  const revision = realtimeRevision;
-  addingToken = true;
-  updateAddTokenButton();
-  showMessage('info', 'Přidávám postavu na mapu…', addTokenMessage);
-  try {
-    const destination = snapToCell({ x: map.naturalWidth / 2, y: map.naturalHeight / 2 });
-    if (!destination) throw new Error('Mapa neobsahuje úplné gridové pole.');
-    // INSERT nikdy nepřepisuje pozici, kterou mezitím vytvořil jiný klient.
-    const { data, error } = await db.from('token_positions')
-      .insert({ character_id: CHARACTER_ID, map_id: mapId, ...destination })
-      .select('x,y').single();
-    if (error) throw error;
-    if (version !== mapVersion) return;
-    if (revision === realtimeRevision) saved = data;
-    render(saved);
-    showMessage('info', '', addTokenMessage);
-    showMessage('info', 'Postava je přidaná na mapu.');
-  } catch (error) {
-    console.error('Přidání postavy na mapu selhalo:', { mapId, characterId: CHARACTER_ID, error });
-    if (version !== mapVersion) return;
-    // Realtime mohl mezitím potvrdit vložení od druhého klienta.
-    showMessage(saved ? 'info' : 'error', saved ? '' : 'Postavu se nepodařilo přidat na mapu. Zkus to znovu.', addTokenMessage);
-  } finally {
-    if (version === mapVersion) {
-      addingToken = false;
-      updateAddTokenButton();
-    }
-  }
-});
+addTokenButton.addEventListener('click', () => editToken(tokens.values().next().value, 'add'));
+removeTokenButton.addEventListener('click', () => editToken(tokens.values().next().value, 'remove'));
 
 async function activateMap(mapId, refresh = false) {
   if (mapId === activeMapId && configReady && !refresh) return;
   const version = ++mapVersion;
+  clearNpcs();
+  npcStatus.textContent = '';
+  if (mapId !== activeMapId) resetCamera();
   activeMapId = mapId;
   configReady = false;
   mapReady = false;
   savedCellSize = null;
   configRevision = 0;
-  pendingConfigWrites = 0;
-  inputRevision += 1;
-  cellSizeInput.disabled = true;
-  cellSizeInput.value = '';
-  cellSizeInput.setAttribute('aria-invalid', 'false');
-  cellSizeError.textContent = '';
+  cellSizeOutput.value = '';
   cellSizeStatus.textContent = '';
   map.hidden = true;
   grid.style.display = 'none';
-  token.hidden = true;
-  saved = null;
-  shown = null;
-  saving = false;
+  if (drag) cancelDrag({ pointerId: drag.id });
+  for (const state of tokens.values()) { state.element.remove(); state.item?.remove(); }
+  tokens.clear();
+  positionChanges.clear();
+  positionLoadVersion++;
   loading = true;
   positionLoaded = false;
-  addingToken = false;
-  removingToken = false;
   updateAddTokenButton();
   showMessage('info', '', addTokenMessage);
   showMessage('info', '', removeTokenMessage);
   realtimeRevision = 0;
   positionConnected = false;
   position.textContent = '—';
-  status.textContent = 'Načítám pozici postavy pro mapu…';
+  status.textContent = 'Načítám postavy pro mapu…';
   if (positionChannel) {
     void db.removeChannel(positionChannel);
     positionChannel = null;
   }
-  // Přepnutí během dragu pohyb zruší; žádná nová tokenová pozice se neukládá.
-  if (drag) {
-    const pointerId = drag.id;
-    drag = null;
-    token.classList.remove('dragging');
-    token.releasePointerCapture(pointerId);
+  let entry = MAPS.find(item => item.id === mapId);
+  if (!entry && leaderMode) {
+    const row = leaderMaps.find(item => item.map_id === mapId);
+    if (row) entry = { id: row.map_id, name: row.name, src: await resolveMapImage(row.image_path, row.map_id) };
   }
-  const entry = MAPS.find(item => item.id === mapId);
+  if (!entry && db?.rpc) {
+    const { data, error } = await db.rpc('active_map_metadata', { p_map_id: mapId });
+    if (!error && data?.[0]) {
+      const row = data[0];
+      entry = { id: row.map_id, name: row.name, src: await resolveMapImage(row.image_path, row.map_id) };
+    }
+  }
   mapSelect.value = entry ? mapId : '';
   if (!entry) {
     console.error('Neznámé active_map_id:', mapId);
@@ -206,6 +441,7 @@ async function activateMap(mapId, refresh = false) {
   map.alt = entry.name;
   map.src = entry.src;
   subscribePosition(mapId, version);
+  void refreshNpcs();
   await loadMapConfig(mapId, version);
   if (version === mapVersion) mapLoaded();
 }
@@ -232,21 +468,19 @@ async function receiveGameState(payload) {
 }
 
 mapSelect.addEventListener('change', async () => {
-  if (!connected || !gameStateReady || savingMap) return;
+  if (!leaderMode || !connected || !gameStateReady || savingMap) return;
   const mapId = mapSelect.value;
-  if (!MAPS.some(entry => entry.id === mapId) || mapId === activeMapId) return;
+  if (!leaderMaps.some(entry => entry.map_id === mapId) || mapId === activeMapId) return;
   const revision = gameStateRevision;
   savingMap = true;
   mapSelect.disabled = true;
   activeMapStatus.textContent = 'Ukládám aktivní mapu…';
   try {
-    const { data, error } = await db.from('game_state')
-      .update({ active_map_id: mapId }).eq('id', 1).select('active_map_id').single();
-    if (error) throw error;
+    const data = await window.parent.setLeaderActiveMap(mapId);
     if (revision === gameStateRevision) await activateMap(data.active_map_id);
   } catch (error) {
     console.error('Přepnutí mapy selhalo:', error);
-    mapSelect.value = MAPS.some(entry => entry.id === activeMapId) ? activeMapId : '';
+    mapSelect.value = activeMapId;
     showMessage('error', 'Mapu se nepodařilo přepnout. Zkus to znovu.', activeMapStatus);
   } finally {
     savingMap = false;
@@ -258,23 +492,19 @@ function validCellSize(value) {
   return Number.isFinite(value) && value >= MIN_CELL_SIZE && value <= MAX_CELL_SIZE;
 }
 
-function applyCellSize(value, updateInput = true) {
+function applyCellSize(value) {
   cellSize = value;
   tokenDiameter = cellSize * TOKEN_SCALE;
-  token.style.width = `${tokenDiameter}px`;
-  token.style.height = `${tokenDiameter}px`;
-  if (mapReady) renderGrid();
-  if (updateInput) {
-    cellSizeInput.value = value;
-    cellSizeInput.setAttribute('aria-invalid', 'false');
-    cellSizeError.textContent = '';
+  for (const state of [...tokens.values(), ...npcs.values()]) {
+    state.element.style.width = state.element.style.height = `${tokenDiameter}px`;
   }
+  if (mapReady) renderGrid(document, grid, map.naturalWidth, map.naturalHeight, cellSize);
+  cellSizeOutput.value = value;
   // Nevoláme render: jeho omezení na hranice by posunulo střed u kraje mapy.
 }
 
 async function loadMapConfig(mapId = activeMapId, version = mapVersion) {
   const revision = configRevision;
-  cellSizeInput.disabled = true;
   configReady = false;
   cellSizeStatus.textContent = 'Načítám velikost pole z DB…';
   try {
@@ -287,7 +517,6 @@ async function loadMapConfig(mapId = activeMapId, version = mapVersion) {
     }
     applyCellSize(savedCellSize);
     configReady = true;
-    cellSizeInput.disabled = !connected;
     cellSizeStatus.textContent = 'Velikost pole načtena z DB.';
   } catch (error) {
     console.error('Načtení velikosti pole selhalo:', error);
@@ -306,73 +535,8 @@ function receiveMapConfig(payload) {
   }
   configRevision += 1;
   savedCellSize = value;
-  if (!pendingConfigWrites) {
-    applyCellSize(value);
-    cellSizeStatus.textContent = 'Velikost pole přijata přes realtime.';
-  }
-}
-
-cellSizeInput.addEventListener('input', () => {
-  if (!configReady || !connected) return;
-  const revision = ++inputRevision;
-  const mapId = activeMapId;
-  const version = mapVersion;
-  const value = cellSizeInput.valueAsNumber;
-  let error = '';
-  if (cellSizeInput.validity.badInput) {
-    error = 'Zadej velikost pole jako číslo.';
-  } else if (cellSizeInput.value === '') {
-    error = 'Zadej velikost pole.';
-  } else if (!Number.isFinite(value) || value < MIN_CELL_SIZE || value > MAX_CELL_SIZE) {
-    error = `Zadej velikost pole od ${MIN_CELL_SIZE} do ${MAX_CELL_SIZE} px.`;
-  }
-  cellSizeInput.setAttribute('aria-invalid', String(Boolean(error)));
-  cellSizeError.textContent = error;
-  if (error) return;
-  applyCellSize(value, false);
-  pendingConfigWrites += 1;
-  cellSizeStatus.textContent = 'Ukládám velikost pole…';
-  // Rychlé změny jednoho inputu zapisujeme v pořadí, ve kterém vznikly.
-  configWriteQueue = configWriteQueue.then(async () => {
-    try {
-      const { data, error } = await db.from('map_config')
-        .update({ cell_size: value }).eq('map_id', mapId).select('cell_size').single();
-      if (version !== mapVersion) return;
-      if (error) throw error;
-      if (!validCellSize(data.cell_size)) throw new Error('DB vrátila neplatnou velikost pole');
-      savedCellSize = data.cell_size;
-      if (revision === inputRevision) {
-        applyCellSize(savedCellSize);
-        cellSizeStatus.textContent = 'Velikost pole uložena do DB.';
-      }
-    } catch (error) {
-      console.error('Uložení velikosti pole selhalo:', error);
-      if (version === mapVersion && revision === inputRevision) {
-        applyCellSize(savedCellSize);
-        showMessage('error', 'Velikost pole se nepodařilo uložit. Zkus to znovu.', cellSizeStatus);
-      }
-    } finally {
-      if (version === mapVersion) pendingConfigWrites -= 1;
-    }
-  });
-});
-
-function renderGrid() {
-  const width = map.naturalWidth;
-  const height = map.naturalHeight;
-  grid.setAttribute('width', width);
-  grid.setAttribute('height', height);
-  grid.setAttribute('viewBox', `0 0 ${width} ${height}`);
-  grid.replaceChildren();
-  function line(x1, y1, x2, y2) {
-    const element = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    for (const [name, value] of Object.entries({ x1, y1, x2, y2 })) {
-      element.setAttribute(name, value);
-    }
-    grid.append(element);
-  }
-  for (let x = 0; x <= width; x += cellSize) line(x, 0, x, height);
-  for (let y = 0; y <= height; y += cellSize) line(0, y, width, y);
+  applyCellSize(value);
+  cellSizeStatus.textContent = 'Velikost pole přijata přes realtime.';
 }
 
 function mapLoaded() {
@@ -383,72 +547,68 @@ function mapLoaded() {
   mapSpace.style.width = `${map.naturalWidth}px`;
   mapSpace.style.height = `${map.naturalHeight}px`;
   fitMap();
-  renderGrid();
+  renderGrid(document, grid, map.naturalWidth, map.naturalHeight, cellSize);
   mapStatus.textContent = `Mapa: ${map.naturalWidth} × ${map.naturalHeight} px. Souřadnice označují střed tokenu.`;
-  if (saved) render(saved);
+  for (const state of [...tokens.values(), ...npcs.values()]) render(state, state.saved);
   updateAddTokenButton();
 }
 map.addEventListener('load', mapLoaded);
 map.addEventListener('error', () => {
   mapReady = false;
-  token.hidden = true;
+  for (const state of [...tokens.values(), ...npcs.values()]) state.element.hidden = true;
   updateAddTokenButton();
   console.error('Načtení obrázku mapy selhalo:', MAPS.find(entry => entry.id === activeMapId)?.src);
   showMessage('error', 'Obrázek mapy se nepodařilo načíst. Zkus obnovit stránku.', mapStatus);
 });
 if (map.complete && map.naturalWidth) mapLoaded();
 
-function render(point) {
+function render(state, point) {
   if (!point) {
-    token.hidden = true;
-    shown = null;
-    position.textContent = '—';
+    state.element.hidden = true;
+    state.shown = null;
+    if (!leaderMode) position.textContent = '—';
     return;
   }
   if (!mapReady) return;
-  token.hidden = false;
-  // I starší pozici z DB zobrazíme uvnitř mapy, bez automatického zápisu.
+  state.element.hidden = false;
+  // Same center-coordinate bounds as the original single token.
   const halfWidth = tokenDiameter / 2;
   const halfHeight = tokenDiameter / 2;
-  shown = {
+  state.shown = {
     x: Math.max(halfWidth, Math.min(map.naturalWidth - halfWidth, point.x)),
     y: Math.max(halfHeight, Math.min(map.naturalHeight - halfHeight, point.y)),
   };
-  token.style.left = `${shown.x}px`;
-  token.style.top = `${shown.y}px`;
-  position.textContent = `x = ${shown.x}, y = ${shown.y}`;
+  state.element.style.left = `${state.shown.x}px`;
+  state.element.style.top = `${state.shown.y}px`;
+  if (!leaderMode || drag?.state === state) position.textContent = `x = ${state.shown.x}, y = ${state.shown.y}`;
 }
 
 function subscribePosition(mapId, version) {
-  const receive = (payload) => {
-    const row = payload.new;
-    if (version !== mapVersion || row.character_id !== CHARACTER_ID || row.map_id !== mapId) return;
-    realtimeRevision += 1;
-    saved = { x: row.x, y: row.y };
-    positionLoaded = true;
+  function receive(row, point) {
+    if (version !== mapVersion || row.map_id !== mapId) return;
+    if (!leaderMode && row.character_id !== gameIdentity.character_id) return;
+    const revision = ++realtimeRevision;
+    positionChanges.set(row.character_id, { point, revision });
+    const state = tokens.get(row.character_id);
+    if (!state) return; // Initial RPC will merge events received before the roster.
+    state.revision++;
+    state.saved = point;
+    if (!point && drag?.state === state) cancelDrag({ pointerId: drag.id });
+    if (!point || (!state.busy && drag?.state !== state)) render(state, point);
+    showMessage('info', '', state.message || addTokenMessage);
+    if (!leaderMode) showMessage('info', '', removeTokenMessage);
     updateAddTokenButton();
-    showMessage('info', '', addTokenMessage);
-    showMessage('info', '', removeTokenMessage);
-    if (!drag && !saving) {
-      render(saved);
-      status.textContent = 'Pozice přijata přes realtime.';
-    }
-  };
+  }
   positionChannel = db.channel(`token-position-${mapId}-${version}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'token_positions', filter: `map_id=eq.${mapId}` }, receive)
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'token_positions', filter: `map_id=eq.${mapId}` }, receive)
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'token_positions', filter: `map_id=eq.${mapId}` }, (payload) => {
-      const row = payload.old;
-      if (version !== mapVersion || row.character_id !== CHARACTER_ID || row.map_id !== mapId) return;
-      realtimeRevision += 1;
-      saved = null;
-      render(null);
-      positionLoaded = true;
-      showMessage('info', '', removeTokenMessage);
-      showMessage('info', 'Postava byla odebrána z mapy.');
-      updateAddTokenButton();
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'token_positions', filter: `map_id=eq.${mapId}` }, payload => receive(payload.new, { x: payload.new.x, y: payload.new.y }))
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'token_positions', filter: `map_id=eq.${mapId}` }, payload => receive(payload.new, { x: payload.new.x, y: payload.new.y }))
+    // DELETE may contain only primary keys. No server filter: reconcile via RPC if keys are incomplete.
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'token_positions' }, payload => {
+      if (version !== mapVersion) return;
+      if (payload.old?.map_id && payload.old?.character_id) receive(payload.old, null);
+      else return loadPosition(mapId, version);
     })
-    .subscribe(async (state) => {
+    .subscribe(async state => {
       if (version !== mapVersion) return;
       positionConnected = state === 'SUBSCRIBED';
       updateAddTokenButton();
@@ -461,54 +621,70 @@ function subscribePosition(mapId, version) {
 }
 
 async function loadPosition(mapId = activeMapId, version = mapVersion) {
+  const request = ++positionLoadVersion;
+  const revision = realtimeRevision;
   loading = true;
   positionLoaded = false;
   updateAddTokenButton();
-  const revision = realtimeRevision;
   try {
-    const { data, error } = await db.from('token_positions').select('x,y')
-      .eq('character_id', CHARACTER_ID).eq('map_id', mapId).maybeSingle();
-    if (version !== mapVersion) return;
-    if (error) throw error;
-    // Novější realtime událost nesmí přepsat pomalejší odpověď SELECTu.
-    if (revision === realtimeRevision) saved = data;
+    const rows = await window.parent.loadGameTokens(mapId);
+    if (version !== mapVersion || request !== positionLoadVersion) return;
+    if (!Array.isArray(rows)) throw new Error('Invalid token list');
+    const ids = new Set();
+    for (const row of rows) {
+      if (!leaderMode && row.character_id !== gameIdentity.character_id) continue;
+      ids.add(row.character_id);
+      const state = tokens.get(row.character_id) || createToken(row);
+      const change = positionChanges.get(row.character_id);
+      state.saved = change && change.revision > revision ? change.point
+        : row.x === null || row.y === null ? null : { x: row.x, y: row.y };
+      state.revision++;
+      if (!state.saved && drag?.state === state) cancelDrag({ pointerId: drag.id });
+      if (!state.saved || (!state.busy && drag?.state !== state)) render(state, state.saved);
+    }
+    for (const [id, state] of tokens) {
+      if (ids.has(id)) continue;
+      if (drag?.state === state) cancelDrag({ pointerId: drag.id });
+      state.element.remove(); state.item?.remove(); tokens.delete(id);
+    }
     positionLoaded = true;
-    if (!drag && !saving) render(saved);
-    status.textContent = saved ? 'Pozice načtena z DB.' : 'Postava na této mapě nemá uloženou pozici.';
+    status.textContent = rows.length ? 'Pozice načteny z DB.' : 'Nejsou přiřazené žádné hráčské postavy.';
   } catch (error) {
-    console.error('Načtení pozice postavy selhalo:', error);
-    if (version !== mapVersion) return;
-    showMessage('error', 'Pozici postavy se nepodařilo načíst. Zkus obnovit stránku.');
+    console.error('Načtení pozic postav selhalo:', error);
+    if (version !== mapVersion || request !== positionLoadVersion) return;
+    showMessage('error', 'Pozice postav se nepodařilo načíst. Obnovte stránku a přihlaste se znovu.');
   } finally {
-    if (version === mapVersion) {
+    if (version === mapVersion && request === positionLoadVersion) {
       loading = false;
       updateAddTokenButton();
     }
   }
 }
 
-token.addEventListener('pointerdown', (event) => {
-  if (event.button !== 0 || drag || !mapReady || !saved || saving || loading || !connected || !positionConnected || !configReady) return;
+function beginDrag(state, event) {
+  if (event.button !== 0 || drag || !mapReady || !state.saved || state.busy || loading || !positionLoaded || !connected || !positionConnected || !configReady) return;
+  if (!leaderMode && (state.npc || state.id !== gameIdentity.character_id)) return;
   event.preventDefault();
   const rect = mapSpace.getBoundingClientRect();
-  drag = { id: event.pointerId, offsetX: (event.clientX - rect.left) / mapScale - shown.x,
-    offsetY: (event.clientY - rect.top) / mapScale - shown.y, moved: false, mapId: activeMapId, version: mapVersion, ...shown };
-  token.setPointerCapture(event.pointerId);
-  token.classList.add('dragging');
+  drag = { state, id: event.pointerId, offsetX: (event.clientX - rect.left) / mapScale - state.shown.x,
+    offsetY: (event.clientY - rect.top) / mapScale - state.shown.y, moved: false, mapId: activeMapId, version: mapVersion, ...state.shown };
+  state.element.setPointerCapture(event.pointerId);
+  state.element.classList.add('dragging');
+  updateAddTokenButton();
   status.textContent = 'Přetahuji lokálně — zatím neukládám.';
-});
+}
 
 function move(event) {
   if (!drag || event.pointerId !== drag.id) return;
+  const state = drag.state;
   // Aktuální rect zahrnuje scroll i posun stránky během tažení.
   const rect = mapSpace.getBoundingClientRect();
-  render({
+  render(state, {
     x: Math.round((event.clientX - rect.left) / mapScale - drag.offsetX),
     y: Math.round((event.clientY - rect.top) / mapScale - drag.offsetY),
   });
-  if (shown.x !== drag.x || shown.y !== drag.y) drag.moved = true;
+  if (state.shown.x !== drag.x || state.shown.y !== drag.y) drag.moved = true;
 }
-token.addEventListener('pointermove', move);
 
 function snapToCell(point) {
   const columnCount = Math.floor(map.naturalWidth / cellSize);
@@ -520,54 +696,52 @@ function snapToCell(point) {
   return { x: column * cellSize + cellSize / 2, y: row * cellSize + cellSize / 2 };
 }
 
-token.addEventListener('pointerup', async (event) => {
+async function endDrag(event) {
   if (!drag || event.pointerId !== drag.id) return;
   move(event);
   const start = drag;
-  const destination = start.moved ? snapToCell(shown) : null;
+  const state = start.state;
+  const destination = start.moved ? snapToCell(state.shown) : null;
   drag = null;
-  token.classList.remove('dragging');
-  token.releasePointerCapture(event.pointerId);
-  if (!destination || (destination.x === saved.x && destination.y === saved.y)) {
-    render(saved);
+  state.element.classList.remove('dragging');
+  state.element.releasePointerCapture(event.pointerId);
+  updateAddTokenButton();
+  if (!state.saved || !destination || (destination.x === state.saved.x && destination.y === state.saved.y)) {
+    render(state, state.saved);
     status.textContent = 'Beze změny — nic neukládám.';
     return;
   }
-  render(destination);
-  saving = true;
-  status.textContent = 'Ukládám…';
-  try {
-    // Pozice patří dvojici postava + mapa zachycené při začátku dragu.
-    const { data, error } = await db.from('token_positions')
-      .upsert({ character_id: CHARACTER_ID, map_id: start.mapId, ...destination },
-        { onConflict: 'character_id,map_id' }).select('x,y').single();
-    if (start.version !== mapVersion) return;
-    if (error) throw error;
-    saved = data;
-    render(saved);
-    status.textContent = 'Uloženo do DB.';
-  } catch (error) {
-    console.error('Uložení pozice postavy selhalo:', error);
-    if (start.version !== mapVersion) return;
-    render(saved);
-    showMessage('error', 'Pozici postavy se nepodařilo uložit. Zkus obnovit stránku a přesunout ji znovu.');
-  } finally {
-    if (start.version === mapVersion) saving = false;
-  }
-});
+  render(state, destination);
+  await saveToken(state, 'move', destination);
+}
 
 function cancelDrag(event) {
   if (!drag || event.pointerId !== drag.id) return;
+  const state = drag.state;
   drag = null;
-  token.classList.remove('dragging');
-  render(saved);
+  state.element.classList.remove('dragging');
+  if (state.element.hasPointerCapture(event.pointerId)) state.element.releasePointerCapture(event.pointerId);
+  render(state, state.saved);
+  updateAddTokenButton();
   status.textContent = 'Pohyb zrušen — nic neukládám.';
 }
-token.addEventListener('pointercancel', cancelDrag);
-token.addEventListener('lostpointercapture', cancelDrag);
 
 try {
   const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = await import('./config.local.js');
+  supabaseUrlForMaps = SUPABASE_URL;
+  configureMapImageUrl(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  if (leaderMode) {
+    leaderMaps = await window.parent.loadLeaderMaps();
+    mapSelect.replaceChildren();
+    for (const entry of leaderMaps) {
+      const option = document.createElement('option');
+      option.value = entry.map_id;
+      option.textContent = entry.name;
+      mapSelect.append(option);
+    }
+    mapSelect.hidden = false;
+    document.querySelector('#map-select-label').hidden = false;
+  }
   if (!SUPABASE_URL?.startsWith('https://') || SUPABASE_URL.includes('YOUR_PROJECT')) {
     throw new Error('Doplňte platnou SUPABASE_URL v config.local.js');
   }
@@ -578,12 +752,14 @@ try {
   db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
+  db.channel('npc-changes')
+    .on('broadcast', { event: 'changed' }, () => { void refreshNpcs(); })
+    .subscribe(state => { if (state === 'SUBSCRIBED') void refreshNpcs(); });
   db.channel('map-state')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'map_config' }, receiveMapConfig)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'game_state', filter: 'id=eq.1' }, receiveGameState)
     .subscribe(async (state) => {
       connected = state === 'SUBSCRIBED';
-      cellSizeInput.disabled = !connected || !configReady;
       mapSelect.disabled = !connected || !gameStateReady || savingMap;
       updateAddTokenButton();
       connection.textContent = connected ? 'Připojeno.' : 'Spojení je přerušené. Čekám na opětovné připojení…';

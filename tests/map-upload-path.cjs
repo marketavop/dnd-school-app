@@ -1,0 +1,10 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const source = fs.readFileSync('supabase/functions/leader-map-upload/index.ts', 'utf8');
+assert.match(source, /const objectPath = `\$\{mapId\}\.\$\{extension\}`/);
+assert.match(source, /const imagePath = `maps\/\$\{objectPath\}`/);
+assert.match(source, /\.upload\(objectPath,/);
+assert.match(source, /p_image_path: imagePath/);
+assert.match(source, /\.remove\(\[objectPath\]\)/);
+assert.doesNotMatch(source, /\.upload\(`maps\/\$\{mapId\}/);
+console.log('PASS: map upload stores object at bucket root and keeps logical DB path');

@@ -1,0 +1,154 @@
+/* Shared home/game typography and page background */
+:where(.home-page, .game-page) body { margin: 32px; font: 16px/1.5 system-ui, sans-serif; color: #172536; background: #f5f7fa; }
+
+/* Shared visibility (original home/character behavior) */
+:where(.home-page, .character-page) [hidden] { display: none !important; }
+
+/* Home, login and leader lists/maps */
+:where(.home-page) main { max-width: 440px; margin: 12vh auto 0; }
+:where(.home-page) main.players-open { max-width: 960px; margin-top: 24px; }
+:where(.home-page) #leader-sheet { width: 100%; height: 80vh; border: 0; margin-top: 16px; }
+:where(.home-page) #players-list button, :where(.home-page) #players-back { padding: 10px 16px; font: inherit; cursor: pointer; }
+:where(.home-page) #players-list { display: grid; gap: 8px; }
+:where(.home-page) nav { display: grid; gap: 20px; }
+:where(.home-page) nav a { display: block; padding: 28px 20px; border: 1px solid #c9d2dc; border-radius: 8px; background: white; color: #172536; text-align: center; font-size: 24px; font-weight: 600; text-decoration: none; }
+:where(.home-page) nav a[href]:hover { border-color: #345bb8; }
+:where(.home-page) nav a[aria-disabled="true"] { color: #667788; background: #edf1f6; }
+:where(.home-page) #navigation-status { color: #526171; }
+:where(.home-page) #prep-cell-size[aria-invalid="true"] { border: 2px solid #b42318; background: #fff0ef; }
+
+:where(.home-page) #login-form { display: grid; gap: 16px; padding: 24px; background: white; border: 1px solid #c9d2dc; border-radius: 8px; }
+:where(.home-page) #login-form h1 { margin: 0; font-size: 24px; }
+:where(.home-page) #login-form label { display: grid; gap: 6px; }
+:where(.home-page) #login-form input, :where(.home-page) #login-submit { padding: 12px; font: inherit; border: 1px solid #c9d2dc; border-radius: 6px; }
+:where(.home-page) #login-submit { background: #345bb8; color: white; cursor: pointer; }
+:where(.home-page) #login-submit:disabled { opacity: .6; cursor: wait; }
+
+/* Character page (including responsive layout) */
+:root:where(.character-page) {
+  color-scheme: light;
+  --text: #263442;
+  --muted: #68685f;
+  --background: #f2eee5;
+  --surface: #fffdf8;
+  --border: #d5cdbd;
+  --accent: #314f63;
+  --gold: #a68a4d;
+  --error: #b63832;
+  font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text);
+  background: var(--background);
+}
+:where(.character-page) * { box-sizing: border-box; }
+:where(.character-page) body { margin: 16px 24px; }
+:where(.character-page) main { max-width: 880px; margin: 0 auto; }
+:where(.character-page) h1 { margin: 0; font: 600 28px/1.2 Georgia, "Times New Roman", serif; }
+:where(.character-page) #home-link { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; border-radius: 3px; color: var(--accent); text-underline-offset: 4px; }
+:where(.character-page) #home-link:hover { color: #182f40; }
+:where(.character-page) input, :where(.character-page) select, :where(.character-page) button { font: inherit; color: inherit; }
+:where(.character-page) input, :where(.character-page) select { width: 100%; min-width: 0; height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); }
+:where(.character-page) input:hover:not(:disabled):not([readonly]), :where(.character-page) select:hover:not(:disabled) { border-color: #8c887b; }
+:where(.character-page) :where(a, button, input, select):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+:where(.character-page) input:disabled, :where(.character-page) select:disabled, :where(.character-page) input[readonly] { background: #eeebe4; color: var(--muted); cursor: default; }
+:where(.character-page) input[aria-invalid="true"], :where(.character-page) select[aria-invalid="true"] { border: 2px solid var(--error); background: #fff8f7; }
+:where(.character-page) .field-error { display: block; margin-top: 4px; font-size: 13px; line-height: 1.4; font-weight: 400; color: var(--error); }
+:where(.character-page) .field-error:empty, :where(.character-page) #load-status:empty { display: none; }
+:where(.character-page) #save-status { min-height: 20px; font-size: 13px; line-height: 20px; color: var(--muted); }
+:where(.character-page) #load-status { color: var(--muted); }
+:where(.character-page) #save-status[data-error="true"], :where(.character-page) #load-status[data-error="true"] { color: var(--error); }
+:where(.character-page) .card { border: 1px solid #b7a579; border-top: 3px solid var(--accent); border-radius: 3px; background: var(--surface); }
+:where(.character-page) .card-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--gold); background: #f8f4e9; }
+:where(.character-page) .card-heading { min-width: 0; }
+:where(.character-page) .card-kicker { margin: 0 0 4px; color: var(--muted); font-size: 11px; line-height: 1.2; letter-spacing: .12em; text-transform: uppercase; }
+:where(.character-page) .card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+:where(.character-page) .card-tabs:empty { display: none; }
+:where(.character-page) .card-content { padding: 16px 24px 0; }
+:where(.character-page) .card > #save-status { margin: 8px 24px 12px; }
+:where(.character-page) button { display: inline-grid; place-items: center; min-width: 44px; height: 44px; padding: 8px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); cursor: pointer; }
+:where(.character-page) button:enabled:hover { background: #eee8d9; border-color: #a39880; }
+:where(.character-page) button:enabled:active { background: #e5dcc8; }
+:where(.character-page) button:disabled { color: var(--muted); background: #eeebe4; cursor: default; }
+:where(.character-page) .edit { color: var(--accent); }
+:where(.character-page) .edit[aria-pressed="true"] { color: var(--surface); background: var(--accent); border-color: var(--accent); }
+:where(.character-page) .edit[aria-pressed="true"]:hover { background: #243e50; }
+:where(.character-page) #supplementary-info { background: transparent; border-color: transparent; }
+:where(.character-page) .identity { display: flex; align-items: flex-start; gap: 24px; }
+:where(.character-page) .portrait { width: 96px; height: 96px; flex: 0 0 96px; border: 1px solid #b7a579; border-radius: 50%; background: #f2eee3; display: grid; place-items: center; overflow: hidden; color: var(--accent); }
+:where(.character-page) .portrait img { width: 100%; height: 100%; object-fit: cover; }
+:where(.character-page) dl { flex: 1; min-width: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 16px; }
+:where(.character-page) .name { grid-column: 1 / -1; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+:where(.character-page) .hp-block { grid-column: span 2; }
+:where(.character-page) .hp-values { display: flex; align-items: center; gap: 8px; font-size: 24px; line-height: 1.25; font-weight: 600; font-variant-numeric: tabular-nums; }
+:where(.character-page) .hp-values input { max-width: 88px; }
+:where(.character-page) .hp-adjust { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+:where(.character-page) #hp-delta { width: 72px; text-align: center; }
+:where(.character-page) .hp-adjust button { flex: 0 0 44px; font-size: 20px; line-height: 1; }
+:where(.character-page) .hint { display: block; margin-top: 4px; font-size: 12px; line-height: 1.4; color: var(--muted); }
+:where(.character-page) .hint:empty { display: none; }
+:where(.character-page) dt { font-size: 13px; color: var(--muted); }
+:where(.character-page) dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+:where(.character-page) .name dd { font-size: 24px; line-height: 1.3; font-weight: 650; }
+:where(.character-page) .name input { font-size: 18px; }
+:where(.character-page) #character-level, :where(.character-page) #character-xp { font-weight: 600; font-variant-numeric: tabular-nums; }
+:where(.character-page) [data-empty="true"] { color: var(--muted); font-weight: 400; }
+
+:where(.character-page) .abilities { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+:where(.character-page) .ability-card { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 2px; background: var(--surface); }
+:where(.character-page) .ability-card h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.4; font-weight: 600; }
+:where(.character-page) .ability-card h2 label { min-width: 0; overflow-wrap: anywhere; }
+:where(.character-page) .ability-icon { width: 20px; height: 20px; flex: 0 0 20px; color: #816933; }
+:where(.character-page) .ability-values { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 12px; }
+:where(.character-page) .ability-values input { padding: 4px; font-size: 30px; line-height: 1.2; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+:where(.character-page) .ability-values input[readonly] { appearance: textfield; border-color: transparent; background: transparent; color: var(--text); cursor: default; }
+:where(.character-page) .ability-values input[readonly]::-webkit-inner-spin-button, :where(.character-page) .ability-values input[readonly]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+:where(.character-page) .ability-values input[readonly][aria-invalid="true"] { border-color: var(--error); }
+:where(.character-page) .ability-derived { display: grid; gap: 4px; padding-left: 12px; border-left: 1px solid var(--border); font-size: 12px; line-height: 1.5; }
+:where(.character-page) .ability-derived p { margin: 0; }
+:where(.character-page) .ability-derived output { color: var(--accent); font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+:where(.character-page) .save-proficiency { color: var(--accent); font-size: 10px; vertical-align: middle; }
+@media (max-width: 800px) {
+  :where(.character-page) .ability-values { grid-template-columns: 64px minmax(0, 1fr); gap: 8px; }
+  :where(.character-page) .ability-derived { padding-left: 8px; }
+}
+@media (max-width: 660px) {
+  :where(.character-page) body { margin: 12px 16px; }
+  :where(.character-page) .card-header { padding: 12px 16px; }
+  :where(.character-page) h1 { font-size: 24px; }
+  :where(.character-page) .card-content { padding: 16px 16px 0; }
+  :where(.character-page) .card > #save-status { margin-inline: 16px; }
+  :where(.character-page) .identity { gap: 12px; }
+  :where(.character-page) .portrait { width: 56px; height: 56px; flex-basis: 56px; }
+  :where(.character-page) .portrait svg { width: 40px; height: 40px; }
+  :where(.character-page) dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  :where(.character-page) .abilities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 440px) {
+  :where(.character-page) body { margin: 8px; }
+  :where(.character-page) .card-header, :where(.character-page) .card-content { padding-inline: 12px; }
+  :where(.character-page) .card-header { gap: 8px; }
+  :where(.character-page) h1 { font-size: 22px; }
+  :where(.character-page) .card-actions { gap: 0; }
+  :where(.character-page) .abilities { grid-template-columns: minmax(0, 1fr); }
+  :where(.character-page) .ability-values { grid-template-columns: 64px minmax(0, 1fr); }
+}
+
+/* Game page, map and token controls */
+:where(.game-page) h1 { font-size: 24px; }
+:where(.game-page) #map-viewport { position: relative; width: 100%; height: 70vh; overflow: hidden; background: #d1d5db; outline: 2px solid #7d9275; }
+:where(.game-page) #map-space { position: absolute; width: 0; height: 0; transform-origin: top left; }
+:where(.game-page) #map-viewport { touch-action: none; cursor: grab; user-select: none; }
+:where(.game-page) #map-viewport.panning { cursor: grabbing; }
+:where(.game-page) #map { display: block; max-width: none; }
+:where(.game-page) #grid { position: absolute; left: 0; top: 0; pointer-events: none; fill: none; stroke: rgba(20, 30, 40, 0.5); stroke-width: 1; }
+:where(.game-page) .token { position: absolute; border-radius: 50%; background: #345bb8; color: white; display: grid; place-items: center; cursor: grab; touch-action: none; user-select: none; overflow: hidden; transform: translate(-50%, -50%); }
+:where(.game-page) .token[hidden], :where(.game-page) #scene-players[hidden] { display: none; }
+:where(.game-page) .token.dragging { cursor: grabbing; }
+:where(.game-page) .token img { position: absolute; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+:where(.game-page) #scene-players-list { list-style: none; padding: 0; }
+:where(.game-page) #scene-players-list button { margin-left: 12px; font: inherit; }
+:where(.game-page) #scene-players-list [data-message-type="error"], :where(.game-page) #add-token-message[data-message-type="error"], :where(.game-page) #remove-token-message[data-message-type="error"] { color: #b42318; }
+:where(.game-page) #status, :where(.game-page) #connection { min-height: 24px; }
+:where(.game-page) #map-select { padding: 6px; font: inherit; }
+:where(.game-page) #map[hidden] { display: none; }
+:where(.game-page) #add-token, :where(.game-page) #remove-token { padding: 8px 12px; font: inherit; cursor: pointer; }
+:where(.game-page) #add-token:disabled, :where(.game-page) #remove-token:disabled { cursor: wait; }

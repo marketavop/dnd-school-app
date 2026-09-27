@@ -1,118 +1,10 @@
 <!doctype html>
-<html lang="cs">
+<html lang="cs" class="character-page">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Deník postavy</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --text: #263442;
-      --muted: #68685f;
-      --background: #f2eee5;
-      --surface: #fffdf8;
-      --border: #d5cdbd;
-      --accent: #314f63;
-      --gold: #a68a4d;
-      --error: #b63832;
-      font: 16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--text);
-      background: var(--background);
-    }
-    * { box-sizing: border-box; }
-    body { margin: 16px 24px; }
-    main { max-width: 880px; margin: 0 auto; }
-    h1 { margin: 0; font: 600 28px/1.2 Georgia, "Times New Roman", serif; }
-    #home-link { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; border-radius: 3px; color: var(--accent); text-underline-offset: 4px; }
-    #home-link:hover { color: #182f40; }
-    input, select, button { font: inherit; color: inherit; }
-    input, select { width: 100%; min-width: 0; height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); }
-    input:hover:not(:disabled):not([readonly]), select:hover:not(:disabled) { border-color: #8c887b; }
-    :where(a, button, input, select):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
-    input:disabled, select:disabled, input[readonly] { background: #eeebe4; color: var(--muted); cursor: default; }
-    input[aria-invalid="true"], select[aria-invalid="true"] { border: 2px solid var(--error); background: #fff8f7; }
-    .field-error { display: block; margin-top: 4px; font-size: 13px; line-height: 1.4; font-weight: 400; color: var(--error); }
-    .field-error:empty, #load-status:empty { display: none; }
-    #save-status { min-height: 20px; font-size: 13px; line-height: 20px; color: var(--muted); }
-    #load-status { color: var(--muted); }
-    #save-status[data-error="true"], #load-status[data-error="true"] { color: var(--error); }
-    .card { border: 1px solid #b7a579; border-top: 3px solid var(--accent); border-radius: 3px; background: var(--surface); }
-    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px; border-bottom: 1px solid var(--gold); background: #f8f4e9; }
-    .card-heading { min-width: 0; }
-    .card-kicker { margin: 0 0 4px; color: var(--muted); font-size: 11px; line-height: 1.2; letter-spacing: .12em; text-transform: uppercase; }
-    .card-actions { display: flex; gap: 8px; flex-shrink: 0; }
-    .card-tabs:empty { display: none; }
-    .card-content { padding: 16px 24px 0; }
-    .card > #save-status { margin: 8px 24px 12px; }
-    button { display: inline-grid; place-items: center; min-width: 44px; height: 44px; padding: 8px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); cursor: pointer; }
-    button:enabled:hover { background: #eee8d9; border-color: #a39880; }
-    button:enabled:active { background: #e5dcc8; }
-    button:disabled { color: var(--muted); background: #eeebe4; cursor: default; }
-    .edit { color: var(--accent); }
-    .edit[aria-pressed="true"] { color: var(--surface); background: var(--accent); border-color: var(--accent); }
-    .edit[aria-pressed="true"]:hover { background: #243e50; }
-    #supplementary-info { background: transparent; border-color: transparent; }
-    .identity { display: flex; align-items: flex-start; gap: 24px; }
-    .portrait { width: 96px; height: 96px; flex: 0 0 96px; border: 1px solid #b7a579; border-radius: 50%; background: #f2eee3; display: grid; place-items: center; overflow: hidden; color: var(--accent); }
-    .portrait img { width: 100%; height: 100%; object-fit: cover; }
-    dl { flex: 1; min-width: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 16px; }
-    .name { grid-column: 1 / -1; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-    .hp-block { grid-column: span 2; }
-    .hp-values { display: flex; align-items: center; gap: 8px; font-size: 24px; line-height: 1.25; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .hp-values input { max-width: 88px; }
-    .hp-adjust { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
-    #hp-delta { width: 72px; text-align: center; }
-    .hp-adjust button { flex: 0 0 44px; font-size: 20px; line-height: 1; }
-    .hint { display: block; margin-top: 4px; font-size: 12px; line-height: 1.4; color: var(--muted); }
-    .hint:empty { display: none; }
-    dt { font-size: 13px; color: var(--muted); }
-    dd { margin: 4px 0 0; overflow-wrap: anywhere; }
-    .name dd { font-size: 24px; line-height: 1.3; font-weight: 650; }
-    .name input { font-size: 18px; }
-    #character-level, #character-xp { font-weight: 600; font-variant-numeric: tabular-nums; }
-    [data-empty="true"] { color: var(--muted); font-weight: 400; }
-    [hidden] { display: none !important; }
-    .abilities { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-    .ability-card { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 2px; background: var(--surface); }
-    .ability-card h2 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.4; font-weight: 600; }
-    .ability-card h2 label { min-width: 0; overflow-wrap: anywhere; }
-    .ability-icon { width: 20px; height: 20px; flex: 0 0 20px; color: #816933; }
-    .ability-values { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 12px; }
-    .ability-values input { padding: 4px; font-size: 30px; line-height: 1.2; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .ability-values input[readonly] { appearance: textfield; border-color: transparent; background: transparent; color: var(--text); cursor: default; }
-    .ability-values input[readonly]::-webkit-inner-spin-button,
-    .ability-values input[readonly]::-webkit-outer-spin-button { appearance: none; margin: 0; }
-    .ability-values input[readonly][aria-invalid="true"] { border-color: var(--error); }
-    .ability-derived { display: grid; gap: 4px; padding-left: 12px; border-left: 1px solid var(--border); font-size: 12px; line-height: 1.5; }
-    .ability-derived p { margin: 0; }
-    .ability-derived output { color: var(--accent); font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
-    .save-proficiency { color: var(--accent); font-size: 10px; vertical-align: middle; }
-    @media (max-width: 800px) {
-      .ability-values { grid-template-columns: 64px minmax(0, 1fr); gap: 8px; }
-      .ability-derived { padding-left: 8px; }
-    }
-    @media (max-width: 660px) {
-      body { margin: 12px 16px; }
-      .card-header { padding: 12px 16px; }
-      h1 { font-size: 24px; }
-      .card-content { padding: 16px 16px 0; }
-      .card > #save-status { margin-inline: 16px; }
-      .identity { gap: 12px; }
-      .portrait { width: 56px; height: 56px; flex-basis: 56px; }
-      .portrait svg { width: 40px; height: 40px; }
-      dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-      .abilities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-    @media (max-width: 440px) {
-      body { margin: 8px; }
-      .card-header, .card-content { padding-inline: 12px; }
-      .card-header { gap: 8px; }
-      h1 { font-size: 22px; }
-      .card-actions { gap: 0; }
-      .abilities { grid-template-columns: minmax(0, 1fr); }
-      .ability-values { grid-template-columns: 64px minmax(0, 1fr); }
-    }
-  </style>
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <main>
@@ -192,7 +84,7 @@
     </section>
     <noscript>Pro zobrazení deníku povolte JavaScript.</noscript>
   </main>
-  <script type="module" src="./character.js"></script>
+  <script type="module" src="./character-page.js"></script>
   <script type="module" src="./navigation.js"></script>
 </body>
 </html>

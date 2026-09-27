@@ -1,4 +1,13 @@
-import { mountLogin } from './login.js';
+import { mountLogin, restoreSession } from './login.js';
+import { showRoleHome } from './role-home.js';
+import { showLogout, showSessionError, continueAfterLogin } from './session-page.js';
+
+function enterApp() {
+  document.querySelector('#login-form').hidden = true;
+  if (continueAfterLogin()) return;
+  showRoleHome(document);
+  showLogout();
+}
 
 mountLogin({
   document,
@@ -14,8 +23,12 @@ mountLogin({
     if (!response.ok) throw new Error('Login unavailable');
     return response.json();
   },
-  onSuccess(user) {
-    document.querySelector('#signed-in-status').textContent = `Přihlášený uživatel: ${user.user_id} · Role: ${user.role}`;
-    document.querySelector('#home-content').hidden = false;
+  onSuccess() {
+    enterApp();
   },
 });
+
+try {
+  if (await restoreSession()) enterApp();
+  else document.querySelector('#login-form').hidden = false;
+} catch { showSessionError(); }
