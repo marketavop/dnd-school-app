@@ -91,6 +91,13 @@ function enableEditing(db, character) {
   function validHpAmount() {
     return validHpDelta(delta.value, delta.validity.badInput);
   }
+  // character obsahuje potvrzená data; hodnoty inputů jsou lokální drafty.
+  function confirmCurrentHp(value) {
+    const input = document.querySelector('#edit-current_hp');
+    const hasDraft = failures.has('current_hp') || String(input.value) !== String(character.current_hp ?? '');
+    character.current_hp = value;
+    if (!hasDraft) input.value = value ?? '';
+  }
   async function changeHp(direction) {
     if (readOnly || delta.disabled || hpBusy) return;
     if (!validHpAmount()) {
@@ -105,8 +112,7 @@ function enableEditing(db, character) {
     hpBusy = true; pending++; failures.delete('hp-delta'); refreshResources(); updateStatus();
     try {
       const updated = await updateCharacterField(db, character.id, 'current_hp', value, playerSessionToken);
-      character.current_hp = updated.current_hp;
-      document.querySelector('#edit-current_hp').value = character.current_hp ?? '';
+      confirmCurrentHp(updated.current_hp);
     } catch {
       failures.add('hp-delta');
       hpError.textContent = 'Nepodařilo se uložit. Zkuste změnu znovu.';
@@ -199,7 +205,7 @@ function enableEditing(db, character) {
       showModifier(message ? null : value);
     });
     input.addEventListener('blur', async () => {
-      if ((!editing && !field.ability) || input.disabled) return;
+      if ((!editing && !field.ability && !failures.has(field.key)) || input.disabled) return;
       const { value, message } = validate();
       field.validationError = Boolean(message);
       error.textContent = message || (failures.has(field.key) ? 'Nepodařilo se uložit. Zkuste změnu znovu.' : '');
@@ -209,7 +215,7 @@ function enableEditing(db, character) {
         showModifier(character[field.key]);
         return;
       }
-      if (value === character[field.key]) return;
+      if (value === character[field.key] && !failures.has(field.key)) return;
       input.disabled = true;
       if (field.hp) { hpBusy = true; refreshResources(); }
       pending++;
@@ -220,11 +226,12 @@ function enableEditing(db, character) {
         const lowerHp = field.key === 'max_hp' && value !== null && character.current_hp > value;
         const updated = lowerHp ? await lowerCharacterHp(db, character.id, value, playerSessionToken) : await updateCharacterField(db, character.id, field.key, value, playerSessionToken);
         if (field.key === 'max_hp') {
-          character.current_hp = updated.current_hp;
-          document.querySelector('#edit-current_hp').value = updated.current_hp;
+          confirmCurrentHp(updated.current_hp);
         }
         // Jiný souběžný zápis mohl vrátit starší hodnoty ostatních polí.
         character[field.key] = updated[field.key];
+        input.value = character[field.key] ?? '';
+        showModifier(character[field.key]);
         if (field.key === 'level' || field.key === 'class_code') {
           for (const ability of fields) ability.refreshSave?.();
         }
@@ -233,15 +240,14 @@ function enableEditing(db, character) {
       } catch {
         // Technický detail loguje datová vrstva.
         failures.add(field.key);
-        error.textContent = 'Nepodařilo se uložit. Zkuste změnu znovu.';
+        error.textContent = 'Nepodařilo se uložit. Pro opakování klikni do pole a znovu jej opusť.';
       } finally {
-        input.value = character[field.key] ?? '';
-        showModifier(character[field.key]);
         input.disabled = false;
         if (field.hp) hpBusy = false;
         refreshResources();
         pending--;
         updateStatus();
+        renderEditing();
       }
     });
   }
@@ -256,25 +262,29 @@ function enableEditing(db, character) {
     saveStatus.textContent = 'Pouze pro čtení';
     return;
   }
-  toggle.addEventListener('click', () => {
-    // I klávesové/programové zavření vyvolá běžný blur před skrytím pole.
-    if (editing && fields.some(field => field.input === document.activeElement)) document.activeElement.blur();
-    editing = !editing;
+  function renderEditing() {
     for (const field of fields) {
       if (!editing) field.clearValidation();
+      const editable = editing || failures.has(field.key);
       if (field.ability) {
-        field.input.readOnly = !editing;
-        field.input.tabIndex = editing ? 0 : -1;
+        field.input.readOnly = !editable;
+        field.input.tabIndex = editable ? 0 : -1;
         continue;
       }
-      field.input.hidden = !editing;
-      document.querySelector(`#character-${field.slot}`).hidden = editing;
+      field.input.hidden = !editable;
+      document.querySelector(`#character-${field.slot}`).hidden = editable;
     }
     document.querySelector('#edit-icon').hidden = editing;
     document.querySelector('#close-icon').hidden = !editing;
     toggle.setAttribute('aria-pressed', String(editing));
     toggle.setAttribute('aria-label', editing ? 'Ukončit editaci' : 'Upravit průkaz');
     toggle.title = editing ? 'Ukončit editaci' : 'Upravit průkaz';
+  }
+  toggle.addEventListener('click', () => {
+    // I klávesové/programové zavření vyvolá běžný blur před skrytím pole.
+    if (editing && fields.some(field => field.input === document.activeElement)) document.activeElement.blur();
+    editing = !editing;
+    renderEditing();
   });
 }
 
