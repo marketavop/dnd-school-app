@@ -191,6 +191,8 @@ function enableEditing(db, character) {
         if (input.validity.badInput || (value !== null && (!Number.isInteger(value) || value < 1 || value > 20))) {
           message = field.ability ? 'Zadej celé číslo od 1 do 20.' : 'Level musí být celé číslo od 1 do 20, nebo prázdný.';
         }
+      } else if (field.text) {
+        value = value === '' ? null : value;
       } else {
         value = value === '' ? null : value;
         if (value !== null && !field.choices.has(value) && value !== character[field.key]) message = 'Vyberte hodnotu ze seznamu.';

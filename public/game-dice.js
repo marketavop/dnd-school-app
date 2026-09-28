@@ -1,9 +1,10 @@
 import { loadCharacter } from './characters.js';
 import { connectRolls } from './rolls.js';
+import { gameUser } from './navigation.js';
 
 const status = document.querySelector('#dice-status');
 const buttons = [...document.querySelectorAll('[data-die]')];
-const ids = new URLSearchParams(window.location.search).getAll('character_id');
+const ids = gameUser?.role === 'player' ? [gameUser.character_id] : [];
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
 function showFailure(message) {
   status.textContent = message;
@@ -16,10 +17,10 @@ if (valid) {
     const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
-    const character = await loadCharacter(db, ids[0].toLowerCase());
+    const character = await loadCharacter(db, ids[0].toLowerCase(), gameUser.session_token);
     const session = connectRolls(db, character, rolls => {
       const latest = rolls[0];
-      document.querySelector('#last-roll').textContent = latest ? `${latest.name}: k${latest.sides} → ${latest.result}` : 'Zatím žádný hod';
+      document.querySelector('#last-roll').textContent = latest ? `${latest.name} · k${latest.sides} → ${latest.result}` : 'Zatím žádný hod';
       const entries = rolls.slice(0, 10).map(roll => {
         const item = document.createElement('li');
         item.textContent = `${roll.name} · k${roll.sides} → ${roll.result}`;
