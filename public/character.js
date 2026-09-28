@@ -176,6 +176,8 @@ function enableEditing(db, character) {
       let message = '';
       if (field.key === 'name') {
         if (!value.trim()) message = 'Jméno nemůže být prázdné.';
+      } else if (field.text) {
+        value = value === '' ? null : value;
       } else if (field.resource) {
         value = value === '' ? null : Number(value);
         const minimum = 0;
