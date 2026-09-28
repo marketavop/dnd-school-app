@@ -7,7 +7,7 @@ const dataSource = readFileSync(resolve(__dirname, '../public/characters.js'), '
 const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'utf8')
   .replace("import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';", readFileSync(resolve(__dirname, '../public/character-rules.js'), 'utf8').replaceAll('export function', 'function'))
   .replace("import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';", dataSource)
-  .replace("import { getCurrentUser } from './login.js';", 'const getCurrentUser = () => ({ session_token: null });')
+  .replace("import { getCurrentUser } from './login.js';", 'const getCurrentUser = () => ({ session_token: testSessionToken });')
   .replace("await import('./config.local.js')", 'getConfig()')
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
@@ -15,7 +15,7 @@ const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 const base = { id, name: 'Eliška', race_code: null, class_code: null, level: null, portrait_path: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
-async function page(query, row = base, error = null, leader = false) {
+async function page(query, row = base, error = null, leader = false, authorized = false) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
@@ -29,8 +29,27 @@ async function page(query, row = base, error = null, leader = false) {
   let configs = 0, clients = 0, reads = 0, leaderReads = 0;
   const logs = [];
   const writes = [];
+  const rpcCalls = [];
   const control = { error: null, wait: null };
-  const db = { from(table) {
+  const db = { async rpc(name, args) {
+    assert.equal(args.p_session_token, 'test-player-session');
+    assert.equal(args.p_character_id.toLowerCase(), id);
+    rpcCalls.push({ name, args: JSON.parse(JSON.stringify(args)) });
+    if (name === 'player_update_character') {
+      const patch = { ...args.p_patch };
+      if (control.wait) await control.wait;
+      if (control.error) return { data: null, error: control.error };
+      const next = { ...row, ...patch };
+      if (Object.hasOwn(patch, 'max_hp') && next.max_hp !== null && next.current_hp > next.max_hp) next.current_hp = next.max_hp;
+      if (next.current_hp < 0 || next.max_hp < 0 || (next.current_hp !== null && next.max_hp !== null && next.current_hp > next.max_hp)) {
+        return { data: null, error: { code: '23514' } };
+      }
+      writes.push(patch);
+      Object.assign(row, next);
+    } else { assert.equal(name, 'player_character'); reads++; }
+    return { data: error ? null : [{ ...row }], error };
+  }, from(table) {
+    assert.equal(authorized, false, 'session path must not use direct table access');
     assert.equal(table, 'characters');
     let patch;
     return {
@@ -48,6 +67,7 @@ async function page(query, row = base, error = null, leader = false) {
     };
   } };
   const context = vm.createContext({
+    testSessionToken: authorized ? 'test-player-session' : null,
     URL, URLSearchParams,
     window: { location: { search: query, href: `https://example.test/character.html${query}`, origin: 'https://example.test' },
       parent: leader ? { location: { origin: 'https://example.test' }, async loadLeaderCharacter(characterId) {
@@ -65,10 +85,42 @@ async function page(query, row = base, error = null, leader = false) {
     } },
   });
   await vm.runInContext(`(async () => { ${pageSource}\n })()`, context);
-  return { elements, configs, clients, reads, leaderReads, logs, writes, control };
+  return { elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control };
 }
 
 (async () => {
+  const hpStored = { ...base, current_hp: 10, max_hp: 20 };
+  const hpPage = await page(`?character_id=${id}`, hpStored, null, false, true);
+  const hp = hpPage.elements;
+  hp['edit-toggle'].handlers.click();
+  const hpEdit = async (field, value) => {
+    hp[`edit-${field}`].value = value;
+    await hp[`edit-${field}`].handlers.blur();
+  };
+  await hpEdit('current_hp', '15');
+  assert.equal(hpStored.current_hp, 15);
+  assert.equal((await page(`?character_id=${id}`, hpStored, null, false, true)).elements['character-current_hp'].textContent, 15);
+  await hpEdit('max_hp', '10');
+  assert.deepEqual(hpPage.rpcCalls.at(-1).args.p_patch, { max_hp: 10 });
+  assert.equal(hpStored.current_hp, 10);
+  assert.equal(hp['character-current_hp'].textContent, 10);
+  // A concurrently changed server value must be consumed even if the client
+  // did not predict that reducing the maximum would also lower current HP.
+  await hpEdit('max_hp', '20');
+  hpStored.current_hp = 18;
+  await hpEdit('max_hp', '12');
+  assert.equal(hp['character-current_hp'].textContent, 12);
+  const hpReload = await page(`?character_id=${id}`, hpStored, null, false, true);
+  assert.equal(hpReload.elements['character-current_hp'].textContent, 12);
+  assert.equal(hpReload.elements['character-max_hp'].textContent, 12);
+  hp['hp-delta'].value = '2';
+  await hp['hp-minus'].handlers.click(); assert.equal(hpStored.current_hp, 10);
+  await hp['hp-plus'].handlers.click(); assert.equal(hpStored.current_hp, 12);
+  await hpEdit('max_hp', '0');
+  assert.equal(hpStored.current_hp, 0); assert.equal(hpStored.max_hp, 0);
+  const leaderHp = await page(`?mode=leader&character_id=${id}`, hpStored, null, true);
+  assert.equal(leaderHp.elements['character-current_hp'].textContent, 0);
+  assert.equal(leaderHp.elements['character-max_hp'].textContent, 0);
   const leaderSheet = await page(`?mode=leader&character_id=${id}`, {
     ...base, name: 'Test Postava', class_code: 'wizard', level: 3,
     int: 16, xp: 500, current_hp: 8, max_hp: 12,
@@ -423,7 +475,7 @@ async function page(query, row = base, error = null, leader = false) {
   await deltaHp('-3'); assert.equal(resourceRow.current_hp, 10);
   resources.control.error = null;
   resourceWrites = resources.writes.length;
-  for (const [key, value] of [['max_hp', '0'], ['max_hp', '-1'], ['current_hp', '-1'], ['current_hp', '11']]) await resourceChange(key, value);
+  for (const [key, value] of [['max_hp', '-1'], ['current_hp', '-1'], ['current_hp', '11']]) await resourceChange(key, value);
   assert.equal(resources.writes.length, resourceWrites);
   re['edit-current_hp'].value = '8'; re['edit-current_hp'].handlers.input();
   assert.equal(re['error-current_hp'].textContent, '');

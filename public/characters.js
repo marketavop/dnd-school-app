@@ -53,7 +53,7 @@ export async function updateCharacterField(db, characterId, field, value, sessio
 // Pouze snížení maxima a korekce current HP v jednom atomickém UPDATE.
 export async function lowerCharacterHp(db, characterId, maxHp, sessionToken = null) {
   try {
-    if (!Number.isInteger(maxHp) || maxHp < 1) throw new Error('Neplatné maximum HP.');
+    if (!Number.isInteger(maxHp) || maxHp < 0) throw new Error('Neplatné maximum HP.');
     const authorized = playerRpc(db, sessionToken, 'player_update_character', { p_character_id: characterId, p_patch: { max_hp: maxHp } });
     if (authorized) return await authorized;
     const { data, error } = await db.from('characters')
