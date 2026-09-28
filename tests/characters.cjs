@@ -9,7 +9,7 @@ const { resolve } = require('node:path');
     `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
   );
   const fields = ['id', 'user_id', 'name', 'portrait_path', 'race_code', 'class_code',
-    'level', 'str', 'dex', 'con', 'int', 'wis', 'cha', 'xp', 'current_hp', 'max_hp'];
+    'level', 'str', 'dex', 'con', 'int', 'wis', 'cha', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note'];
   const row = Object.fromEntries(fields.map(field => [field, null]));
   Object.assign(row, { id: 'character-a', user_id: 'account-a', name: 'Test' });
   const other = { ...row, id: 'character-b' };

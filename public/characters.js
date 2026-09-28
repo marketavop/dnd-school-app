@@ -1,10 +1,10 @@
-const CHARACTER_FIELDS = 'id,user_id,name,portrait_path,race_code,class_code,level,str,dex,con,int,wis,cha,xp,current_hp,max_hp';
+const CHARACTER_FIELDS = 'id,user_id,name,portrait_path,race_code,class_code,level,str,dex,con,int,wis,cha,xp,current_hp,max_hp,ac,ac_note';
 const EDITABLE_FIELDS = new Set([
   'name', 'portrait_path', 'race_code', 'class_code', 'level',
   'str', 'dex', 'con', 'int', 'wis', 'cha',
-  'xp', 'current_hp', 'max_hp',
+  'xp', 'current_hp', 'max_hp', 'ac', 'ac_note',
 ]);
-const PLAYER_FIELDS = 'id,user_id,name,portrait_path,race_code,class_code,level,str,dex,con,int,wis,cha,xp,current_hp,max_hp';
+const PLAYER_FIELDS = 'id,user_id,name,portrait_path,race_code,class_code,level,str,dex,con,int,wis,cha,xp,current_hp,max_hp,ac,ac_note';
 
 function playerRpc(db, token, name, args) {
   if (!token) return null;

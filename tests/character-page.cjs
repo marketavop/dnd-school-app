@@ -12,14 +12,14 @@ const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'u
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
 const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-const base = { id, name: 'Eliška', race_code: null, class_code: null, level: null, portrait_path: null, xp: null, current_hp: null, max_hp: null,
+const base = { id, name: 'Eliška', race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
 async function page(query, row = base, error = null, leader = false, authorized = false) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
-    'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['xp', 'current_hp', 'max_hp'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
+    'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
     textContent: '', hidden: ['student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'close-icon'].includes(key), dataset: {}, handlers: {},
     value: '', disabled: false, validity: { badInput: false }, children: [], attributes: {},
     append(option) { this.children.push(option); },
@@ -54,7 +54,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     let patch;
     return {
       update(value) { patch = value; writes.push({ ...value }); return this; },
-      select(fields) { assert.equal(fields.split(',').length, 16); return this; },
+      select(fields) { assert.equal(fields.split(',').length, 18); return this; },
       eq(key, value) { assert.equal(key, 'id'); assert.equal(value.toLowerCase(), id); return this; },
       async single() {
         if (patch) {
@@ -123,7 +123,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(leaderHp.elements['character-max_hp'].textContent, 0);
   const leaderSheet = await page(`?mode=leader&character_id=${id}`, {
     ...base, name: 'Test Postava', class_code: 'wizard', level: 3,
-    int: 16, xp: 500, current_hp: 8, max_hp: 12,
+    int: 16, xp: 500, current_hp: 8, max_hp: 12, ac: 15, ac_note: 'kožená zbroj + obratnost',
   }, null, true);
   assert.equal(leaderSheet.leaderReads, 1);
   assert.equal(leaderSheet.configs, 0);
@@ -133,6 +133,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(leaderSheet.elements['modifier-int'].textContent, '+3');
   assert.equal(leaderSheet.elements['save-int'].textContent, '+5');
   assert.equal(leaderSheet.elements['character-current_hp'].textContent, 8);
+  assert.equal(leaderSheet.elements['character-ac'].textContent, 15);
+  assert.equal(leaderSheet.elements['character-ac_note'].textContent, 'kožená zbroj + obratnost');
   assert.equal(leaderSheet.elements['xp-next'].textContent, 'Do další úrovně: 2200');
   assert.equal(leaderSheet.elements['save-status'].textContent, 'Pouze pro čtení');
   for (const [key, control] of Object.entries(leaderSheet.elements)) {
@@ -229,6 +231,40 @@ async function page(query, row = base, error = null, leader = false, authorized 
     const reload = await page(`?character_id=${id}`, stored);
     assert.equal(reload.elements[`edit-${slot}`].value, saved ?? '');
     assert.equal(el['save-status'].textContent, 'Uloženo');
+  }
+  for (const [slot, draft, saved] of [
+    ['ac', '15', 15], ['ac_note', 'kožená zbroj + obratnost', 'kožená zbroj + obratnost'],
+    ['ac', '16', 16], ['ac', '100', 100], ['ac', '0', 0], ['ac', '', null], ['ac_note', '', null],
+  ]) {
+    await change(slot, draft);
+    assert.equal(stored[slot], saved);
+    assert.equal(el['save-status'].textContent, 'Uloženo');
+    assert.equal((await page(`?character_id=${id}`, stored)).elements[`edit-${slot}`].value, saved ?? '');
+  }
+  const acWrites = edit.writes.length;
+  for (const invalid of ['-1', '1.5', 'abc']) {
+    await change('ac', invalid);
+    assert.match(el['error-ac'].textContent, /celé číslo/);
+  }
+  assert.equal(edit.writes.length, acWrites);
+  for (const [slot, draft, saved] of [['ac', '17', 17], ['ac_note', '<b>štít</b>', '<b>štít</b>']]) {
+    edit.control.error = new Error('Simulated server error');
+    await change(slot, draft);
+    assert.equal(el[`edit-${slot}`].value, draft);
+    assert.equal(el['save-status'].textContent, 'Nepodařilo se uložit');
+    assert.equal(stored[slot], null);
+    assert.equal((await page(`?character_id=${id}`, stored)).elements[`edit-${slot}`].value, '');
+    edit.control.error = null;
+    let finishAc;
+    edit.control.wait = new Promise(resolve => { finishAc = resolve; });
+    const retry = el[`edit-${slot}`].handlers.blur();
+    assert.equal(el['save-status'].textContent, 'Ukládám…');
+    finishAc(); await retry;
+    edit.control.wait = null;
+    assert.equal(el['save-status'].textContent, 'Uloženo');
+    assert.equal(stored[slot], saved);
+    assert.equal(el[`character-${slot}`].textContent, saved);
+    assert.equal((await page(`?character_id=${id}`, stored)).elements[`edit-${slot}`].value, saved);
   }
   const count = edit.writes.length;
   await change('name', 'Eliška');
