@@ -1,5 +1,10 @@
 # D&D mapa – realtime spike a MAP-001 až MAP-007
 
+Ticket 6B doplňuje serverový HP invariant (včetně maxima 0), zachovává atomické
+snížení HP v existujícím RPC a přebírá jeho potvrzené HP do UI. Živý test před
+nasazením odhalil povolený stav 25/20; novou migraci je nutné nasadit.
+Pravidla, výsledky a postup: [supabase/HP_INVARIANT.md](supabase/HP_INVARIANT.md).
+
 Velikost gridu se nyní nastavuje přes **Mapy → Připravit → Uložit**,
 nikoli ve hře. Nasazení a ověření: [MAP_PREPARATION.md](supabase/MAP_PREPARATION.md).
 

@@ -170,7 +170,7 @@ function enableEditing(db, character) {
         if (!value.trim()) message = 'Jméno nemůže být prázdné.';
       } else if (field.resource) {
         value = value === '' ? null : Number(value);
-        const minimum = field.key === 'max_hp' ? 1 : 0;
+        const minimum = 0;
         if (input.validity.badInput || (value !== null && (!Number.isSafeInteger(value) || value < minimum))) {
           message = `Zadej celé číslo od ${minimum}, nebo pole vyprázdni.`;
         } else if (field.key === 'current_hp' && value !== null && value > (character.max_hp ?? 0)) {
@@ -219,7 +219,7 @@ function enableEditing(db, character) {
       try {
         const lowerHp = field.key === 'max_hp' && value !== null && character.current_hp > value;
         const updated = lowerHp ? await lowerCharacterHp(db, character.id, value, playerSessionToken) : await updateCharacterField(db, character.id, field.key, value, playerSessionToken);
-        if (lowerHp) {
+        if (field.key === 'max_hp') {
           character.current_hp = updated.current_hp;
           document.querySelector('#edit-current_hp').value = updated.current_hp;
         }
