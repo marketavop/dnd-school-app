@@ -9,7 +9,7 @@ function api(token = 'player-token') {
   const context = vm.createContext({ db });
   vm.runInContext(`${source}`, context);
   return { calls, load: () => vm.runInContext(`loadCharacter(db, 'character-a', ${JSON.stringify(token)})`, context),
-    update: () => vm.runInContext(`updateCharacterField(db, 'character-a', 'name', 'New', ${JSON.stringify(token)})`, context),
+    update: (field = 'name', value = 'New') => vm.runInContext(`updateCharacterField(db, 'character-a', ${JSON.stringify(field)}, ${JSON.stringify(value)}, ${JSON.stringify(token)})`, context),
     lower: () => vm.runInContext(`lowerCharacterHp(db, 'character-a', 5, ${JSON.stringify(token)})`, context) };
 }
 (async () => {
@@ -23,6 +23,12 @@ function api(token = 'player-token') {
   assert.equal(client.calls[1].args.p_patch.name, 'New');
   await client.lower();
   assert.equal(client.calls[2].args.p_patch.max_hp, 5);
+  for (const [field, value] of [['ac', 15], ['ac', null], ['ac_note', 'kožená zbroj + obratnost']]) {
+    await client.update(field, value);
+    assert.equal(client.calls.at(-1).name, 'player_update_character');
+    assert.equal(client.calls.at(-1).args.p_session_token, 'player-token');
+    assert.equal(client.calls.at(-1).args.p_patch[field], value);
+  }
   const noToken = api(null);
   await assert.rejects(noToken.load(), /from/);
   assert.equal(noToken.calls.length, 0);
