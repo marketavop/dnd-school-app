@@ -1,12 +1,13 @@
 import { loadCharacter, updateCharacterField } from './characters.js';
 import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';
+import { gameUser } from './navigation.js';
 
 const $ = id => document.getElementById(id);
 const toggle = $('game-character-name');
 const panel = $('character-panel');
 const diceToggle = $('dice-toggle');
 const dicePanel = $('dice-panel');
-const ids = new URLSearchParams(window.location.search).getAll('character_id');
+const ids = gameUser?.role === 'player' ? [gameUser.character_id] : [];
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
 const tabs = [$('overview-tab'), $('abilities-tab')];
 function selectTab(index) {
@@ -50,7 +51,7 @@ if (valid) {
     const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
-    const character = await loadCharacter(db, ids[0].toLowerCase());
+    const character = await loadCharacter(db, ids[0].toLowerCase(), gameUser.session_token);
     $('game-character-name').textContent = character.name ?? 'Postava';
     const signed = value => value == null ? '—' : value > 0 ? `+${value}` : String(value);
     for (const key of ['str', 'dex', 'con', 'int', 'wis', 'cha']) {
@@ -91,7 +92,7 @@ if (valid) {
       renderHp();
       status.textContent = 'Ukládám…';
       try {
-        const updated = await updateCharacterField(db, character.id, 'current_hp', value);
+        const updated = await updateCharacterField(db, character.id, 'current_hp', value, gameUser.session_token);
         character.current_hp = updated.current_hp;
         status.textContent = 'Uloženo';
       } catch {

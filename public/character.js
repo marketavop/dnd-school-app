@@ -55,6 +55,8 @@ function enableEditing(db, character) {
     { key: 'class_code', slot: 'class', choices: CLASSES },
     { key: 'level', slot: 'level' },
     { key: 'xp', slot: 'xp', resource: true },
+    { key: 'ac', slot: 'ac', resource: true },
+    { key: 'ac_note', slot: 'ac_note', text: true },
     { key: 'current_hp', slot: 'current_hp', resource: true, hp: true },
     { key: 'max_hp', slot: 'max_hp', resource: true, hp: true },
     ...['str', 'dex', 'con', 'int', 'wis', 'cha'].map(key => ({ key, slot: key, ability: true })),
@@ -187,6 +189,8 @@ function enableEditing(db, character) {
         if (input.validity.badInput || (value !== null && (!Number.isInteger(value) || value < 1 || value > 20))) {
           message = field.ability ? 'Zadej celé číslo od 1 do 20.' : 'Level musí být celé číslo od 1 do 20, nebo prázdný.';
         }
+      } else if (field.text) {
+        value = value === '' ? null : value;
       } else {
         value = value === '' ? null : value;
         if (value !== null && !field.choices.has(value) && value !== character[field.key]) message = 'Vyberte hodnotu ze seznamu.';
@@ -320,6 +324,8 @@ if (!ids.length) {
     showValue('#character-race', label(character.race_code, RACES, 'Neznámá rasa'));
     showValue('#character-class', label(character.class_code, CLASSES, 'Neznámé povolání'));
     showValue('#character-level', character.level);
+    showValue('#character-ac', character.ac);
+    showValue('#character-ac_note', character.ac_note);
     enableEditing(db, character);
     try { showPortrait(character.portrait_path); }
     catch (error) { console.error('Zobrazení portrétu selhalo:', error); }

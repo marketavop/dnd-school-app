@@ -15,10 +15,12 @@ if (message) {
   message.textContent = valid ? '' : 'Chybí platný odkaz na postavu. Otevřete stránku s jedním platným character_id ve formátu UUID.';
 }
 const game = document.querySelector('#game-content');
+export let gameUser = null;
 let sessionGame = false;
 if (game) {
   const { requireSession } = await import('./session-page.js');
   const user = await requireSession();
+  gameUser = user;
   if (user && window.parent === window) {
     const { installGameSession } = await import('./game-session.js');
     installGameSession();
@@ -26,7 +28,8 @@ if (game) {
   try {
     const identity = user && window.parent.getGameIdentity();
     sessionGame = ['leader', 'player'].includes(identity.role);
-    if (home && window.parent !== window) home.hidden = true;
+    document.documentElement.dataset.gameRole = identity.role;
+    if (home && window.parent !== window) home.target = '_top';
     message.textContent = '';
   } catch { sessionGame = false; }
 }

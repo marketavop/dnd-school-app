@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TECH-001 · Realtime spike</title>
+  <title>Hra · Akademie</title>
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./game.css">
 </head>
 <body>
   <header class="top-bar">
@@ -16,18 +17,16 @@
     </button>
   </header>
   <p id="navigation-status" role="status"></p>
-  <div id="game-content" hidden>
-  <h1>TECH-001 · Realtime spike</h1>
-  <p>Přetáhněte token. Pozice se ukládá až po puštění.</p>
-  <p id="connection" role="status">Realtime: připojuji…</p>
-  <p id="status" role="status">Načítám konfiguraci…</p>
-  <p>Pozice na mapě: <output id="position">—</output></p>
+  <main id="game-content" hidden>
+    <div class="game-workspace">
+      <section class="map-area" aria-label="Mapa">
+        <div class="map-notices" aria-live="polite">
+          <span id="connection">Realtime: připojuji…</span>
+          <span id="status" role="status">Načítám konfiguraci…</span>
+          <span id="map-status" role="status">Načítám mapu…</span>
+        </div>
   <label for="map-select" id="map-select-label" hidden>Aktivní mapa</label>
   <select id="map-select" aria-describedby="active-map-status" hidden disabled></select>
-  <p id="active-map-status" role="status">Načítám aktivní mapu…</p>
-  <p id="map-status" role="status">Načítám mapu…</p>
-  <p>Velikost pole: <output id="cell-size"></output> px</p>
-  <p id="cell-size-status" role="status">Čekám na načtení velikosti pole z DB…</p>
   <button id="add-token" type="button" aria-describedby="add-token-message" hidden>Přidat postavu na mapu</button>
   <p id="add-token-message" role="status"></p>
   <button id="remove-token" type="button" aria-describedby="remove-token-message" hidden>Odebrat postavu z mapy</button>
@@ -49,7 +48,7 @@
     <ul id="npc-list"></ul>
   </section>
   <p id="npc-status" role="status"></p>
-  <div id="map-viewport" aria-label="Testovací mapa">
+  <div id="map-viewport" aria-label="Herní mapa">
     <div id="map-space">
       <img id="map" alt="Aktivní mapa" draggable="false" hidden>
       <svg id="grid" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true"></svg>
@@ -107,10 +106,8 @@
   </main>
   <!-- Původní technické ovladače zůstávají pro mapový modul; hráč je neovládá. -->
   <div hidden>
-    <output id="position"></output><select id="map-select" disabled></select>
-    <input id="cell-size" type="number" disabled><p id="cell-size-error"></p><p id="cell-size-status"></p>
-    <button id="add-token" hidden></button><p id="add-token-message"></p>
-    <button id="remove-token" hidden></button><p id="remove-token-message"></p>
+    <output id="position"></output>
+    <output id="cell-size"></output><p id="cell-size-error"></p><p id="cell-size-status"></p>
   </div>
   <script type="module" src="./navigation.js"></script>
   <script type="module" src="./game-panel.js"></script>

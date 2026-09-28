@@ -12,14 +12,14 @@ const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'u
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
 const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-const base = { id, name: 'Eliška', race_code: null, class_code: null, level: null, portrait_path: null, xp: null, current_hp: null, max_hp: null,
+const base = { id, name: 'Eliška', race_code: null, class_code: null, level: null, portrait_path: null, xp: null, ac: null, ac_note: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
 async function page(query, row = base, error = null, leader = false, authorized = false) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
-    'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['xp', 'current_hp', 'max_hp'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
+    'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['xp', 'ac', 'ac_note', 'current_hp', 'max_hp'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
     textContent: '', hidden: ['student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'close-icon'].includes(key), dataset: {}, handlers: {},
     value: '', disabled: false, validity: { badInput: false }, children: [], attributes: {},
     append(option) { this.children.push(option); },
@@ -54,7 +54,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     let patch;
     return {
       update(value) { patch = value; writes.push({ ...value }); return this; },
-      select(fields) { assert.equal(fields.split(',').length, 16); return this; },
+      select(fields) { assert.equal(fields.split(',').length, 18); return this; },
       eq(key, value) { assert.equal(key, 'id'); assert.equal(value.toLowerCase(), id); return this; },
       async single() {
         if (patch) {
@@ -172,12 +172,14 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(empty.elements.portrait.hidden, true);
   assert.equal(empty.elements['portrait-placeholder'].hidden, false);
   const filled = await page(`?character_id=${id.toUpperCase()}`, {
-    ...base, name: '<img src=x onerror=alert(1)>', race_code: 'elf', class_code: 'wizard', level: 1, portrait_path: '/portraits/a.png',
+    ...base, name: '<img src=x onerror=alert(1)>', race_code: 'elf', class_code: 'wizard', level: 1, ac: 15, ac_note: 'Kroužková zbroj', portrait_path: '/portraits/a.png',
   });
   assert.equal(filled.elements['character-name'].textContent, '<img src=x onerror=alert(1)>');
   assert.equal(filled.elements['character-race'].textContent, 'Elf');
   assert.equal(filled.elements['character-class'].textContent, 'Kouzelník');
   assert.equal(filled.elements['character-level'].textContent, 1);
+  assert.equal(filled.elements['character-ac'].textContent, 15);
+  assert.equal(filled.elements['character-ac_note'].textContent, 'Kroužková zbroj');
   assert.equal(filled.elements.portrait.src, 'https://example.test/portraits/a.png');
   filled.elements.portrait.handlers.load();
   assert.equal(filled.elements['portrait-placeholder'].hidden, true);
