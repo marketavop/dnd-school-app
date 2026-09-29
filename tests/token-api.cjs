@@ -6,21 +6,53 @@ const source = fs.readFileSync('public/token-api.js', 'utf8')
   .replace("import { handleSessionFailure } from './login.js';", '')
   .replace("await import('./config.local.js')", 'config')
   .replaceAll('export ', '');
-function api(role, response = [{ x: 150, y: 250 }], ok = true) {
+function api(role, response = [{ x: 150, y: 250 }], ok = true, respond) {
   const requests = [];
+  const failures = [];
+  let jsonCalls = 0;
   const context = vm.createContext({
-    handleSessionFailure: async () => {},
+    handleSessionFailure: async response => { failures.push(response.status); },
     getCurrentUser: () => role ? { role, session_token: 'session-only-in-body' } : null,
     config: { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' },
     fetch: async (url, options) => {
       requests.push({ url, ...options, payload: JSON.parse(options.body) });
-      return { ok, status: 403, json: async () => response };
+      const result = respond ? await respond() : new Response(JSON.stringify(response), { status: ok ? 200 : 403 });
+      const json = result.json.bind(result);
+      result.json = () => { jsonCalls++; return json(); };
+      return result;
     },
   });
   vm.runInContext(source, context);
-  return { requests, run: text => vm.runInContext(text, context) };
+  return { requests, failures, get jsonCalls() { return jsonCalls; }, run: text => vm.runInContext(text, context) };
 }
 (async () => {
+  for (const expression of [
+    ...['delete', 'remove', 'move', 'visibility'].map(action => `mutateNpc('${action}', {p_placement_id:'placement',p_npc_id:'npc',p_x:1,p_y:2,p_visible:true})`),
+    "mutateGameToken('remove','character','test-map')",
+  ]) {
+    const client = api('leader', null, true, () => new Response(null, { status: 204 }));
+    assert.equal(await client.run(expression), null);
+    assert.equal(client.jsonCalls, 0, '204 must not parse an empty body');
+    assert.deepEqual(client.failures, []);
+  }
+  const success = api('leader');
+  assert.deepEqual(await success.run("loadGameTokens('test-map')"), [{ x: 150, y: 250 }]);
+  assert.equal(success.jsonCalls, 1);
+  for (const body of ['', '{invalid']) {
+    const invalid = api('leader', null, true, () => new Response(body, { status: 200 }));
+    await assert.rejects(invalid.run("loadGameTokens('test-map')"), { name: 'SyntaxError' });
+    assert.equal(invalid.jsonCalls, 1);
+  }
+  const denied = api('leader', null, true, () => new Response(null, { status: 403 }));
+  await assert.rejects(denied.run("loadGameTokens('test-map')"), /Token operation failed \(403\)/);
+  assert.deepEqual(denied.failures, [403]);
+  assert.equal(denied.jsonCalls, 0);
+  const networkError = new TypeError('Network unavailable');
+  const offline = api('leader', null, true, () => { throw networkError; });
+  await assert.rejects(offline.run("loadGameTokens('test-map')"), error => error === networkError);
+  assert.equal(offline.jsonCalls, 0);
+  const noPosition = api('leader', null, true, () => new Response(null, { status: 204 }));
+  await assert.rejects(noPosition.run("mutateGameToken('add','character','test-map',{x:1,y:2})"), /Invalid token position/);
   for (const role of ['leader', 'player']) {
     const client = api(role);
     await client.run("loadGameTokens('test-map')");
