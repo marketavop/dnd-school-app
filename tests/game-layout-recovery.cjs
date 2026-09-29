@@ -95,7 +95,8 @@ const server = http.createServer((req, res) => {
     const ids = await page.locator('[id]').evaluateAll(nodes => nodes.map(n => n.id));
     assert.equal(new Set(ids).size, ids.length, 'IDs must be unique');
     assert.equal(await page.locator('main > .game-workspace > .map-area > #map-viewport > #map-space').count(), 1);
-    assert.doesNotMatch(await page.locator('body').innerText(), /Realtime spike|Pozice na mapě|Velikost pole|Připojeno\.|Odebrat postavu|Přizpůsobit mapu/);
+    assert.doesNotMatch(await page.locator('body').innerText(), /Realtime spike|Pozice na mapě|Velikost pole|Připojeno\.|Odebrat postavu/);
+    assert.equal(await page.getByRole('button', {name:'Přizpůsobit mapu', exact:true}).isVisible(), true);
     await page.waitForFunction(() => document.querySelector('#game-character-name').textContent === 'Test Postava');
     assert.equal(await page.locator('footer, .dice-bar').count(), 0);
     assert.equal(await page.locator('[role="tab"]').count(), 2);
