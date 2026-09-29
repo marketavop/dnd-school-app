@@ -349,6 +349,7 @@ async function saveNpc(state, action, point) {
     if (action === 'move') Object.assign(args, { p_x: point.x, p_y: point.y });
     if (action === 'visibility') args.p_visible = !state.visible;
     await window.parent.mutateNpc(action, args);
+    if (action === 'move') state.saved = point;
     if (version === mapVersion) npcStatus.textContent = '';
   } catch (error) {
     console.error('Změna NPC selhala:', error);

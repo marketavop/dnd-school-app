@@ -525,6 +525,7 @@ async function client(role = 'leader') {
   // Static presentation contract complements the mock DOM (no layout engine).
   const html = readFileSync('public/game.html', 'utf8');
   const css = readFileSync('public/game.css', 'utf8');
+  const sharedCss = readFileSync('public/styles.css', 'utf8');
   const notices = html.match(/<div class="map-notices"[^>]*>([\s\S]*?)<\/div>/)[1];
   for (const id of ['connection', 'cell-size-status']) {
     assert.equal(html.match(new RegExp(`id="${id}"`, 'g')).length, 1);
@@ -533,6 +534,8 @@ async function client(role = 'leader') {
   assert.doesNotMatch(notices, /\bhidden\b/);
   assert.match(css, /\.map-notices > :not\(\[data-message-type="error"\]\)\s*\{\s*display: none;/);
   assert.match(css, /\.map-notices:not\(:has\(\[data-message-type="error"\]\)\)\s*\{\s*display: none;/);
+  assert.match(css, /#npc-status\s*\{\s*min-height:\s*20px;/);
+  assert.match(sharedCss, /#scene-players-list \[role="status"\]\s*\{\s*min-height:\s*20px;/);
   assert.doesNotMatch(css, /[^{}]*#(?:connection|cell-size-status)[^{}]*\{[^}]*display:\s*none/);
   failRead = true;
   const broken = await client();

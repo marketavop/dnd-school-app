@@ -76,6 +76,7 @@ function client(role) {
     await token.handlers.pointerup(event(100 + (x - 100) * scale, 80 + y * scale));
     assert.equal(calls.length, before + 1);
     assert.equal(calls.at(-1).p_x, x - 100);
+    assert.equal(leader.run("npcs.get('new').saved.x"), x - 100, 'Successful NPC move updates local saved position before refresh');
     await player.refresh();
     assert.equal(player.run("npcs.get('new').saved.x"), x - 100);
   }
