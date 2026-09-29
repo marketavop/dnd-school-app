@@ -397,7 +397,7 @@ async function activateMap(mapId, refresh = false) {
   savedCellSize = null;
   configRevision = 0;
   cellSizeOutput.value = '';
-  cellSizeStatus.textContent = '';
+  showMessage('info', '', cellSizeStatus);
   map.hidden = true;
   grid.style.display = 'none';
   if (drag) cancelDrag({ pointerId: drag.id });
@@ -506,7 +506,7 @@ function applyCellSize(value) {
 async function loadMapConfig(mapId = activeMapId, version = mapVersion) {
   const revision = configRevision;
   configReady = false;
-  cellSizeStatus.textContent = 'Načítám velikost pole z DB…';
+  showMessage('info', 'Načítám velikost pole z DB…', cellSizeStatus);
   try {
     const { data, error } = await db.from('map_config').select('cell_size').eq('map_id', mapId).single();
     if (version !== mapVersion) return;
@@ -517,7 +517,7 @@ async function loadMapConfig(mapId = activeMapId, version = mapVersion) {
     }
     applyCellSize(savedCellSize);
     configReady = true;
-    cellSizeStatus.textContent = 'Velikost pole načtena z DB.';
+    showMessage('info', 'Velikost pole načtena z DB.', cellSizeStatus);
   } catch (error) {
     console.error('Načtení velikosti pole selhalo:', error);
     if (version !== mapVersion) return;
@@ -536,7 +536,7 @@ function receiveMapConfig(payload) {
   configRevision += 1;
   savedCellSize = value;
   applyCellSize(value);
-  cellSizeStatus.textContent = 'Velikost pole přijata přes realtime.';
+  showMessage('info', 'Velikost pole přijata přes realtime.', cellSizeStatus);
 }
 
 function mapLoaded() {
@@ -762,7 +762,7 @@ try {
       connected = state === 'SUBSCRIBED';
       mapSelect.disabled = !connected || !gameStateReady || savingMap;
       updateAddTokenButton();
-      connection.textContent = connected ? 'Připojeno.' : 'Spojení je přerušené. Čekám na opětovné připojení…';
+      showMessage(connected ? 'info' : 'error', connected ? 'Připojeno.' : 'Spojení je přerušené. Čekám na opětovné připojení…', connection);
       if (!connected) console.error('Realtime mapy není připojené:', state);
       if (connected) {
         await loadGameState();
