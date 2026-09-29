@@ -100,7 +100,42 @@ function client(role) {
   assert.equal(leader.run('npcs.size'), 0);
   leader.run("activeMapId = 'test-map'; mapVersion++;");
   await leader.refresh();
+  // Original bug: run the real transport for removal, with a real empty 204.
+  const transportSource = fs.readFileSync('public/token-api.js', 'utf8')
+    .replace(/^import .*;\r?\n/gm, '')
+    .replace("await import('./config.local.js')", 'config').replaceAll('export ', '');
+  let removeRequests = 0;
+  let jsonCalls = 0;
+  const transport = vm.createContext({
+    getCurrentUser: () => ({ role: 'leader', session_token: 'fixture-session' }),
+    handleSessionFailure: async () => assert.fail('Successful removal must not fail the session'),
+    config: { SUPABASE_URL: 'https://fixture.invalid', SUPABASE_PUBLISHABLE_KEY: 'fixture' },
+    fetch: async (url, options) => {
+      assert.ok(url.endsWith('/rpc/leader_remove_npc_from_map'));
+      const args = JSON.parse(options.body);
+      assert.equal(args.p_session_token, 'fixture-session');
+      assert.equal(args.p_placement_id, 'new');
+      removeRequests++;
+      rows = rows.filter(row => row.id !== args.p_placement_id);
+      const response = new Response(null, { status: 204 });
+      const json = response.json.bind(response);
+      response.json = () => { jsonCalls++; return json(); };
+      return response;
+    },
+  });
+  vm.runInContext(transportSource, transport);
+  const originalMutation = leader.ctx.window.parent.mutateNpc;
+  leader.ctx.window.parent.mutateNpc = vm.runInContext('mutateNpc', transport);
+  const definitionsBeforeRemove = structuredClone(definitions);
+  const otherMapBeforeRemove = structuredClone(rows.filter(row => row.map_id === 'mapa-akademie'));
   await leader.run("saveNpc(npcs.get('new'), 'remove')");
+  leader.ctx.window.parent.mutateNpc = originalMutation;
+  assert.equal(removeRequests, 1);
+  assert.equal(jsonCalls, 0);
+  assert.equal(leader.elements['#npc-status'].textContent, '');
+  assert.equal(leader.run('npcs.size'), 0);
+  assert.deepEqual(definitions, definitionsBeforeRemove);
+  assert.deepEqual(rows, otherMapBeforeRemove);
   await player.refresh(); assert.equal(player.run('npcs.size'), 0);
   assert.equal(definitions.length, 1);
   assert.equal(rows.length, 1);

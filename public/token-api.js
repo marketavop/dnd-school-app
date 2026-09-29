@@ -14,6 +14,7 @@ async function rpc(name, args) {
     await handleSessionFailure(response);
     throw new Error(`Token operation failed (${response.status})`);
   }
+  if (response.status === 204) return null;
   return response.json();
 }
 
