@@ -238,6 +238,11 @@ async function client(role = 'leader') {
   leaderMaps.push({ map_id: uploadedMapId, name: 'Uploaded map', image_path: `maps/${uploadedMapId}/map.webp` });
   rows.map_config[uploadedMapId] = { map_id: uploadedMapId, cell_size: 100 };
   const regression = await client();
+  const initialMapSource = regression.elements.map.src;
+  const initialTokenElement = regression.tokenStates.get(characterId).element;
+  await regression.realtimeState('SUBSCRIBED');
+  assert.equal(regression.elements.map.src, initialMapSource, 'Reconnect with same map must not reload the image');
+  assert.equal(regression.tokenStates.get(characterId).element, initialTokenElement, 'Reconnect with same map must retain token DOM');
   assert.deepEqual(regression.elements['map-select'].children.map(option => option.value), leaderMaps.map(row => row.map_id));
   // Exercise the real change handler and API fetch, including success without realtime.
   for (const realtime of [false, true]) {

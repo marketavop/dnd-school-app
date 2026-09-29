@@ -454,7 +454,17 @@ async function loadGameState() {
   try {
     const { data, error } = await db.from('game_state').select('active_map_id').eq('id', 1).single();
     if (error) throw error;
-    if (revision === gameStateRevision) await activateMap(data.active_map_id, true);
+    if (revision === gameStateRevision) {
+      if (data.active_map_id === activeMapId && mapReady && configReady) {
+        await Promise.all([
+          loadPosition(activeMapId, mapVersion),
+          refreshNpcs(),
+          loadMapConfig(activeMapId, mapVersion),
+        ]);
+      } else {
+        await activateMap(data.active_map_id, true);
+      }
+    }
     gameStateReady = true;
     mapSelect.disabled = !connected || savingMap;
   } catch (error) {
