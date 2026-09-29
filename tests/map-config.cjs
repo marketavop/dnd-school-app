@@ -79,6 +79,7 @@ async function client(role = 'leader') {
   });
   Object.defineProperty(elements['cell-size'], 'valueAsNumber', { get() { return Number(this.value); } });
   let ready;
+  let mapStateChange;
   const sdk = { createClient() { return {
     from(table) {
       assert.notEqual(table, 'spike_token', 'Globální tabulka se již nesmí používat');
@@ -153,7 +154,7 @@ async function client(role = 'leader') {
         else assert.equal(options.filter, options.table === 'map_config' ? undefined : 'id=eq.1');
         listeners.push({ table: options.table, filter: options.filter, event: options.event, fn, channel: this, active: true }); return this;
       },
-      subscribe(fn) { ready = fn('SUBSCRIBED'); realtimeTasks.push(Promise.resolve(ready)); return this; },
+      subscribe(fn) { if (name === 'map-state') mapStateChange = fn; ready = fn('SUBSCRIBED'); realtimeTasks.push(Promise.resolve(ready)); return this; },
     }; },
   }; } };
   const context = vm.createContext({
@@ -217,7 +218,10 @@ async function client(role = 'leader') {
   await ready;
   await settle();
   Object.defineProperty(elements, 'token', { get: () => context.tokenStates.get(characterId)?.element || { hidden: true, style: {}, handlers: {} } });
-  return { elements, tokenStates: context.tokenStates, async switchMap(mapId) {
+  return { elements, tokenStates: context.tokenStates, async realtimeState(state) {
+    await mapStateChange(state);
+    await settle();
+  }, async switchMap(mapId) {
     elements['map-select'].value = mapId;
     await elements['map-select'].handlers.change();
     await settle();
@@ -491,6 +495,45 @@ async function client(role = 'leader') {
   const missingConfig = await client();
   assert.equal(missingConfig.elements.map.hidden, true);
   assert.equal(missingConfig.elements['cell-size-status'].textContent, 'Velikost pole se nepodařilo načíst. Zkus obnovit stránku.');
+  assert.equal(missingConfig.elements['cell-size-status'].attributes['data-message-type'], 'error');
+  failRead = false;
+  await missingConfig.realtimeState('SUBSCRIBED');
+  assert.equal(missingConfig.elements['cell-size-status'].attributes['data-message-type'], 'info');
+  assert.equal(missingConfig.elements['cell-size-status'].textContent, 'Velikost pole načtena z DB.');
+  // Exercise the existing callbacks for both roles, without a live backend.
+  for (const role of ['player', 'leader']) {
+    const presentation = await client(role);
+    const state = id => presentation.elements[id].attributes['data-message-type'];
+    assert.equal(state('connection'), 'info');
+    assert.equal(state('cell-size-status'), 'info');
+    for (const failure of ['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED']) {
+      await presentation.realtimeState(failure);
+      assert.equal(state('connection'), 'error');
+      assert.equal(presentation.elements.connection.textContent, 'Spojení je přerušené. Čekám na opětovné připojení…');
+      await presentation.realtimeState('SUBSCRIBED');
+      assert.equal(state('connection'), 'info');
+      assert.equal(presentation.elements.connection.textContent, 'Připojeno.');
+    }
+    const originalSize = rows.map_config[rows.game_state.active_map_id].cell_size;
+    await presentation.input(0);
+    assert.equal(state('cell-size-status'), 'error');
+    assert.equal(presentation.elements['cell-size-status'].textContent, 'Velikost pole se nepodařilo aktualizovat. Zkus obnovit stránku.');
+    await presentation.input(originalSize);
+    assert.equal(state('cell-size-status'), 'info');
+    assert.equal(presentation.elements['cell-size-status'].textContent, 'Velikost pole přijata přes realtime.');
+  }
+  // Static presentation contract complements the mock DOM (no layout engine).
+  const html = readFileSync('public/game.html', 'utf8');
+  const css = readFileSync('public/game.css', 'utf8');
+  const notices = html.match(/<div class="map-notices"[^>]*>([\s\S]*?)<\/div>/)[1];
+  for (const id of ['connection', 'cell-size-status']) {
+    assert.equal(html.match(new RegExp(`id="${id}"`, 'g')).length, 1);
+    assert.match(notices, new RegExp(`<span id="${id}"[^>]*>`));
+  }
+  assert.doesNotMatch(notices, /\bhidden\b/);
+  assert.match(css, /\.map-notices > :not\(\[data-message-type="error"\]\)\s*\{\s*display: none;/);
+  assert.match(css, /\.map-notices:not\(:has\(\[data-message-type="error"\]\)\)\s*\{\s*display: none;/);
+  assert.doesNotMatch(css, /[^{}]*#(?:connection|cell-size-status)[^{}]*\{[^}]*display:\s*none/);
   failRead = true;
   const broken = await client();
   assert.equal(broken.elements['active-map-status'].textContent, 'Aktivní mapu se nepodařilo načíst. Zkus obnovit stránku.');

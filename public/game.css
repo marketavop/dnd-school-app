@@ -21,11 +21,11 @@ button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: d
 .map-area > button { flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #add-token-message:empty, #remove-token-message:empty, #npc-status:empty { display: none; }
 #map-viewport { flex: 1; min-height: 0; height: auto; outline: none; }
-.map-notices { padding: 3px 12px; font-size: 11px; color: #68685f; display: flex; gap: 12px; }
-.game-page:not([data-game-role="leader"]) :is(#connection, #add-token, #remove-token, #fit-map) { display: none !important; }
+.map-notices { padding: 3px 12px; font-size: 11px; color: #68685f; display: flex; flex-wrap: wrap; flex-shrink: 0; gap: 12px; }
+.game-page:not([data-game-role="leader"]) :is(#add-token, #remove-token, #fit-map) { display: none !important; }
 .map-notices:not(:has([data-message-type="error"])) { display: none; }
 #connection, #status { min-height: 0; }
-#status:not([data-message-type="error"]), #map-status:not([data-message-type="error"]) { display: none; }
+.map-notices > :not([data-message-type="error"]) { display: none; }
 [data-message-type="error"], .error { color: #b63832; }
 #character-panel, #dice-panel { flex: 0 0 clamp(250px, 28vw, 330px); min-width: 0; overflow-y: auto; border-left: 1px solid #b7a579; background: #fffdf8; }
 .panel-tabs { display: flex; background: #f8f4e9; border-bottom: 1px solid #b7a579; padding: 8px 12px 0; gap: 4px; }

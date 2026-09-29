@@ -24,6 +24,7 @@
           <span id="connection">Realtime: připojuji…</span>
           <span id="status" role="status">Načítám konfiguraci…</span>
           <span id="map-status" role="status">Načítám mapu…</span>
+          <span id="cell-size-status" role="status"></span>
         </div>
   <label for="map-select" id="map-select-label" hidden>Aktivní mapa</label>
   <select id="map-select" aria-describedby="active-map-status" hidden disabled></select>
@@ -107,7 +108,7 @@
   <!-- Původní technické ovladače zůstávají pro mapový modul; hráč je neovládá. -->
   <div hidden>
     <output id="position"></output>
-    <output id="cell-size"></output><p id="cell-size-error"></p><p id="cell-size-status"></p>
+    <output id="cell-size"></output><p id="cell-size-error"></p>
   </div>
   <script type="module" src="./navigation.js"></script>
   <script type="module" src="./game-panel.js"></script>
