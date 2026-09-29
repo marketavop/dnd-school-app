@@ -29,7 +29,6 @@ document.querySelector('#leader-game-link').addEventListener('click', event => {
   panel.hidden = false;
   main.classList.add('players-open');
   frame.src = './game.html?mode=leader';
-  document.querySelector('#leader-game-back').textContent = '← Vedoucí';
 });
 
 document.querySelector('#game-link').addEventListener('click', event => {
@@ -39,12 +38,4 @@ document.querySelector('#game-link').addEventListener('click', event => {
   panel.hidden = false;
   main.classList.add('players-open');
   frame.src = './game.html?mode=player';
-  document.querySelector('#leader-game-back').textContent = '← Domů';
-});
-document.querySelector('#leader-game-back').addEventListener('click', () => {
-  frame.removeAttribute('src');
-  panel.hidden = true;
-  main.classList.remove('players-open');
-  if (getCurrentUser()?.role === 'leader') home.hidden = false;
-  else document.querySelector('#home-content').hidden = false;
 });

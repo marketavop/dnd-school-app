@@ -45,14 +45,24 @@ async function render(path, search, role = null) {
     }
   }
   const game = readFileSync('public/game.html', 'utf8');
+  const topBar = game.match(/<header class="top-bar">([\s\S]*?)<\/header>/)[1];
+  assert.equal((game.match(/← Domů/g) || []).length, 1);
+  assert.match(topBar, /<a id="home-link"[^>]*>← Domů<\/a>/);
   for (const role of ['player', 'leader']) {
     const session = await render('game.html', '?character_id=forged&mode=leader', role);
     assert.equal(session.starts, 1);
     assert.equal(session.elements['home-link'].hidden, false);
     assert.equal(session.elements['home-link'].target, '_top');
+    const query = '?character_id=12345678-1234-4321-9876-123456789abc';
+    const withCharacter = await render('game.html', query, role);
+    assert.equal(withCharacter.elements['home-link'].href, `./index.html${query}`);
+    assert.equal(withCharacter.elements['home-link'].target, '_top');
   }
   assert.equal((await render('game.html', '?mode=leader', 'admin')).starts, 0);
   const homepage = readFileSync('public/index.html', 'utf8');
+  const gameHost = homepage.match(/<section id="leader-game"[^>]*>([\s\S]*?)<\/section>/)[1];
+  assert.doesNotMatch(gameHost, /<button\b|<a\b/);
+  assert.match(gameHost, /<iframe id="leader-game-frame"/);
   assert.ok(!homepage.includes('id="map"'));
   assert.ok(game.includes('id="map"'));
   assert.ok(!game.includes('src="./app.js"'));
