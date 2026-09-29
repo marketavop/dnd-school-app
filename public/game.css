@@ -22,7 +22,6 @@ button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: d
 #add-token-message:empty, #remove-token-message:empty, #npc-status:empty { display: none; }
 #map-viewport { flex: 1; min-height: 0; height: auto; outline: none; }
 .map-notices { padding: 3px 12px; font-size: 11px; color: #68685f; display: flex; flex-wrap: wrap; flex-shrink: 0; gap: 12px; }
-.game-page:not([data-game-role="leader"]) :is(#add-token, #remove-token) { display: none !important; }
 .map-notices:not(:has([data-message-type="error"])) { display: none; }
 #connection, #status { min-height: 0; }
 .map-notices > :not([data-message-type="error"]) { display: none; }
