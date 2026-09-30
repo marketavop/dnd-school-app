@@ -775,6 +775,12 @@ například:
 
 Jméno je jméno postavy, nikoli jméno uživatelského účtu.
 
+Jednoduché kostky jsou dostupné hráči i Vedoucímu. Hráčský hod je
+označen jménem jeho postavy; hod Vedoucího je označen jako **Vedoucí**.
+Vedoucí hází pouze sám za sebe, nehází za NPC ani za hráčské postavy.
+Vedoucí zároveň vidí hody hráčů ve společném krátkodobém roll logu.
+Před hodem se nevolí žádná jiná identita.
+
 Roll log je krátkodobý společný herní stav.
 V MVP zobrazujeme omezený počet posledních hodů, aktuálně maximálně 10.
 
