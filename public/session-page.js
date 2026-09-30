@@ -12,7 +12,7 @@ export function showLogout() {
   button.type = 'button';
   button.textContent = 'Odhlásit';
   button.addEventListener('click', logout);
-  document.body.prepend(button);
+  (document.querySelector('main') || document.body).prepend(button);
 }
 
 export function showSessionError() {

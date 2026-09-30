@@ -2,6 +2,7 @@ import { getCurrentUser } from './login.js';
 
 import { loadMaps, setActiveMap } from './leader-map-api.js';
 import { openMapPreparation } from './map-preparation.js';
+import { showAdminView, navigateAdminView } from './admin-view.js';
 
 const home = document.querySelector('#leader-content');
 const panel = document.querySelector('#leader-maps');
@@ -12,6 +13,8 @@ let generation = 0;
 document.querySelector('#leader-maps-link').addEventListener('click', async event => {
   event.preventDefault();
   if (getCurrentUser()?.role !== 'leader') return;
+  if (new URL(window.location.href).searchParams.get('view') !== 'maps') navigateAdminView(window, 'maps');
+  showAdminView(document, 'maps');
   const request = ++generation;
   home.hidden = true;
   panel.hidden = false;
@@ -24,7 +27,22 @@ document.querySelector('#leader-maps-link').addEventListener('click', async even
       || typeof row.name !== 'string' || typeof row.is_active !== 'boolean')) throw new Error('Invalid map list');
     for (const row of rows) {
       const item = document.createElement('li');
-      item.textContent = `${row.is_active ? '●' : '○'} ${row.name}${row.is_active ? ' — Aktivní' : ''}`;
+      item.className = 'map-card';
+      const summary = document.createElement('div');
+      summary.className = 'map-card-summary';
+      const name = document.createElement('span');
+      name.className = 'map-card-name';
+      name.textContent = row.name;
+      summary.append(name);
+      if (row.is_active) {
+        const active = document.createElement('span');
+        active.className = 'map-card-status';
+        active.textContent = 'Aktivní';
+        summary.append(active);
+      }
+      item.append(summary);
+      const actions = document.createElement('div');
+      actions.className = 'map-card-actions';
       if (!row.is_active) {
         const button = document.createElement('button');
         button.textContent = 'Aktivovat';
@@ -44,13 +62,14 @@ document.querySelector('#leader-maps-link').addEventListener('click', async even
             button.disabled = false;
           }
         });
-        item.append(button);
+        actions.append(button);
       }
       const prepare = document.createElement('button');
       prepare.type = 'button';
       prepare.textContent = 'Připravit';
       prepare.addEventListener('click', () => openMapPreparation(row.map_id));
-      item.append(prepare);
+      actions.append(prepare);
+      item.append(actions);
       list.append(item);
     }
     status.textContent = rows.length ? '' : 'Zatím nejsou připravené žádné mapy.';
@@ -62,11 +81,22 @@ document.querySelector('#leader-maps-link').addEventListener('click', async even
   }
 });
 
+document.querySelector('#maps-home-nav')?.addEventListener('click', event => {
+  event.preventDefault();
+  document.querySelector('#maps-back').click();
+});
+document.querySelector('#maps-players-nav')?.addEventListener('click', event => {
+  event.preventDefault();
+  document.querySelector('#leader-players-link').click();
+});
+
 document.querySelector('#maps-back').addEventListener('click', () => {
   generation++;
   list.replaceChildren();
   status.textContent = '';
   panel.hidden = true;
   home.hidden = false;
+  showAdminView(document, 'home');
+  if (new URL(window.location.href).searchParams.get('view') === 'maps') navigateAdminView(window, 'home');
 });
 
