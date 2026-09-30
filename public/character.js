@@ -1,6 +1,7 @@
 import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';
 import { getCurrentUser } from './login.js';
+import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';
 
 const RACES = new Map([
   ['human', 'Člověk'], ['elf', 'Elf'], ['halfling', 'Půlčík'], ['dwarf', 'Trpaslík'],
@@ -34,16 +35,82 @@ function label(code, labels, fallback) {
   return code == null ? null : labels.get(code) ?? fallback;
 }
 
-function showPortrait(path) {
-  if (!path) return;
-  // Storage bucket není definovaný; přijímáme pouze webovou cestu/HTTPS URL.
-  const url = new URL(path, window.location.href);
-  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && url.origin === window.location.origin)) return;
+async function setupPortrait(character, reload) {
   const portrait = document.querySelector('#portrait');
   const placeholder = document.querySelector('#portrait-placeholder');
-  portrait.addEventListener('load', () => { portrait.hidden = false; placeholder.hidden = true; });
-  portrait.addEventListener('error', () => { portrait.hidden = true; placeholder.hidden = false; });
-  portrait.src = url.href;
+  const message = document.querySelector('#portrait-status');
+  const controls = document.querySelector('#portrait-controls');
+  const upload = document.querySelector('#portrait-upload');
+  const remove = document.querySelector('#portrait-remove');
+  const file = document.querySelector('#portrait-file');
+  let hasImage = character.portrait_path != null;
+  let busy = false, uncertain = false;
+  const reset = () => {
+    portrait.hidden = true;
+    portrait.removeAttribute('src');
+    placeholder.removeAttribute('hidden');
+  };
+  const buttons = () => {
+    upload.textContent = hasImage ? 'Změnit obrázek' : 'Nahrát obrázek';
+    remove.hidden = !hasImage;
+    upload.disabled = remove.disabled = file.disabled = busy || uncertain;
+  };
+  portrait.addEventListener('load', () => {
+    if (!portrait.getAttribute('src')) return;
+    portrait.hidden = false;
+    // SVG does not reflect the HTML hidden property; use the attribute for CSS.
+    placeholder.setAttribute('hidden', '');
+  });
+  portrait.addEventListener('error', () => {
+    reset(); message.textContent = 'Obrázek se nepodařilo zobrazit.';
+  });
+  const refresh = async () => {
+    reset();
+    if (!hasImage) return;
+    const url = await portraitImageUrl(character.id);
+    hasImage = url !== null;
+    if (url) portrait.src = url;
+  };
+  try { await refresh(); }
+  catch { message.textContent = 'Portrét se nepodařilo načíst. Zkuste obnovit stránku.'; }
+  buttons();
+  if (readOnly || getCurrentUser()?.role !== 'player') return;
+  controls.hidden = false;
+  const change = async (action, selectedFile) => {
+    if (busy || uncertain) return;
+    busy = true; buttons();
+    message.textContent = 'Ukládám portrét…';
+    try {
+      const result = action === 'upload'
+        ? await uploadPortrait(character.id, selectedFile) : await removePortrait(character.id);
+      hasImage = result.object_path !== null;
+      message.textContent = result.cleanup_pending
+        ? 'Portrét uložen; úklid starého souboru čeká na dokončení.' : 'Portrét uložen.';
+      try { await refresh(); }
+      catch { message.textContent = 'Změna byla uložena, ale portrét se nepodařilo načíst. Obnovte stránku.'; }
+    } catch (error) {
+      message.textContent = 'Změna portrétu se nezdařila.';
+      if (error.status === 409 || error.outcome_unknown) {
+        uncertain = true;
+        try {
+          const current = await reload();
+          hasImage = current.portrait_path != null;
+          await refresh();
+          uncertain = false;
+          message.textContent = 'Výsledek požadavku nebyl potvrzen. Zobrazen je aktuální stav; můžete zkusit akci znovu.';
+        } catch {
+          reset();
+          message.textContent = 'Aktuální stav nelze ověřit. Před další změnou obnovte stránku.';
+        }
+      }
+    } finally { busy = false; file.value = ''; buttons(); }
+  };
+  upload.addEventListener('click', () => { if (!busy && !uncertain) file.click(); });
+  file.addEventListener('change', () => {
+    const selected = file.files?.[0];
+    if (selected) return change('upload', selected);
+  });
+  remove.addEventListener('click', () => change('remove'));
 }
 
 function enableEditing(db, character) {
@@ -329,11 +396,10 @@ if (!ids.length) {
     showValue('#character-ac', character.ac);
     showValue('#character-ac_note', character.ac_note);
     enableEditing(db, character);
-    try { showPortrait(character.portrait_path); }
-    catch (error) { console.error('Zobrazení portrétu selhalo:', error); }
     card.hidden = false;
     document.querySelector('#abilities').hidden = false;
     status.textContent = '';
+    await setupPortrait(character, () => loadCharacter(db, character.id, playerSessionToken));
   } catch (error) {
     console.error('Načtení deníku selhalo:', error);
     showError('Postavu se nepodařilo načíst. Ověřte odkaz a přístup k postavě a zkuste stránku obnovit.');

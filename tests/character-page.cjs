@@ -7,7 +7,8 @@ const dataSource = readFileSync(resolve(__dirname, '../public/characters.js'), '
 const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'utf8')
   .replace("import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';", readFileSync(resolve(__dirname, '../public/character-rules.js'), 'utf8').replaceAll('export function', 'function'))
   .replace("import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';", dataSource)
-  .replace("import { getCurrentUser } from './login.js';", 'const getCurrentUser = () => ({ session_token: testSessionToken });')
+  .replace("import { getCurrentUser } from './login.js';", 'const getCurrentUser = () => ({ session_token: testSessionToken, role: testRole });')
+  .replace("import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';", '')
   .replace("await import('./config.local.js')", 'getConfig()')
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
@@ -15,17 +16,26 @@ const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 const base = { id, name: 'Eliška', race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
-async function page(query, row = base, error = null, leader = false, authorized = false) {
+async function page(query, row = base, error = null, leader = false, authorized = false, portraitControl = {}) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
+    'portrait-controls', 'portrait-upload', 'portrait-remove', 'portrait-file', 'portrait-status',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
     'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
-    textContent: '', hidden: ['student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'close-icon'].includes(key), dataset: {}, handlers: {},
+    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'close-icon'].includes(key), dataset: {}, handlers: {},
     value: '', disabled: false, validity: { badInput: false }, children: [], attributes: {},
     append(option) { this.children.push(option); },
+    removeAttribute(key) { if (key === 'src') delete this.src; delete this.attributes[key]; },
+    getAttribute(key) { return this[key] ?? null; },
+    click() { this.clicked = true; },
     setAttribute(key, value) { this.attributes[key] = value; },
     addEventListener(event, handler) { this.handlers[event] = handler; },
   }]));
+  // SVG has no HTMLElement.hidden reflection. Catch accidental property writes.
+  Object.defineProperty(elements['portrait-placeholder'], 'hidden', {
+    get() { return Object.hasOwn(this.attributes, 'hidden'); },
+    set() { throw new Error('Use the hidden attribute on SVG'); },
+  });
   let configs = 0, clients = 0, reads = 0, leaderReads = 0;
   const logs = [];
   const writes = [];
@@ -66,7 +76,27 @@ async function page(query, row = base, error = null, leader = false, authorized 
       },
     };
   } };
+  const portraitCalls = [];
   const context = vm.createContext({
+    testRole: leader ? 'leader' : 'player',
+    async portraitImageUrl(characterId) {
+      portraitCalls.push(['read', characterId]);
+      if (portraitControl.readError) throw new Error('read failed');
+      return portraitControl.url === undefined ? 'https://example.test/signed-image' : portraitControl.url;
+    },
+    async uploadPortrait(characterId, file) {
+      portraitCalls.push(['upload', characterId, file]);
+      if (portraitControl.wait) await portraitControl.wait;
+      if (portraitControl.writeError) throw portraitControl.writeError;
+      row.portrait_path = 'characters/new.png';
+      return { object_path: row.portrait_path, cleanup_pending: !!portraitControl.cleanup };
+    },
+    async removePortrait(characterId) {
+      portraitCalls.push(['remove', characterId]);
+      if (portraitControl.writeError) throw portraitControl.writeError;
+      row.portrait_path = null;
+      return { object_path: null };
+    },
     testSessionToken: authorized ? 'test-player-session' : null,
     URL, URLSearchParams,
     window: { location: { search: query, href: `https://example.test/character.html${query}`, origin: 'https://example.test' },
@@ -85,7 +115,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     } },
   });
   await vm.runInContext(`(async () => { ${pageSource}\n })()`, context);
-  return { elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control };
+  return { portraitCalls, elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control };
 }
 
 (async () => {
@@ -182,7 +212,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(filled.elements['character-level'].textContent, 1);
   assert.equal(filled.elements['character-ac'].textContent, 15);
   assert.equal(filled.elements['character-ac_note'].textContent, 'Kroužková zbroj');
-  assert.equal(filled.elements.portrait.src, 'https://example.test/portraits/a.png');
+  assert.equal(filled.elements.portrait.src, 'https://example.test/signed-image');
   filled.elements.portrait.handlers.load();
   assert.equal(filled.elements['portrait-placeholder'].hidden, true);
   filled.elements.portrait.handlers.error();
@@ -191,7 +221,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   const unknown = await page(`?character_id=${id}`, { ...base, race_code: 'unknown', class_code: '__proto__', portrait_path: 'javascript:alert(1)' });
   assert.equal(unknown.elements['character-race'].textContent, 'Neznámá rasa');
   assert.equal(unknown.elements['character-class'].textContent, 'Neznámé povolání');
-  assert.equal(unknown.elements.portrait.src, undefined);
+  assert.equal(unknown.elements.portrait.src, 'https://example.test/signed-image');
   for (const error of [{ code: '42501', message: 'Denied' }, { code: 'PGRST116', message: 'No row' }]) {
     const failed = await page(`?character_id=${id}`, null, error);
     assert.equal(failed.elements['student-card'].hidden, true);
@@ -592,6 +622,72 @@ async function page(query, row = base, error = null, leader = false, authorized 
   se['edit-class'].value = 'fighter'; await se['edit-class'].handlers.blur();
   assert.equal(se['save-proficiency-dex'].hidden, false);
   assert.ok(saves.writes.every(patch => Object.keys(patch).every(key => ['str','level','class_code'].includes(key))));
+  const pc = {};
+  const portraitRow = { ...base };
+  const portraitPage = await page(`?character_id=${id}`, portraitRow, null, false, true, pc);
+  const pe = portraitPage.elements;
+  assert.equal(portraitPage.portraitCalls.length, 0);
+  assert.equal(pe['portrait-controls'].hidden, false);
+  pe['portrait-file'].files = [{ name: 'photo.png' }];
+  let finishPortrait;
+  pc.wait = new Promise(resolve => { finishPortrait = resolve; });
+  const uploading = pe['portrait-file'].handlers.change();
+  await pe['portrait-file'].handlers.change();
+  assert.equal(portraitPage.portraitCalls.length, 1);
+  assert.equal(pe['portrait-upload'].disabled, true);
+  finishPortrait(); await uploading; pc.wait = null;
+  assert.deepEqual(portraitPage.portraitCalls.map(c => c[0]), ['upload', 'read']);
+  assert.equal(pe.portrait.src, 'https://example.test/signed-image');
+  assert.equal(pe['portrait-upload'].textContent, 'Změnit obrázek');
+  pc.writeError = { status: 403 };
+  await pe['portrait-file'].handlers.change();
+  assert.equal(pe.portrait.src, 'https://example.test/signed-image');
+  assert.match(pe['portrait-status'].textContent, /nezdařila/);
+  pc.writeError = null;
+  pc.cleanup = true;
+  await pe['portrait-file'].handlers.change();
+  assert.match(pe['portrait-status'].textContent, /úklid/);
+  assert.equal(portraitPage.portraitCalls.filter(c => c[0] === 'upload').length, 3);
+  await pe['portrait-remove'].handlers.click();
+  assert.equal(pe.portrait.src, undefined);
+  assert.equal(pe['portrait-placeholder'].hidden, false);
+  assert.equal(pe['portrait-remove'].hidden, true);
+  assert.equal(portraitPage.writes.length, 0);
+  for (const writeError of [{ status: 409 }, { outcome_unknown: true }]) {
+    pc.writeError = writeError;
+    portraitRow.portrait_path = 'characters/concurrent.png';
+    const before = portraitPage.rpcCalls.length;
+    await pe['portrait-file'].handlers.change();
+    assert.equal(portraitPage.rpcCalls[before].name, 'player_character');
+    assert.equal(pe.portrait.src, 'https://example.test/signed-image');
+    assert.equal(pe['portrait-upload'].disabled, false);
+  }
+  pc.readError = true;
+  await pe['portrait-remove'].handlers.click();
+  assert.equal(pe['portrait-upload'].disabled, true);
+  const attempts = portraitPage.portraitCalls.length;
+  await pe['portrait-file'].handlers.change();
+  assert.equal(portraitPage.portraitCalls.length, attempts);
+  const readFailure = await page(`?character_id=${id}`, { ...base, portrait_path: 'characters/a.png' }, null, false, true, pc);
+  assert.equal(readFailure.elements.portrait.src, undefined);
+  assert.match(readFailure.elements['portrait-status'].textContent, /nepodařilo/);
+  assert.equal(readFailure.elements['student-card'].hidden, false);
+  const savedReadError = await page(`?character_id=${id}`, { ...base }, null, false, true, { readError: true });
+  savedReadError.elements['portrait-file'].files = [{ name: 'photo.png' }];
+  await savedReadError.elements['portrait-file'].handlers.change();
+  assert.match(savedReadError.elements['portrait-status'].textContent, /Změna byla uložena/);
+  assert.equal(savedReadError.elements['portrait-upload'].textContent, 'Změnit obrázek');
+  assert.equal(savedReadError.elements.portrait.src, undefined);
+  const nullImage = await page(`?character_id=${id}`, { ...base, portrait_path: 'characters/a.png' }, null, false, true, { url: null });
+  assert.equal(nullImage.elements.portrait.src, undefined);
+  const leaderPortrait = await page(`?mode=leader&character_id=${id}`, { ...base, portrait_path: 'characters/a.png' }, null, true);
+  assert.equal(leaderPortrait.elements.portrait.src, 'https://example.test/signed-image');
+  assert.equal(leaderPortrait.elements['portrait-controls'].hidden, true);
+  for (const control of ['portrait-upload', 'portrait-remove', 'portrait-file']) {
+    assert.deepEqual(leaderPortrait.elements[control].handlers, {});
+  }
+  assert.equal(leaderPortrait.elements['edit-toggle'].hidden, true);
+  assert.equal(leaderPortrait.elements['edit-name'].disabled, true);
   const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
   assert.ok(!html.includes('<h1>Deník postavy</h1>'));
   console.log('PASS: character page loading, UUID, portraits, edit toggle, exact choices, blur saves/reload, NULL, validation, unchanged values, failed/pending saves');
