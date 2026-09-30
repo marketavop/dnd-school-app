@@ -10,7 +10,10 @@ export function rollDie(sides) {
   return random[0] % sides + 1;
 }
 function validRoll(roll) {
-  return roll && uuid.test(roll.id) && uuid.test(roll.character_id) &&
+  const actorValid = roll?.actor_role === 'leader'
+    ? roll.character_id == null && roll.name === 'Vedoucí'
+    : uuid.test(roll?.character_id);
+  return roll && uuid.test(roll.id) && actorValid &&
     typeof roll.name === 'string' && roll.name.length > 0 && roll.name.length <= 200 &&
     DICE.includes(roll.sides) && Number.isInteger(roll.result) && roll.result >= 1 && roll.result <= roll.sides &&
     Number.isSafeInteger(roll.order) && roll.order > 0 && roll.order < Number.MAX_SAFE_INTEGER;
@@ -58,8 +61,11 @@ export function connectRolls(db, character, render, connection, failure) {
   return {
     roll(sides) {
       if (!connected) return;
-      const roll = { id: crypto.randomUUID(), character_id: character.id,
-        name: (character.name?.trim() || 'Postava').slice(0, 200), sides, result: rollDie(sides), order: ++clock };
+      const leader = character.role === 'leader';
+      const roll = { id: crypto.randomUUID(), actor_role: leader ? 'leader' : 'player',
+        character_id: leader ? null : character.id,
+        name: (leader ? 'Vedoucí' : (character.name?.trim() || 'Postava')).slice(0, 200),
+        sides, result: rollDie(sides), order: ++clock };
       merge([roll]); // Výsledek se objeví ihned, bez čekání na síť.
       void send('roll', roll);
       return roll;
