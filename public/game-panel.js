@@ -9,6 +9,7 @@ const diceToggle = $('dice-toggle');
 const dicePanel = $('dice-panel');
 const ids = gameUser?.role === 'player' ? [gameUser.character_id] : [];
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
+const diceAvailable = ['player', 'leader'].includes(gameUser?.role) && Boolean(gameUser?.session_token);
 const tabs = [$('overview-tab'), $('abilities-tab')];
 function selectTab(index) {
   tabs.forEach((tab, i) => {
@@ -29,7 +30,7 @@ tabs.forEach((tab, i) => {
   });
 });
 toggle.disabled = !valid;
-diceToggle.disabled = !valid;
+diceToggle.disabled = !diceAvailable;
 let openPanel = null;
 function togglePanel(requested) {
   openPanel = openPanel === requested ? null : requested;

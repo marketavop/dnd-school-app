@@ -6,19 +6,22 @@ const status = document.querySelector('#dice-status');
 const buttons = [...document.querySelectorAll('[data-die]')];
 const ids = gameUser?.role === 'player' ? [gameUser.character_id] : [];
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
+const diceAvailable = ['player', 'leader'].includes(gameUser?.role) && Boolean(gameUser?.session_token);
 function showFailure(message) {
   status.textContent = message;
   status.dataset.error = 'true';
 }
-if (valid) {
+if (diceAvailable) {
   try {
     const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = await import('./config.local.js');
     const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm');
     const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
-    const character = await loadCharacter(db, ids[0].toLowerCase(), gameUser.session_token);
-    const session = connectRolls(db, character, rolls => {
+    const actor = valid
+      ? await loadCharacter(db, ids[0].toLowerCase(), gameUser.session_token)
+      : { role: 'leader', name: 'Vedoucí' };
+    const session = connectRolls(db, actor, rolls => {
       const latest = rolls[0];
       document.querySelector('#last-roll').textContent = latest ? `${latest.name} · k${latest.sides} → ${latest.result}` : 'Zatím žádný hod';
       const entries = rolls.slice(0, 10).map(roll => {
