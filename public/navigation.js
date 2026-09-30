@@ -2,7 +2,8 @@ const ids = new URLSearchParams(window.location.search).getAll('character_id');
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
 const query = valid ? `?character_id=${encodeURIComponent(ids[0])}` : '';
 const home = document.querySelector('#home-link');
-if (home) home.href = `./index.html${query}`;
+if (home) home.href = window.parent !== window && typeof window.parent.getGameHomeUrl === 'function'
+  ? window.parent.getGameHomeUrl() : `./index.html${query}`;
 for (const [id, path] of [['diary-link', 'character.html'], ['game-link', 'game.html']]) {
   const link = document.querySelector(`#${id}`);
   if (link && valid) {

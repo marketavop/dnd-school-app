@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const source = fs.readFileSync('public/leader-game.js', 'utf8').replace(/^import .*;\r?\n/gm, '');
+const source = fs.readFileSync('public/leader-game.js', 'utf8').replace(/^import .*;\r?\n/gm, '').replace('export function', 'function');
 for (const role of ['leader', 'player', null]) {
   const elements = Object.fromEntries(['leader-content', 'home-content', 'leader-game', 'leader-game-frame', 'main',
     'leader-game-link', 'game-link'].map(id => [id, {
@@ -9,9 +9,10 @@ for (const role of ['leader', 'player', null]) {
     addEventListener(type, fn) { this.handlers[type] = fn; },
     removeAttribute(key) { delete this[key]; },
   }]));
-  const window = {};
+  const window = { location: { href: 'https://example.test/index.html?character_id=account-character&extra=keep' },
+    history: { replaceState(state, title, href) { window.location.href = href; } } };
   const mutate = () => {};
-  const context = { window, document: { querySelector: s => elements[s.replace(/^#/, '')] },
+  const context = { window, URL, document: { querySelector: s => elements[s.replace(/^#/, '')] },
     getCurrentUser: () => role ? { role, character_id: 'account-character', session_token: 'secret-session' } : null,
     loadMaps() {}, setActiveMap() {}, loadGameTokens() {}, loadNpcs() {}, loadNpcDefinitions() {}, mutateNpc() {}, mutateGameToken: mutate,
   };

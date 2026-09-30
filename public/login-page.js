@@ -1,11 +1,13 @@
 import { mountLogin, restoreSession } from './login.js';
 import { showRoleHome } from './role-home.js';
+import { openGame } from './leader-game.js';
 import { showLogout, showSessionError, continueAfterLogin } from './session-page.js';
 
 function enterApp() {
   document.querySelector('#login-form').hidden = true;
   if (continueAfterLogin()) return;
   showRoleHome(document);
+  if (new URL(window.location.href).searchParams.get('view') === 'game') openGame();
   showLogout();
 }
 
