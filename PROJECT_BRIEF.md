@@ -240,6 +240,13 @@ Máme jednu skupinu/kampaň, takže neexistuje výběr kampaně.
 Vedoucí navíc vidí jednoduchý seznam hráčů/postav a může otevřít jejich
 deníky read-only.
 
+**Navigace Vedoucího:** Vedoucí používá administrační pohledy **Domů / Hráči /
+Mapy**. Hráči používají URL stav `?view=players`, Mapy `?view=maps`; Domů je
+výchozí pohled bez admin `view`. V jednu chvíli je zobrazen právě jeden
+administrační pohled. Refresh zachová aktuální pohled. URL stav nemění
+oprávnění uživatele ani nenahrazuje serverovou autorizaci. Nejde o obecný
+router ani SPA architekturu.
+
 Nevytváříme dashboard, uživatelský profil, notifikace ani složité
 nastavení.
 
@@ -822,7 +829,7 @@ Horní lišta obsahuje:
 -   jméno aktuální postavy,
 -   ikonu kostky.
 
-Jméno postavy otevírá/zavírá **Studijní panel**.
+U hráče jméno postavy otevírá/zavírá **Studijní panel**.
 
 Ikona kostky otevírá/zavírá **panel Kostky**.
 
@@ -843,6 +850,13 @@ Panel Kostky obsahuje:
 -   jednoduché kostky,
 -   poslední hod,
 -   společný krátkodobý roll log.
+
+**Panel Vedoucího:** Vedoucí nemá v herním režimu vlastní panel `Postava`.
+Na jeho místě používá panel se sekcemi **NPC / Hráči**, přičemž výchozí je
+**NPC**. Do panelu se přesouvá stávající správa NPC a hráčů ve scéně, aby
+tyto ovládací prvky nezabíraly permanentní prostor nad mapou. Nevznikají
+tím nové NPC ani player-management funkce; jde o reorganizaci existujícího
+ovládání. **Mapa zůstává primárním obsahem herní obrazovky.**
 
 Dítě by kvůli běžnému hraní nemělo potřebovat opustit mapovou stránku.
 
