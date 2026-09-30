@@ -49,7 +49,7 @@ function emit(table, row, event = 'UPDATE') {
 }
 const coords = mapId => ({ x: rows.token_positions[mapId].x, y: rows.token_positions[mapId].y });
 
-async function client(role = 'leader') {
+async function client(role = 'leader', ownId = characterId) {
   const elements = {};
   elements['map-select-label'] = {};
   for (const id of ['npc-controls', 'npc-status', 'npc-list', 'npc-form']) {
@@ -174,17 +174,19 @@ async function client(role = 'leader') {
     URLSearchParams,
     window: { location: { search: `?character_id=${characterId}${role === 'leader' ? '&mode=leader' : ''}` }, confirm: () => confirmResult,
       parent: {
-        getGameIdentity: () => ({ role, character_id: role === 'player' ? characterId : null }),
+        getGameIdentity: () => ({ role, character_id: role === 'player' ? ownId : null }),
         loadGameTokens: async mapId => {
           const response = await sdk.createClient().from('token_positions').select().eq('map_id', mapId).maybeSingle();
           if (response.error) throw response.error;
           const roster = [{ character_id: characterId, name: 'Test', portrait_path: './portrait.png', ...(response.data || { x: null, y: null }) }];
-          if (role === 'leader') roster.push({ character_id: otherId, name: 'Druhá postava', portrait_path: null, ...(otherPositions[mapId] || { x: null, y: null }) });
-          return roster;
+          roster.push({ character_id: otherId, name: 'Druhá postava', portrait_path: null, ...(otherPositions[mapId] || { x: null, y: null }) });
+          // Foreign token first deliberately: controls must use identity, not order.
+          return role === 'leader' ? roster : roster.filter(row => row.character_id === ownId || row.x !== null)
+            .sort((a, b) => Number(a.character_id === ownId) - Number(b.character_id === ownId));
         },
         mutateGameToken: async (action, id, mapId, point) => {
           if (failWrite) throw new Error('denied');
-          assert.ok(role === 'leader' || id === characterId);
+          assert.ok(role === 'leader' || id === ownId);
           if (delayPositionWrite) await delayPositionWrite.promise;
           const storage = id === characterId ? rows.token_positions : otherPositions;
           if (action === 'move' && !storage[mapId]) throw new Error('missing token');
@@ -217,7 +219,7 @@ async function client(role = 'leader') {
   await vm.runInContext(`(async () => { ${source}\n globalThis.flush = () => Promise.resolve(); globalThis.tokenStates = tokens; })()`, context);
   await ready;
   await settle();
-  Object.defineProperty(elements, 'token', { get: () => context.tokenStates.get(characterId)?.element || { hidden: true, style: {}, handlers: {} } });
+  Object.defineProperty(elements, 'token', { get: () => context.tokenStates.get(ownId)?.element || { hidden: true, style: {}, handlers: {} } });
   return { elements, tokenStates: context.tokenStates, async realtimeState(state) {
     await mapStateChange(state);
     await settle();
@@ -279,7 +281,7 @@ async function client(role = 'leader') {
   assert.deepEqual(center(a), ['375px', '375px']);
   assert.deepEqual(center(b), ['375px', '375px']);
   assert.equal(size(a), 100); assert.equal(size(b), 100);
-  // Multiple tokens share the renderer; the player receives only their own roster entry.
+  // Only the own absent token is included; absent foreign tokens stay out of player reads.
   assert.equal(a.tokenStates.size, 2);
   assert.equal(player.tokenStates.size, 1);
   assert.equal(a.tokenStates.get(otherId).element.hidden, true);
@@ -443,7 +445,7 @@ async function client(role = 'leader') {
   assert.equal(tokenWrites(), beforeAdd + 1, 'Repeated pending add writes once');
   assert.equal(second.element.hidden, false);
   assert.equal(b.tokenStates.get(otherId).element.hidden, false);
-  assert.equal(player.tokenStates.has(otherId), false);
+  assert.equal(player.tokenStates.get(otherId).element.hidden, false);
   assert.equal(second.action.textContent, 'Odebrat');
   const added = { ...otherPositions['test-map'] };
   const countAfterAdd = tokenWrites();
@@ -453,6 +455,7 @@ async function client(role = 'leader') {
   await second.element.handlers.pointerup(event(310, 290)); await settle();
   assert.deepEqual([otherPositions['test-map'].x, otherPositions['test-map'].y], [315, 315]);
   assert.equal(b.tokenStates.get(otherId).element.style.left, '315px');
+  assert.equal(player.tokenStates.get(otherId).element.style.left, '315px');
   const primary = { ...rows.token_positions['test-map'] };
   confirmResult = false;
   await second.action.handlers.click(); assert.equal(second.element.hidden, false);
@@ -465,6 +468,7 @@ async function client(role = 'leader') {
   await second.action.handlers.click(); await settle();
   assert.equal(second.element.hidden, true);
   assert.equal(b.tokenStates.get(otherId).element.hidden, true);
+  assert.equal(player.tokenStates.get(otherId).element.hidden, true);
   assert.equal(second.action.textContent, 'Přidat');
   assert.equal(second.message.textContent, '');
   assert.deepEqual(rows.token_positions['test-map'], primary);
@@ -542,6 +546,57 @@ async function client(role = 'leader') {
   assert.match(css, /#npc-status\s*\{\s*min-height:\s*20px;/);
   assert.match(sharedCss, /#scene-players-list \[role="status"\]\s*\{\s*min-height:\s*20px;/);
   assert.doesNotMatch(css, /[^{}]*#(?:connection|cell-size-status)[^{}]*\{[^}]*display:\s*none/);
+  // BUG-07: independent player identities, foreign-first RPC ordering and reload.
+  await a.switchMap('test-map');
+  delete otherPositions['test-map'];
+  const p1 = await client('player', characterId);
+  const p2 = await client('player', otherId);
+  if (p1.elements.token.hidden) { await p1.elements['add-token'].handlers.click(); await settle(); }
+  assert.equal(p1.tokenStates.has(otherId), false, 'Unknown foreign token is not preloaded');
+  await p2.elements['add-token'].handlers.click(); await settle();
+  for (const p of [p1, p2, await client('player', characterId), await client('player', otherId)]) {
+    assert.equal(p.tokenStates.get(characterId).element.hidden, false);
+    assert.equal(p.tokenStates.get(otherId).element.hidden, false);
+    assert.equal(p.tokenStates.size, 2);
+  }
+  const ownPosition = p1.elements.position.textContent;
+  let beforeForeign = tokenWrites();
+  const foreign = p1.tokenStates.get(otherId).element;
+  foreign.handlers.pointerdown(event(100, 100));
+  foreign.handlers.pointermove(event(400, 400));
+  await foreign.handlers.pointerup(event(400, 400)); await settle();
+  assert.equal(tokenWrites(), beforeForeign, 'Player cannot drag foreign token');
+  assert.equal(p1.tokenStates.get(otherId).action, undefined, 'No foreign edit controls');
+  const secondOwn = { ...otherPositions['test-map'] };
+  p2.elements.token.handlers.pointerdown(event(secondOwn.x, secondOwn.y));
+  p2.elements.token.handlers.pointermove(event(410, 410));
+  assert.equal(tokenWrites(), beforeForeign, 'Move remains local until drop');
+  await p2.elements.token.handlers.pointerup(event(410, 410)); await settle();
+  assert.equal(p1.tokenStates.get(otherId).element.style.left, p2.elements.token.style.left);
+  assert.equal(p1.elements.position.textContent, ownPosition, 'Foreign movement must not change own position indicator');
+  await p2.elements['remove-token'].handlers.click(); await settle();
+  assert.equal(writes.at(-1).characterId, otherId);
+  assert.equal(p1.tokenStates.get(otherId).element.hidden, true);
+  assert.equal(p1.elements.position.textContent, ownPosition, 'Foreign DELETE must not clear own position');
+  await p2.elements['add-token'].handlers.click(); await settle();
+  assert.equal(writes.at(-1).characterId, otherId);
+  // Fresh p1 loads foreign token first; removing/adding still targets p1.
+  const fresh = await client('player', characterId);
+  assert.equal(fresh.tokenStates.keys().next().value, otherId);
+  await fresh.elements['remove-token'].handlers.click(); await settle();
+  assert.equal(writes.at(-1).characterId, characterId);
+  assert.equal(fresh.elements['add-token'].hidden, false);
+  assert.equal(fresh.elements.position.textContent, '—');
+  const absent = await client('player', characterId);
+  assert.equal(absent.tokenStates.keys().next().value, otherId);
+  assert.equal(absent.elements['add-token'].hidden, false);
+  await absent.elements['add-token'].handlers.click(); await settle();
+  assert.equal(writes.at(-1).characterId, characterId);
+  assert.equal(absent.tokenStates.get(otherId).element.hidden, false);
+  await a.switchMap('mapa-akademie');
+  assert.equal(absent.tokenStates.has(otherId), Boolean(otherPositions['mapa-akademie']));
+  await a.switchMap('test-map');
+  assert.equal(absent.tokenStates.get(otherId).element.hidden, false);
   failRead = true;
   const broken = await client();
   assert.equal(broken.elements['active-map-status'].textContent, 'Aktivní mapu se nepodařilo načíst. Zkus obnovit stránku.');

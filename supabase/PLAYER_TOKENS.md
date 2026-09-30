@@ -2,6 +2,14 @@
 
 ## Nasazení
 
+BUG-07: po migraci `20260925170000_user_characters_ownership.sql` nasadit
+`20260930120000_player_token_visibility.sql` a aktualizovaný frontend.
+Nahrazuje pouze tělo `player_token`; parametry a návratové sloupce zůstávají.
+Hráč čte přítomné hráčské tokeny aktivní mapy a vlastní postavy i bez pozice
+(x/y NULL). Neaktivní mapa je odmítnuta. Vlastnictví zápisu se nemění.
+SQL regrese v prázdné testovací databázi:
+`psql -X -v ON_ERROR_STOP=1 -d <test_database> -f tests/player-token-visibility-migration.sql`.
+
 Po migracích session a seznamu map z Ticketu 4A (a přepínání map z 4B)
 spusťte jednou `migrations/20260924140000_player_tokens.sql`.
 Počítá se stávajícími `token_positions(character_id, map_id, x, y)` a unikátní
@@ -13,7 +21,7 @@ Frontend a tuto migraci nasaďte společně; původní přímé zápisy již nef
 | Operace | RPC | Přístup |
 | --- | --- | --- |
 | Seznam hráčských postav včetně chybějících pozic | `leader_player_tokens(p_session_token, p_map_id)` | Jen leader |
-| Vlastní postava včetně případné pozice | `player_token(p_session_token, p_map_id)` | Jen player; postavu určuje server podle účtu |
+| Přítomné hráčské tokeny a vlastní postavy bez pozice | `player_token(p_session_token, p_map_id)` | Jen player; pouze aktivní mapa, session ověřená serverem |
 | Přidání | `add_token(p_session_token, p_character_id, p_map_id, p_x, p_y)` | Leader libovolnou hráčskou postavu, player pouze vlastní |
 | Přesun | `set_token_position(p_session_token, p_character_id, p_map_id, p_x, p_y)` | Stejné ověření vlastnictví |
 | Odebrání | `remove_token(p_session_token, p_character_id, p_map_id)` | Stejné ověření vlastnictví |
@@ -41,7 +49,10 @@ oprávnění ostatních tabulek.
 `app.js` nyní drží malý záznam stavu pro každou načtenou postavu. Každý
 token je stejný DOM prvek uvnitř původního map-space; sdílí render, drag,
 snap a velikost `cell_size * TOKEN_SCALE`. Leader načítá všechny hráčské
-postavy, player nadále pouze svou. Portrét se použije, pokud existuje;
+postavy; player vidí všechny přítomné hráčské tokeny aktivní mapy a stav
+vlastních postav bez umístění. Přidat/Odebrat i indikátor vlastní pozice
+vybírají token přes `gameIdentity.character_id`, nikoliv pořadí seznamu.
+Drag a zápis cizího tokenu jsou hráči zakázané. Portrét se použije, pokud existuje;
 při chybě obrázku zůstane počáteční písmeno jména.
 
 Vedoucí má seznam Hráči ve scéně s Přidat/Odebrat. Odebrání používá stávající
@@ -70,6 +81,8 @@ lokálně. Migrace nastaví REPLICA IDENTITY FULL. Pokud událost obsahuje pouze
 primární klíč a nelze z ní určit dvojici postava/mapa, obnoví se aktuální
 pozice přes RPC. Nezavádí se polling, nový kanál ani kontinuální drag.
 Při DELETE rozpracovaného tokenu se jeho drag zruší.
+INSERT/UPDATE dosud neznámé postavy obnoví seznam přes stejné autorizované
+RPC; samotný realtime payload se nepoužívá k vytvoření neověřeného tokenu.
 Viz [Supabase: obsah old při DELETE a RLS](https://supabase.com/docs/guides/troubleshooting/realtime-postgres-changes-troubleshooting).
 
 ## Automatické testy

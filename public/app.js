@@ -136,7 +136,7 @@ function showMessage(type, text, target = status) {
 }
 
 function updateAddTokenButton() {
-  const own = tokens.values().next().value;
+  const own = tokens.get(gameIdentity.character_id);
   const ready = positionLoaded && mapReady && configReady;
   addTokenButton.hidden = leaderMode || !ready || !own || Boolean(own.saved);
   removeTokenButton.hidden = leaderMode || !ready || !own?.saved;
@@ -192,6 +192,7 @@ function createToken(row, npc = false) {
 }
 
 async function editToken(state, action) {
+  if (!leaderMode && state?.id !== gameIdentity.character_id) return;
   if (!state || state.busy || drag || !positionLoaded || !mapReady || !configReady || !connected || !positionConnected || loading) return;
   if (action === 'remove' && !window.confirm('Odebrat postavu z této mapy?')) return;
   const destination = action === 'add' ? snapToCell({ x: map.naturalWidth / 2, y: map.naturalHeight / 2 }) : null;
@@ -204,6 +205,7 @@ async function editToken(state, action) {
 
 async function saveToken(state, action, point) {
   if (state.npc) return saveNpc(state, action, point);
+  if (!leaderMode && state.id !== gameIdentity.character_id) return;
   const mapId = activeMapId;
   const version = mapVersion;
   const revision = state.revision;
@@ -383,8 +385,8 @@ npcForm.addEventListener('submit', async event => {
   } finally { npcAdding = false; button.disabled = false; }
 });
 
-addTokenButton.addEventListener('click', () => editToken(tokens.values().next().value, 'add'));
-removeTokenButton.addEventListener('click', () => editToken(tokens.values().next().value, 'remove'));
+addTokenButton.addEventListener('click', () => editToken(tokens.get(gameIdentity.character_id), 'add'));
+removeTokenButton.addEventListener('click', () => editToken(tokens.get(gameIdentity.character_id), 'remove'));
 
 async function activateMap(mapId, refresh = false) {
   if (mapId === activeMapId && configReady && !refresh) return;
@@ -577,7 +579,7 @@ function render(state, point) {
   if (!point) {
     state.element.hidden = true;
     state.shown = null;
-    if (!leaderMode) position.textContent = '—';
+    if (!leaderMode && !state.npc && state.id === gameIdentity.character_id) position.textContent = '—';
     return;
   }
   if (!mapReady) return;
@@ -591,23 +593,30 @@ function render(state, point) {
   };
   state.element.style.left = `${state.shown.x}px`;
   state.element.style.top = `${state.shown.y}px`;
-  if (!leaderMode || drag?.state === state) position.textContent = `x = ${state.shown.x}, y = ${state.shown.y}`;
+  if ((!leaderMode && !state.npc && state.id === gameIdentity.character_id) || (leaderMode && drag?.state === state)) {
+    position.textContent = `x = ${state.shown.x}, y = ${state.shown.y}`;
+  }
 }
 
 function subscribePosition(mapId, version) {
   function receive(row, point) {
     if (version !== mapVersion || row.map_id !== mapId) return;
-    if (!leaderMode && row.character_id !== gameIdentity.character_id) return;
     const revision = ++realtimeRevision;
     positionChanges.set(row.character_id, { point, revision });
     const state = tokens.get(row.character_id);
-    if (!state) return; // Initial RPC will merge events received before the roster.
+    if (!state) {
+      // A newly present character needs metadata from the authorized read RPC.
+      if (point) return loadPosition(mapId, version);
+      return;
+    }
     state.revision++;
     state.saved = point;
     if (!point && drag?.state === state) cancelDrag({ pointerId: drag.id });
     if (!point || (!state.busy && drag?.state !== state)) render(state, point);
-    showMessage('info', '', state.message || addTokenMessage);
-    if (!leaderMode) showMessage('info', '', removeTokenMessage);
+    if (leaderMode || state.id === gameIdentity.character_id) {
+      showMessage('info', '', state.message || addTokenMessage);
+      if (!leaderMode) showMessage('info', '', removeTokenMessage);
+    }
     updateAddTokenButton();
   }
   positionChannel = db.channel(`token-position-${mapId}-${version}`)
@@ -643,7 +652,6 @@ async function loadPosition(mapId = activeMapId, version = mapVersion) {
     if (!Array.isArray(rows)) throw new Error('Invalid token list');
     const ids = new Set();
     for (const row of rows) {
-      if (!leaderMode && row.character_id !== gameIdentity.character_id) continue;
       ids.add(row.character_id);
       const state = tokens.get(row.character_id) || createToken(row);
       const change = positionChanges.get(row.character_id);
