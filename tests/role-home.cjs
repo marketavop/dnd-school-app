@@ -68,8 +68,19 @@ function page(role, character = id) {
   const leaderHtml = html.split('<section id="leader-content" hidden>')[1].split('</section>')[0];
   assert.ok(playerHtml.includes('Můj deník'));
   assert.ok(!playerHtml.includes('Hráči') && !playerHtml.includes('Mapy'));
+  assert.match(playerHtml, /<h1>Moje postava<\/h1>/);
+  assert.match(playerHtml, /<a id="diary-link" class="action-card"[\s\S]*<span class="action-card-title">Můj deník<\/span>[\s\S]*<span class="action-card-description">/);
+  assert.match(playerHtml, /<a id="game-link" class="action-card action-card-primary"[\s\S]*<span class="action-card-title">Vstoupit do hry<\/span>[\s\S]*<span class="action-card-description">/);
+  assert.doesNotMatch(playerHtml, /Přihlášený uživatel|Role:\s*player|user_id/);
   assert.ok(!leaderHtml.includes('Můj deník'));
   assert.ok(leaderHtml.includes('Hráči') && leaderHtml.includes('Mapy'));
+  assert.match(leaderHtml, /<nav class="action-grid"[\s\S]*<a id="leader-game-link" class="action-card[\s\S]*<span class="action-card-title">Vstoupit do hry<\/span>[\s\S]*<span class="action-card-description">/);
+  const css = readFileSync('public/styles.css', 'utf8');
+  assert.match(css, /\.home-page \.action-grid\s*\{/);
+  assert.match(css, /\.home-page \.action-card\s*\{[^}]*display:\s*flex/);
+  assert.match(css, /\.home-page \.action-card-title\s*\{/);
+  assert.match(css, /\.home-page \.action-card-description\s*\{/);
+  assert.match(css, /@media\s*\(max-width:\s*720px\)[\s\S]*\.home-page \.action-grid\s*\{\s*grid-template-columns:\s*1fr/);
   console.log('PASS: login-to-role UI, isolation, account/legacy character links, missing character, reload and invalid roles');
 })().catch(error => { console.error(error); process.exitCode = 1; });
 

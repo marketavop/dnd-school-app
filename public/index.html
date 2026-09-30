@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <main>
+  <main class="app-shell">
     <form id="login-form" method="post" hidden>
       <h1>Přihlášení</h1>
       <label>Uživatelské jméno<input id="username" name="username" autocomplete="username" maxlength="100" required></label>
@@ -16,30 +16,31 @@
       <p id="login-status" role="status" aria-live="polite"></p>
     </form>
     <section id="home-content" hidden>
-    <p id="signed-in-status" role="status"></p>
-    <nav aria-label="Hlavní akce">
-      <a id="diary-link" aria-disabled="true">Můj deník</a>
-      <a id="game-link" aria-disabled="true">Vstoupit do hry</a>
-    </nav>
-    <p id="navigation-status" role="status">Načítám odkaz na postavu…</p>
+      <h1>Moje postava</h1>
+      <p id="signed-in-status" role="status" hidden></p>
+      <nav class="action-grid" aria-label="Hlavní akce">
+        <a id="diary-link" class="action-card" aria-disabled="true"><span class="action-card-title">Můj deník</span><span class="action-card-description">Prohlédnout a upravit svou postavu.</span></a>
+        <a id="game-link" class="action-card action-card-primary" aria-disabled="true"><span class="action-card-title">Vstoupit do hry</span><span class="action-card-description">Otevřít herní scénu a hrát.</span></a>
+      </nav>
+      <p id="navigation-status" role="status">Načítám odkaz na postavu…</p>
     </section>
     <section id="leader-content" hidden>
       <h1>Vedoucí</h1>
-      <nav aria-label="Akce Vedoucího">
-        <a id="leader-game-link" aria-disabled="true">Vstoupit do hry</a>
-        <a id="leader-players-link" href="#leader-players">Hráči</a>
-        <a id="leader-maps-link" href="#leader-maps">Mapy</a>
+      <nav class="action-grid" aria-label="Akce Vedoucího">
+        <a id="leader-game-link" class="action-card action-card-primary" aria-disabled="true"><span class="action-card-title">Vstoupit do hry</span><span class="action-card-description">Otevřít herní scénu a hrát.</span></a>
+        <a id="leader-players-link" class="action-card" href="#leader-players"><span class="action-card-title">Hráči</span><span class="action-card-description">Správa hráčů a jejich postav.</span></a>
+        <a id="leader-maps-link" class="action-card" href="#leader-maps"><span class="action-card-title">Mapy</span><span class="action-card-description">Příprava scén pro dobrodružství.</span></a>
       </nav>
       <p id="leader-status" role="status"></p>
     </section>
-    <section id="leader-players" hidden>
+    <section id="leader-players" class="content-section" hidden>
       <button id="players-back" type="button">← Vedoucí</button>
       <h1>Hráči</h1>
       <p id="players-status" role="status" aria-live="polite"></p>
       <ul id="players-list"></ul>
       <iframe id="leader-sheet" title="Deník postavy — pouze pro čtení" hidden></iframe>
     </section>
-    <section id="leader-maps" hidden>
+    <section id="leader-maps" class="content-section" hidden>
       <button id="maps-back" type="button">← Vedoucí</button>
       <h1>Mapy</h1>
       <button id="add-map-button" type="button">+ Přidat mapu</button>
@@ -51,25 +52,25 @@
         <p id="map-upload-error" role="alert"></p>
       </form>
       <p id="maps-status" role="status" aria-live="polite"></p>
-      <ul id="maps-list" style="list-style: none; padding-left: 0;"></ul>
+      <ul id="maps-list" class="card-list"></ul>
     </section>
-    <section id="map-preparation" hidden>
+    <section id="map-preparation" class="content-section" hidden>
       <button id="prep-back" type="button">← Mapy</button>
       <h1 id="prep-name">Příprava mapy</h1>
       <label for="prep-cell-size">Velikost pole (px)</label>
       <input id="prep-cell-size" type="number" step="any" aria-describedby="prep-error" disabled>
-      <p id="prep-error" role="status" style="color: #b42318;"></p>
-      <div id="prep-viewport" style="position: relative; width: 100%; height: 60vh; overflow: hidden; background: #d1d5db;">
-        <div id="prep-space" style="position: absolute; transform-origin: top left;">
-          <img id="prep-image" alt="" draggable="false" style="display: block; max-width: none;" hidden>
-          <svg id="prep-grid" style="position: absolute; left: 0; top: 0; pointer-events: none; fill: none; stroke: rgba(20,30,40,.5); stroke-width: 1;" aria-hidden="true"></svg>
+      <p id="prep-error" class="error-message" role="status"></p>
+      <div id="prep-viewport" class="prep-viewport">
+        <div id="prep-space" class="prep-space">
+          <img id="prep-image" class="prep-image" alt="" draggable="false" hidden>
+          <svg id="prep-grid" class="prep-grid" aria-hidden="true"></svg>
         </div>
       </div>
       <button id="prep-save" type="button" disabled>Uložit</button>
       <p id="prep-status" role="status"></p>
     </section>
-    <section id="leader-game" hidden>
-      <iframe id="leader-game-frame" title="Herní mapa" style="width: 100%; height: 85vh; border: 0;"></iframe>
+    <section id="leader-game" class="content-section" hidden>
+      <iframe id="leader-game-frame" class="leader-game-frame" title="Herní mapa"></iframe>
     </section>
     <p id="role-error" role="alert" hidden></p>
     <noscript>Pro otevření deníku nebo hry povolte JavaScript.</noscript>

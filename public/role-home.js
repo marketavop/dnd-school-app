@@ -29,7 +29,7 @@ export function showRoleHome(document) {
   }
 
   if (user.role === 'player') {
-    document.querySelector('#signed-in-status').textContent = `Přihlášený uživatel: ${user.user_id} · Role: ${user.role}`;
+    document.querySelector('#signed-in-status').textContent = '';
     player.hidden = false;
     return;
   }
