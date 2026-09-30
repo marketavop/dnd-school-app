@@ -894,7 +894,7 @@ PJ řídí scénu. Hráč mapu nevybírá.
 
 ## 25. Zoom a pan
 
-Ruční **zoom a pan jsou součástí aktuálního MVP**.
+Ruční **zoom a pan jsou součástí aktuálního MVP** pro hráče i Vedoucího.
 
 Výchozí pohled po otevření mapy zůstává responsivní fit do dostupného
 viewportu. Uživatel si potom může vlastní kameru lokálně přiblížit,
@@ -912,7 +912,10 @@ Platí:
 -   drag/snap musí používat převod pointeru zpět do původních mapových souřadnic,
 -   zoom/pan nevytváří DB zápisy ani realtime události.
 
-Uživatel má jednoduchou možnost vrátit kameru na výchozí fit pohled.
+Hráč i Vedoucí mají jednoduchý ovladač **„Přizpůsobit mapu“**, který vrátí
+kameru na výchozí fit celé mapy do dostupného viewportu. Tento reset mění
+pouze lokální pohled daného uživatele; nemění pozice tokenů ani sdílený
+stav mapy.
 Vedoucí nesynchronizuje kameru hráčům a hráč nemá režim „follow GM“.
 
 **Později:**
@@ -929,10 +932,12 @@ Vedoucí nesynchronizuje kameru hráčům a hráč nemá režim „follow GM“.
 
 Hráčský token používá portrét postavy.
 
-Vedoucí umisťuje hráčské tokeny na mapu.
+Hráč může v aktuálním MVP přidat vlastní token do aktivní mapy, odebrat
+ho z ní a přesouvat ho. Nesmí přidávat, odebírat ani přesouvat token
+jiné postavy nebo NPC.
 
-Hráč může pohybovat pouze vlastním tokenem. Vedoucí může pohybovat
-kterýmkoliv hráčským tokenem.
+Vedoucí nadále může podle potřeb scény přidávat, odebírat a přesouvat
+kterýkoliv hráčský token.
 
 Pohyb:
 
@@ -947,7 +952,7 @@ Každá mapa si pamatuje poslední pozice tokenů.
 Postava může na konkrétní mapě nemít žádnou pozici. To znamená, že není
 v dané scéně.
 
-Vedoucí může token z mapy odebrat bez smazání účtu, postavy nebo deníku.
+Odebrání tokenu z mapy hráčem nebo Vedoucím nesmaže účet, postavu ani deník.
 
 Token zůstává na mapě i při odpojení hráče. Nesledujeme online/offline
 presence.
@@ -1113,12 +1118,12 @@ MVP zahrnuje:
 28. jednoduchý inventář,
 29. Příběhové pozadí + Poznámky,
 30. plný deník + kompaktní mapový panel nad stejnými daty,
-31. mapa + tokeny + kostky + panel deníku,
+31. mapa + tokeny + kostky + panel deníku; lokální zoom/pan a ovladač „Přizpůsobit mapu“ pro hráče i Vedoucího,
 32. upload/příprava map Vedoucím,
 33. generovaná čtvercová mřížka a nastavení velikosti pole,
 34. knihovna připravených map pouze pro Vedoucího,
 35. jedna aktivní mapa a realtime přepnutí hráčů,
-36. hráčské tokeny s map-specific pozicemi,
+36. hráčské tokeny s map-specific pozicemi; hráč může vlastní token přidat do aktivní mapy, odebrat a přesouvat,
 37. drag/drop + snap na pole + synchronizace po dropu,
 38. jednoduchý globální seznam NPC (jméno + volitelný obrázek),
 39. přidání/odebrání NPC na konkrétní mapu přes samostatné mapové umístění,
@@ -1189,7 +1194,7 @@ První verze je úspěšná, pokud:
 -   vstoupí do hry,
 -   vidí pouze aktuální mapu,
 -   vidí ostatní postavy a viditelná NPC,
--   pohybuje vlastním tokenem,
+-   přidá vlastní token do aktivní mapy, přesouvá ho a může ho odebrat,
 -   může otevřít deník bez opuštění mapy,
 -   používá jednoduché kostky,
 -   mění HP, spell sloty a další běžný stav,
@@ -1352,7 +1357,7 @@ Aktuálně sem patří například:
 
 -   Hit Dice,
 -   temporary HP,
--   ruční zoom/pan, pinch zoom a fullscreen mapy,
+-   pinch zoom a fullscreen mapy,
 -   různé velikosti NPC tokenů,
 -   další pohodlné funkce potvrzené reálnou potřebou.
 
