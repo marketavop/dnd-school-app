@@ -1,5 +1,6 @@
 import { getCurrentUser } from './login.js';
 import { handleSessionFailure } from './login.js';
+import { showAdminView, navigateAdminView } from './admin-view.js';
 
 async function rpc(name, args) {
   const user = getCurrentUser();
@@ -43,6 +44,8 @@ export function mountLeaderPlayers(document, window, call = rpc) {
   document.querySelector('#leader-players-link').addEventListener('click', async event => {
     event.preventDefault();
     if (getCurrentUser()?.role !== 'leader') return;
+    if (new URL(window.location.href).searchParams.get('view') !== 'players') navigateAdminView(window, 'players');
+    showAdminView(document, 'players');
     const request = ++generation;
     closeSheet();
     home.hidden = true;
@@ -79,6 +82,14 @@ export function mountLeaderPlayers(document, window, call = rpc) {
       status.textContent = 'Hráče se nepodařilo načíst. Zkuste to znovu; pokud přihlášení vypršelo, obnovte stránku a přihlaste se.';
     }
   });
+  document.querySelector('#players-home-nav')?.addEventListener('click', event => {
+    event.preventDefault();
+    document.querySelector('#players-back').click();
+  });
+  document.querySelector('#players-maps-nav')?.addEventListener('click', event => {
+    event.preventDefault();
+    document.querySelector('#leader-maps-link').click();
+  });
   document.querySelector('#players-back').addEventListener('click', () => {
     generation++;
     closeSheet();
@@ -86,6 +97,8 @@ export function mountLeaderPlayers(document, window, call = rpc) {
     panel.hidden = true;
     main.classList.remove('players-open');
     home.hidden = false;
+    showAdminView(document, 'home');
+    if (new URL(window.location.href).searchParams.get('view') === 'players') navigateAdminView(window, 'home');
   });
 }
 

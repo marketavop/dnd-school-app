@@ -2,6 +2,7 @@ import { getCurrentUser } from './login.js';
 
 import { loadMaps, setActiveMap } from './leader-map-api.js';
 import { openMapPreparation } from './map-preparation.js';
+import { showAdminView, navigateAdminView } from './admin-view.js';
 
 const home = document.querySelector('#leader-content');
 const panel = document.querySelector('#leader-maps');
@@ -12,6 +13,8 @@ let generation = 0;
 document.querySelector('#leader-maps-link').addEventListener('click', async event => {
   event.preventDefault();
   if (getCurrentUser()?.role !== 'leader') return;
+  if (new URL(window.location.href).searchParams.get('view') !== 'maps') navigateAdminView(window, 'maps');
+  showAdminView(document, 'maps');
   const request = ++generation;
   home.hidden = true;
   panel.hidden = false;
@@ -78,11 +81,22 @@ document.querySelector('#leader-maps-link').addEventListener('click', async even
   }
 });
 
+document.querySelector('#maps-home-nav')?.addEventListener('click', event => {
+  event.preventDefault();
+  document.querySelector('#maps-back').click();
+});
+document.querySelector('#maps-players-nav')?.addEventListener('click', event => {
+  event.preventDefault();
+  document.querySelector('#leader-players-link').click();
+});
+
 document.querySelector('#maps-back').addEventListener('click', () => {
   generation++;
   list.replaceChildren();
   status.textContent = '';
   panel.hidden = true;
   home.hidden = false;
+  showAdminView(document, 'home');
+  if (new URL(window.location.href).searchParams.get('view') === 'maps') navigateAdminView(window, 'home');
 });
 

@@ -4,6 +4,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync('public/leader-players.js', 'utf8')
   .replace("import { getCurrentUser } from './login.js';", '')
   .replace("import { handleSessionFailure } from './login.js';", '')
+  .replace("import { showAdminView, navigateAdminView } from './admin-view.js';", `function showAdminView(document, view) { document.querySelector('#leader-content').hidden = view !== 'home'; document.querySelector('#leader-players').hidden = view !== 'players'; document.querySelector('#leader-maps').hidden = view !== 'maps'; } function navigateAdminView(window, view) { const url = new URL(window.location.href); if (view === 'home') url.searchParams.delete('view'); else url.searchParams.set('view', view); url.hash = ''; window.history.pushState(null, '', url.href); }`)
   .replace("await import('./config.local.js')", 'getConfig()')
   .replace('export function', 'function');
 const id = '12345678-1234-4321-9876-123456789abc';
@@ -17,11 +18,11 @@ function element() {
   };
 }
 function page(role = 'leader', responses = [[{ character_id: id, name: '<img src=x>' }]]) {
-  const els = Object.fromEntries(['#leader-content', '#leader-players', '#players-list', '#players-status',
+  const els = Object.fromEntries(['#leader-content', '#leader-players', '#leader-maps', '#players-list', '#players-status',
     '#leader-sheet', 'main', '#leader-players-link', '#players-back'].map(key => [key, element()]));
   const requests = [];
-  const window = {};
-  const context = vm.createContext({ window, encodeURIComponent,
+  const window = { location: { href: 'https://example.test/index.html' }, history: { pushState(_, __, href) { window.location.href = href; } } };
+  const context = vm.createContext({ window, URL, encodeURIComponent,
     handleSessionFailure: async () => {},
     getCurrentUser: () => role ? { role, session_token: 'ab'.repeat(32) } : null,
     document: { querySelector: key => els[key], createElement: () => element() },
@@ -41,6 +42,7 @@ function page(role = 'leader', responses = [[{ character_id: id, name: '<img src
 (async () => {
   const p = page('leader', [[{ character_id: id, name: '<img src=x>' }], [{ id, name: 'Test Postava' }]]);
   await p.open();
+  assert.equal(new URL(p.window.location.href).searchParams.get('view'), 'players');
   assert.equal(p.els['#leader-content'].hidden, true);
   assert.equal(p.els['#leader-players'].hidden, false);
   assert.equal(p.requests.length, 1);
@@ -58,6 +60,7 @@ function page(role = 'leader', responses = [[{ character_id: id, name: '<img src
   assert.ok(p.requests[1].url.endsWith('/rpc/leader_character'));
   assert.deepEqual(p.requests[1].payload, { p_character_id: id, p_session_token: 'ab'.repeat(32) });
   p.back();
+  assert.equal(new URL(p.window.location.href).searchParams.get('view'), null);
   assert.equal(p.els['#leader-players'].hidden, true);
   assert.equal(p.els['#leader-sheet'].src, undefined);
   await assert.rejects(p.window.loadLeaderCharacter(id));

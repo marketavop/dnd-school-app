@@ -4,6 +4,7 @@ const vm = require('node:vm');
 const source = (fs.readFileSync('public/leader-map-api.js', 'utf8').replace('export const', 'const').replaceAll('export async function', 'async function') + fs.readFileSync('public/leader-maps.js', 'utf8').replace("import { loadMaps, setActiveMap } from './leader-map-api.js';", '').replace("import { openMapPreparation } from './map-preparation.js';", '').replace("import { getCurrentUser } from './login.js';", ''))
   .replace("import { getCurrentUser } from './login.js';", '')
   .replace("import { handleSessionFailure } from './login.js';", '')
+  .replace("import { showAdminView, navigateAdminView } from './admin-view.js';", `function showAdminView(document, view) { document.querySelector('#leader-content').hidden = view !== 'home'; document.querySelector('#leader-players').hidden = view !== 'players'; document.querySelector('#leader-maps').hidden = view !== 'maps'; } function navigateAdminView(window, view) { const url = new URL(window.location.href); if (view === 'home') url.searchParams.delete('view'); else url.searchParams.set('view', view); url.hash = ''; window.history.pushState(null, '', url.href); }`)
   .replace("await import('./config.local.js')", 'config')
   .replaceAll('export function', 'function');
 function page(role = 'leader', result = [
@@ -17,7 +18,9 @@ function page(role = 'leader', result = [
   const els = Object.fromEntries(['leader-content', 'leader-maps', 'maps-list', 'maps-status',
     'leader-maps-link', 'maps-back'].map(id => [id, element()]));
   const requests = [];
+  const window = { location: { href: 'https://example.test/index.html' }, history: { pushState(_, __, href) { window.location.href = href; } } };
   vm.runInNewContext(source, {
+    window, URL,
     handleSessionFailure: async () => {},
     openMapPreparation() {},
     getCurrentUser: () => role ? { role, session_token: 'test-session' } : null,
@@ -35,11 +38,12 @@ function page(role = 'leader', result = [
       return { ok: result !== false, status: 403, json: async () => result };
     },
   });
-  return { els, requests, open: () => els['leader-maps-link'].handlers.click({ preventDefault() {} }),
+  return { els, requests, window, open: () => els['leader-maps-link'].handlers.click({ preventDefault() {} }),
     back: () => els['maps-back'].handlers.click() };
 }
 (async () => {
   const p = page(); await p.open();
+  assert.equal(new URL(p.window.location.href).searchParams.get('view'), 'maps');
   assert.equal(p.els['leader-content'].hidden, true);
   assert.equal(p.els['leader-maps'].hidden, false);
   assert.deepEqual(p.els['maps-list'].children.map(x => x.textContent), ['○ <Test map>', '● Mapa akademie — Aktivní']);
@@ -50,6 +54,7 @@ function page(role = 'leader', result = [
   assert.equal(p.requests[1].url, 'https://example.supabase.co/rest/v1/rpc/leader_set_active_map');
   assert.deepEqual(JSON.parse(p.requests[1].body), { p_session_token: 'test-session', p_map_id: 'test-map' });
   p.back(); assert.equal(p.els['leader-maps'].hidden, true);
+  assert.equal(new URL(p.window.location.href).searchParams.get('view'), null);
   assert.equal(p.els['maps-list'].children.length, 0);
   for (const role of ['player', null, 'admin']) {
     const denied = page(role); await denied.open(); assert.equal(denied.requests.length, 0);
