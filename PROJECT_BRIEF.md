@@ -355,7 +355,11 @@ viditelné také **HP (aktuální / maximum)**.
 
 Portrét postavy je zároveň obrázkem hráčského tokenu.
 
-Hráč může vlastní obrázek změnit, pokud implementace zůstane jednoduchá.
+Hráč může nahrát, změnit a odstranit portrét vlastní postavy.
+Vedoucí portrét hráčské postavy pouze vidí. Studentský průkaz otevřený
+Vedoucím zůstává kompletně read-only; správa portrétu hráčské postavy
+Vedoucím není součástí MVP.
+
 Nevytváříme editor avatarů, cropper ani složité zpracování obrázků.
 
 ### XP

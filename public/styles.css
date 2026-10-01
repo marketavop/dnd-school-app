@@ -109,6 +109,9 @@
 :where(.character-page) .identity { display: flex; align-items: flex-start; gap: 24px; }
 :where(.character-page) .portrait { width: 96px; height: 96px; flex: 0 0 96px; border: 1px solid #b7a579; border-radius: 50%; background: #f2eee3; display: grid; place-items: center; overflow: hidden; color: var(--accent); }
 :where(.character-page) .portrait img { width: 100%; height: 100%; object-fit: cover; }
+:where(.character-page) #portrait-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+:where(.character-page) #portrait-controls[hidden] { display: none; }
+:where(.character-page) #portrait-status { font-size: 14px; }
 :where(.character-page) dl { flex: 1; min-width: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 16px; }
 :where(.character-page) .name { grid-column: 1 / -1; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
 :where(.character-page) .hp-block { grid-column: span 2; }
