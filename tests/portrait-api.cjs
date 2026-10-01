@@ -47,10 +47,41 @@ vm.runInContext(source, context);
   assert.equal(call.body.get('entity_type'), 'character');
   assert.equal(call.body.get('entity_id'), 'id');
   assert.equal(call.body.get('file').name, 'test.png');
+  const limit = 5 * 1024 * 1024;
+  for (const options of [undefined, { entityType: 'npc' }]) {
+    const before = calls.length;
+    const boundary = new File([new Uint8Array(limit)], 'boundary.png', { type: 'image/png' });
+    await context.uploadPortrait('id', boundary, options);
+    assert.equal(calls.length, before + 1, 'Exactly 5 MiB passes client size preflight');
+    assert.equal(calls.at(-1).body.get('file').size, limit);
+    const oversized = new File([new Uint8Array(limit + 1)], 'oversized.png', { type: 'image/png' });
+    await assert.rejects(context.uploadPortrait('id', oversized, options), error =>
+      error.code === 'FILE_TOO_LARGE' && error.message === 'Obrázek je příliš velký. Maximum je 5 MiB.');
+    assert.equal(calls.length, before + 1, 'Oversized file must never fetch');
+  }
   result = { object_path: null };
   await context.removePortrait('id');
   assert.deepEqual([...calls.at(-1).body.keys()], ['action', 'entity_type', 'entity_id']);
   assert.equal(calls.at(-1).body.get('action'), 'remove');
+  result = { signed_url: 'https://project.test/signed-npc' };
+  assert.equal(await context.portraitImageUrl('npc-definition', { entityType: 'npc', mapId: 'mapa-akademie' }), result.signed_url);
+  assert.deepEqual(JSON.parse(calls.at(-1).body), {
+    entity_type: 'npc', entity_id: 'npc-definition', map_id: 'mapa-akademie',
+  });
+  await context.portraitImageUrl('npc-definition', { entityType: 'npc' });
+  assert.deepEqual(JSON.parse(calls.at(-1).body), { entity_type: 'npc', entity_id: 'npc-definition' });
+  result = { object_path: 'npcs/npc-definition/new.png', cleanup_pending: true };
+  await context.uploadPortrait('npc-definition', file, { entityType: 'npc' });
+  assert.equal(calls.at(-1).body.get('entity_type'), 'npc');
+  assert.equal(calls.at(-1).body.get('entity_id'), 'npc-definition');
+  assert.equal(calls.at(-1).body.get('action'), 'upload');
+  assert.equal(calls.at(-1).body.get('file').name, 'test.png');
+  result = { object_path: null };
+  await context.removePortrait('npc-definition', { entityType: 'npc' });
+  assert.equal(calls.at(-1).body.get('entity_type'), 'npc');
+  assert.equal(calls.at(-1).body.get('entity_id'), 'npc-definition');
+  assert.equal(calls.at(-1).body.get('action'), 'remove');
+  assert.equal(calls.at(-1).body.has('file'), false);
   for (const code of [403, 409, 503]) {
     status = code; result = { error: 'secret', outcome_unknown: code === 503 };
     await assert.rejects(context.removePortrait('id'), e => e.status === code && !e.message.includes('secret') && e.outcome_unknown === (code === 503));

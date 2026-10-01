@@ -3,7 +3,7 @@
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const source = (readFileSync('public/grid.js', 'utf8').replace('export ', '') + readFileSync('public/app.js', 'utf8').replace("import { renderGrid } from './grid.js';", '').replace("import { configureMapImageUrl, resolveMapImage } from './map-image.js';", 'const configureMapImageUrl = () => {}; const resolveMapImage = async path => path;'))
+const source = (readFileSync('public/grid.js', 'utf8').replace('export ', '') + readFileSync('public/app.js', 'utf8').replace("import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';", '').replace("import { renderGrid } from './grid.js';", '').replace("import { configureMapImageUrl, resolveMapImage } from './map-image.js';", 'const configureMapImageUrl = () => {}; const resolveMapImage = async path => path;'))
   .replace("await import('./config.local.js')", 'testConfig')
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'testSdk');
 const otherId = '10000000-0000-0000-0000-000000000002';
@@ -49,11 +49,12 @@ function emit(table, row, event = 'UPDATE') {
 }
 const coords = mapId => ({ x: rows.token_positions[mapId].x, y: rows.token_positions[mapId].y });
 
-async function client(role = 'leader', ownId = characterId) {
+async function client(role = 'leader', ownId = characterId, portrait = {}) {
+  const portraitCalls = [];
   const elements = {};
   elements['map-select-label'] = {};
   for (const id of ['npc-controls', 'npc-status', 'npc-list', 'npc-form']) {
-    elements[id] = { handlers: {}, append() {}, replaceChildren() {}, addEventListener(k, fn) { this.handlers[k] = fn; } };
+    elements[id] = { handlers: {}, setAttribute() {}, append() {}, replaceChildren() {}, addEventListener(k, fn) { this.handlers[k] = fn; } };
   }
   for (const id of ['scene-players', 'scene-players-list', 'map', 'map-space', 'grid', 'map-status', 'token', 'status', 'connection', 'position', 'cell-size', 'cell-size-error', 'cell-size-status', 'map-select', 'active-map-status', 'add-token', 'add-token-message', 'remove-token', 'remove-token-message']) {
     elements[id] = { style: {}, attributes: {}, handlers: {}, children: [], validity: {},
@@ -160,6 +161,12 @@ async function client(role = 'leader', ownId = characterId) {
   const context = vm.createContext({
     testConfig: { SUPABASE_URL: 'https://test.supabase.co', SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' },
     testSdk: sdk,
+    portraitImageUrl: async (id, options) => {
+      portraitCalls.push({ id, ...options });
+      if (portrait.wait) await portrait.wait;
+      if (portrait.error) throw portrait.error;
+      return portrait.url === undefined ? 'https://storage.test/signed-player' : portrait.url;
+    },
     getCurrentUser: () => ({ role, session_token: 'test-session' }),
     configureMapImageUrl() {}, mapImageSrc() {}, handleSessionFailure: async () => {},
     fetch: async (url, options) => {
@@ -178,7 +185,7 @@ async function client(role = 'leader', ownId = characterId) {
         loadGameTokens: async mapId => {
           const response = await sdk.createClient().from('token_positions').select().eq('map_id', mapId).maybeSingle();
           if (response.error) throw response.error;
-          const roster = [{ character_id: characterId, name: 'Test', portrait_path: './portrait.png', ...(response.data || { x: null, y: null }) }];
+          const roster = [{ character_id: characterId, name: 'Test', portrait_path: portrait.path === undefined ? 'characters/fixture/upload.png' : portrait.path, ...(response.data || { x: null, y: null }) }];
           roster.push({ character_id: otherId, name: 'Druhá postava', portrait_path: null, ...(otherPositions[mapId] || { x: null, y: null }) });
           // Foreign token first deliberately: controls must use identity, not order.
           return role === 'leader' ? roster : roster.filter(row => row.character_id === ownId || row.x !== null)
@@ -209,18 +216,18 @@ async function client(role = 'leader', ownId = characterId) {
     document: { baseURI: 'http://localhost/game.html', querySelector: s => elements[s.slice(1)],
       createElement() { return { style: {}, attributes: {}, handlers: {}, children: [], classList: { add() {}, remove() {} },
         setAttribute(k, v) { this.attributes[k] = v; },
-        append(...children) { this.children.push(...children); }, remove() {},
+        append(...children) { this.children.push(...children); }, remove() { this.removed = true; },
         addEventListener(type, handler) { this.handlers[type] = handler; },
         setPointerCapture() {}, releasePointerCapture() {}, hasPointerCapture() { return true; },
       }; }, createElementNS() { return { setAttribute() {} }; } },
   });
   // Zpřístupníme pouze čekání na interní frontu pro deterministické testy.
   await vm.runInContext(`(async () => { ${mapApiSource}\n window.parent.setLeaderActiveMap = setActiveMap; })()`, context);
-  await vm.runInContext(`(async () => { ${source}\n globalThis.flush = () => Promise.resolve(); globalThis.tokenStates = tokens; })()`, context);
+  await vm.runInContext(`(async () => { ${source}\n globalThis.flush = () => Promise.resolve(); globalThis.tokenStates = tokens; globalThis.portraitTest = { createToken, render, loadPosition }; })()`, context);
   await ready;
   await settle();
   Object.defineProperty(elements, 'token', { get: () => context.tokenStates.get(ownId)?.element || { hidden: true, style: {}, handlers: {} } });
-  return { elements, tokenStates: context.tokenStates, async realtimeState(state) {
+  return { portraitCalls, portraitTest: context.portraitTest, elements, tokenStates: context.tokenStates, async realtimeState(state) {
     await mapStateChange(state);
     await settle();
   }, async switchMap(mapId) {
@@ -286,7 +293,7 @@ async function client(role = 'leader', ownId = characterId) {
   assert.equal(player.tokenStates.size, 1);
   assert.equal(a.tokenStates.get(otherId).element.hidden, true);
   assert.equal(a.tokenStates.get(otherId).action.textContent, 'Přidat');
-  assert.equal(a.elements.token.children[0].src, 'http://localhost/portrait.png');
+  assert.equal(a.elements.token.children[0].src, 'https://storage.test/signed-player');
   assert.equal(a.elements.token.children[0].draggable, false);
   await a.input(150);
   assert.equal(size(b), 150); assert.equal(b.elements.token.style.width, '135px');
@@ -597,6 +604,61 @@ async function client(role = 'leader', ownId = characterId) {
   assert.equal(absent.tokenStates.has(otherId), Boolean(otherPositions['mapa-akademie']));
   await a.switchMap('test-map');
   assert.equal(absent.tokenStates.get(otherId).element.hidden, false);
+  rows.game_state.active_map_id = 'test-map';
+  rows.token_positions['test-map'] = { character_id: characterId, map_id: 'test-map', x: 50, y: 50 };
+  for (const role of ['leader', 'player']) {
+    const signed = await client(role);
+    await new Promise(setImmediate);
+    assert.deepEqual(signed.portraitCalls, [{ id: characterId, mapId: 'test-map' }]);
+    const token = signed.tokenStates.get(characterId).element;
+    assert.equal(token.children[0].src, 'https://storage.test/signed-player');
+    assert.equal(token.textContent, 'T');
+    token.children[0].handlers.error();
+    assert.equal(token.children[0].removed, true);
+    assert.equal(token.textContent, 'T');
+  }
+  for (const config of [{ path: null }, { url: null }, { error: { status: 403 } }, { error: new Error('offline') }]) {
+    const fallback = await client('player', characterId, config);
+    await new Promise(setImmediate);
+    const token = fallback.tokenStates.get(characterId).element;
+    assert.equal(token.children.length, 0);
+    assert.equal(token.textContent, 'T');
+    assert.equal(fallback.portraitCalls.length, config.path === null ? 0 : 1);
+  }
+  for (const invalidation of ['placement', 'removed', 'recreated', 'map']) {
+    rows.game_state.active_map_id = 'test-map';
+    let finish;
+    const delayed = await client('leader', characterId, { wait: new Promise(resolve => { finish = resolve; }) });
+    const old = delayed.tokenStates.get(characterId);
+    if (invalidation === 'placement') {
+      old.saved = null;
+      delayed.portraitTest.render(old, null);
+    } else if (invalidation === 'map') {
+      await delayed.switchMap('mapa-akademie');
+    } else {
+      old.element.remove();
+      delayed.tokenStates.delete(characterId);
+      if (invalidation === 'recreated') {
+        const replacement = delayed.portraitTest.createToken({ character_id: characterId, name: 'New', portrait_path: null });
+        replacement.saved = { x: 50, y: 50 };
+        delayed.portraitTest.render(replacement, replacement.saved);
+      }
+    }
+    finish(); await new Promise(setImmediate);
+    assert.equal(old.element.children.length, 0, invalidation);
+    if (invalidation === 'recreated') assert.equal(delayed.tokenStates.get(characterId).element.children.length, 0);
+  }
+  rows.game_state.active_map_id = 'test-map';
+  delete rows.token_positions['test-map'];
+  const later = await client('leader');
+  assert.equal(later.portraitCalls.length, 0);
+  rows.token_positions['test-map'] = { character_id: characterId, map_id: 'test-map', x: 50, y: 50 };
+  await later.portraitTest.loadPosition();
+  await new Promise(setImmediate);
+  assert.deepEqual(later.portraitCalls, [{ id: characterId, mapId: 'test-map' }]);
+  assert.equal(later.tokenStates.get(characterId).element.children[0].src, 'https://storage.test/signed-player');
+  await later.portraitTest.loadPosition();
+  assert.equal(later.portraitCalls.length, 1, 'ordinary refresh must not re-sign an existing token');
   failRead = true;
   const broken = await client();
   assert.equal(broken.elements['active-map-status'].textContent, 'Aktivní mapu se nepodařilo načíst. Zkus obnovit stránku.');

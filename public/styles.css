@@ -2,6 +2,15 @@
 :where(.home-page, .game-page) body { margin: 32px; font: 16px/1.5 system-ui, sans-serif; color: #26384f; background: #f2eee5; }
 
 /* Shared visibility (original home/character behavior) */
+.portrait-error {
+  background: #fde8e7;
+  color: #821b1b;
+  border: 1px solid #c46b68;
+  padding: 10px 12px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
 :where(.home-page, .character-page) [hidden] { display: none !important; }
 
 /* Home, login and leader administration */

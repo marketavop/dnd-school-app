@@ -39,6 +39,10 @@ async function setupPortrait(character, reload) {
   const portrait = document.querySelector('#portrait');
   const placeholder = document.querySelector('#portrait-placeholder');
   const message = document.querySelector('#portrait-status');
+  const report = (text, error = false) => {
+    message.textContent = text;
+    message.setAttribute('class', error ? 'portrait-error' : '');
+  };
   const controls = document.querySelector('#portrait-controls');
   const upload = document.querySelector('#portrait-upload');
   const remove = document.querySelector('#portrait-remove');
@@ -62,7 +66,7 @@ async function setupPortrait(character, reload) {
     placeholder.setAttribute('hidden', '');
   });
   portrait.addEventListener('error', () => {
-    reset(); message.textContent = 'Obrázek se nepodařilo zobrazit.';
+    reset(); report('Obrázek se nepodařilo zobrazit.', true);
   });
   const refresh = async () => {
     reset();
@@ -72,24 +76,24 @@ async function setupPortrait(character, reload) {
     if (url) portrait.src = url;
   };
   try { await refresh(); }
-  catch { message.textContent = 'Portrét se nepodařilo načíst. Zkuste obnovit stránku.'; }
+  catch { report('Portrét se nepodařilo načíst. Zkuste obnovit stránku.', true); }
   buttons();
   if (readOnly || getCurrentUser()?.role !== 'player') return;
   controls.hidden = false;
   const change = async (action, selectedFile) => {
     if (busy || uncertain) return;
     busy = true; buttons();
-    message.textContent = 'Ukládám portrét…';
+    report('Ukládám portrét…');
     try {
       const result = action === 'upload'
         ? await uploadPortrait(character.id, selectedFile) : await removePortrait(character.id);
       hasImage = result.object_path !== null;
-      message.textContent = result.cleanup_pending
-        ? 'Portrét uložen; úklid starého souboru čeká na dokončení.' : 'Portrét uložen.';
+      report(result.cleanup_pending
+        ? 'Portrét uložen; úklid starého souboru čeká na dokončení.' : 'Portrét uložen.');
       try { await refresh(); }
-      catch { message.textContent = 'Změna byla uložena, ale portrét se nepodařilo načíst. Obnovte stránku.'; }
+      catch { report('Změna byla uložena, ale portrét se nepodařilo načíst. Obnovte stránku.', true); }
     } catch (error) {
-      message.textContent = 'Změna portrétu se nezdařila.';
+      report(error.code === 'FILE_TOO_LARGE' ? error.message : 'Změna portrétu se nezdařila.', true);
       if (error.status === 409 || error.outcome_unknown) {
         uncertain = true;
         try {
@@ -97,10 +101,10 @@ async function setupPortrait(character, reload) {
           hasImage = current.portrait_path != null;
           await refresh();
           uncertain = false;
-          message.textContent = 'Výsledek požadavku nebyl potvrzen. Zobrazen je aktuální stav; můžete zkusit akci znovu.';
+          report('Výsledek požadavku nebyl potvrzen. Zobrazen je aktuální stav; můžete zkusit akci znovu.', true);
         } catch {
           reset();
-          message.textContent = 'Aktuální stav nelze ověřit. Před další změnou obnovte stránku.';
+          report('Aktuální stav nelze ověřit. Před další změnou obnovte stránku.', true);
         }
       }
     } finally { busy = false; file.value = ''; buttons(); }

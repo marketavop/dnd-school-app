@@ -25,8 +25,9 @@ async function request(endpoint, body, multipart = false) {
   return data;
 }
 
-export async function portraitImageUrl(id) {
-  const data = await request('portrait-image-url', { entity_type: 'character', entity_id: id });
+export async function portraitImageUrl(id, { entityType = 'character', mapId } = {}) {
+  const data = await request('portrait-image-url', { entity_type: entityType, entity_id: id,
+    ...(mapId !== undefined ? { map_id: mapId } : {}) });
   if (data?.signed_url === null) return null;
   if (typeof data?.signed_url !== 'string' || !data.signed_url.startsWith('https://')) {
     throw new Error('Portrét není dostupný.');
@@ -34,10 +35,10 @@ export async function portraitImageUrl(id) {
   return data.signed_url;
 }
 
-async function write(id, action, file) {
+async function write(id, action, file, { entityType = 'character' } = {}) {
   const form = new FormData();
   form.set('action', action);
-  form.set('entity_type', 'character');
+  form.set('entity_type', entityType);
   form.set('entity_id', id);
   if (file) form.set('file', file);
   const data = await request('portrait-write', form, true);
@@ -47,5 +48,10 @@ async function write(id, action, file) {
   return data;
 }
 
-export function uploadPortrait(id, file) { return write(id, 'upload', file); }
-export function removePortrait(id) { return write(id, 'remove'); }
+export async function uploadPortrait(id, file, options) {
+  if (file.size > 5 * 1024 * 1024) {
+    throw Object.assign(new Error('Obrázek je příliš velký. Maximum je 5 MiB.'), { code: 'FILE_TOO_LARGE' });
+  }
+  return write(id, 'upload', file, options);
+}
+export function removePortrait(id, options) { return write(id, 'remove', undefined, options); }
