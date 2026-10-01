@@ -33,3 +33,23 @@ export async function setActiveMap(mapId) {
   if (!Array.isArray(rows) || rows.length !== 1 || rows[0].active_map_id !== mapId) throw new Error('Invalid map response');
   return rows[0];
 }
+
+export async function deleteMap(mapId) {
+  const user = getCurrentUser();
+  if (user?.role !== 'leader' || !user.session_token) throw new Error('Access denied');
+  const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = await import('./config.local.js');
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/leader-map-delete`, {
+    method: 'POST', credentials: 'omit', cache: 'no-store',
+    headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json', 'x-session-token': user.session_token },
+    body: JSON.stringify({ map_id: mapId }),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    await handleSessionFailure(response);
+    throw Object.assign(new Error('Map delete failed'), { code: result.code });
+  }
+  if (result.deleted !== true || !['removed', 'skipped', 'failed'].includes(result.storage_cleanup)) {
+    throw new Error('Invalid map delete response');
+  }
+  return result;
+}

@@ -892,6 +892,15 @@ V MVP nemáme:
 
 Vedoucí má seznam připravených map.
 
+**Mazání neaktivních map je implementovanou součástí MVP.** Vedoucí může
+z knihovny odstranit neaktivní mapu. Aktivní mapu nelze smazat; tento zákaz
+vynucuje backend.
+
+Smazání odstraní také herní data vázaná na cílovou mapu, včetně rozmístění
+hráčských tokenů a NPC a konfigurace mapy. U uploadované mapy se aplikace
+pokusí odstranit také její obrázek ze Storage. Selhání tohoto cleanupu
+nevrací databázové smazání zpět.
+
 Hráči tento seznam nevidí a nemají dostávat názvy, náhledy ani data
 neaktivních map.
 

@@ -1,6 +1,6 @@
 import { getCurrentUser } from './login.js';
 
-import { loadMaps, setActiveMap } from './leader-map-api.js';
+import { loadMaps, setActiveMap, deleteMap } from './leader-map-api.js';
 import { openMapPreparation } from './map-preparation.js';
 import { showAdminView, navigateAdminView } from './admin-view.js';
 
@@ -10,8 +10,8 @@ const list = document.querySelector('#maps-list');
 const status = document.querySelector('#maps-status');
 let generation = 0;
 
-document.querySelector('#leader-maps-link').addEventListener('click', async event => {
-  event.preventDefault();
+async function showMaps(event) {
+  event?.preventDefault();
   if (getCurrentUser()?.role !== 'leader') return;
   if (new URL(window.location.href).searchParams.get('view') !== 'maps') navigateAdminView(window, 'maps');
   showAdminView(document, 'maps');
@@ -63,6 +63,32 @@ document.querySelector('#leader-maps-link').addEventListener('click', async even
           }
         });
         actions.append(button);
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.textContent = 'Smazat';
+        remove.addEventListener('click', async () => {
+          if (panel.dataset.saving === 'true') return;
+          if (!window.confirm(`Opravdu smazat mapu „${row.name}“ včetně rozmístění tokenů a NPC? Tuto akci nelze vrátit.`)) return;
+          panel.dataset.saving = 'true';
+          remove.disabled = true;
+          let message = '';
+          try {
+            const result = await deleteMap(row.map_id);
+            if (result.storage_cleanup === 'failed') message = 'Mapa a její rozmístění byly smazány, ale obrázek se ze Storage nepodařilo odstranit. Je nutný ruční úklid.';
+          } catch (error) {
+            message = error.code === 'MAP_ACTIVE'
+              ? 'Mapa je nyní aktivní a nelze ji smazat.'
+              : 'Smazání mapy se nepodařilo potvrdit. Zkontrolujte obnovený seznam; pokud přihlášení vypršelo, přihlaste se znovu.';
+          } finally {
+            panel.dataset.saving = 'false';
+            remove.disabled = false;
+          }
+          if (request !== generation) return;
+          const refreshed = generation + 1;
+          await showMaps();
+          if (generation === refreshed && message) status.textContent = message;
+        });
+        actions.append(remove);
       }
       const prepare = document.createElement('button');
       prepare.type = 'button';
@@ -79,7 +105,8 @@ document.querySelector('#leader-maps-link').addEventListener('click', async even
     list.replaceChildren();
     status.textContent = 'Mapy se nepodařilo načíst. Zkuste to znovu; pokud přihlášení vypršelo, obnovte stránku a přihlaste se.';
   }
-});
+}
+document.querySelector('#leader-maps-link').addEventListener('click', showMaps);
 
 document.querySelector('#maps-home-nav')?.addEventListener('click', event => {
   event.preventDefault();
