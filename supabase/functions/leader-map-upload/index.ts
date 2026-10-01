@@ -12,12 +12,72 @@ function dimensions(bytes: Uint8Array, type: string): [number, number] | null {
   if (type === 'image/png' && bytes.length >= 24 && view.getUint32(0) === 0x89504e47) {
     return [view.getUint32(16), view.getUint32(20)];
   }
-  if (type === 'image/webp' && bytes.length >= 30 && new TextDecoder().decode(bytes.slice(0, 4)) === 'RIFF') {
-    const chunk = new TextDecoder().decode(bytes.slice(12, 16));
-    if (chunk === 'WEBP') {
-      const kind = new TextDecoder().decode(bytes.slice(16, 20));
-      if (kind === 'VP8X') return [1 + bytes[24] + (bytes[25] << 8) + (bytes[26] << 16), 1 + bytes[27] + (bytes[28] << 8) + (bytes[29] << 16)];
+  if (type === 'image/webp') {
+    // Inspect the RIFF container and image headers, without decoding pixels.
+    // https://developers.google.com/speed/webp/docs/riff_container
+    const text = (p: number, n: number) => new TextDecoder().decode(bytes.subarray(p, p + n));
+    const u24 = (p: number) => bytes[p] + bytes[p + 1] * 256 + bytes[p + 2] * 65536;
+    if (bytes.length < 20 || text(0, 4) !== 'RIFF' || text(8, 4) !== 'WEBP'
+      || view.getUint32(4, true) !== bytes.length - 8) return null;
+    const chunks = (start: number, end: number) => {
+      const result = [];
+      for (let p = start; p < end;) {
+        if (p + 8 > end) return null;
+        const length = view.getUint32(p + 4, true);
+        const next = p + 8 + length + (length % 2);
+        if (next > end || (length % 2 && bytes[next - 1] !== 0)) return null;
+        result.push({ kind: text(p, 4), p: p + 8, length });
+        p = next;
+      }
+      return result;
+    };
+    const bitstream = (kind: string, p: number, length: number): [number, number] | null => {
+      if (kind === 'VP8 ') {
+        if (length <= 10 || (bytes[p] & 1)
+          || bytes[p + 3] !== 0x9d || bytes[p + 4] !== 0x01 || bytes[p + 5] !== 0x2a) return null;
+        return [view.getUint16(p + 6, true) & 0x3fff, view.getUint16(p + 8, true) & 0x3fff];
+      }
+      if (kind === 'VP8L') {
+        if (length <= 5 || bytes[p] !== 0x2f || (bytes[p + 4] & 0xe0)) return null;
+        const bits = view.getUint32(p + 1, true);
+        return [(bits & 0x3fff) + 1, ((bits >>> 14) & 0x3fff) + 1];
+      }
+      return null;
+    };
+    const parts = chunks(12, bytes.length);
+    if (!parts?.length) return null;
+    let canvas: [number, number] | null = null;
+    let animated = false, animationHeader = false, images = 0;
+    for (const part of parts) {
+      const { kind, p, length } = part;
+      if (kind === 'VP8X') {
+        if (part !== parts[0] || length !== 10 || (bytes[p] & 0xc1)
+          || bytes[p + 1] || bytes[p + 2] || bytes[p + 3]) return null;
+        canvas = [u24(p + 4) + 1, u24(p + 7) + 1];
+        animated = Boolean(bytes[p] & 2);
+      } else if (kind === 'ANIM') {
+        if (!animated || animationHeader || length !== 6) return null;
+        animationHeader = true;
+      } else if (kind === 'ANMF') {
+        if (!animated || !animationHeader || !canvas || length < 16 || (bytes[p + 15] & 0xfc)) return null;
+        const width = u24(p + 6) + 1, height = u24(p + 9) + 1;
+        if (u24(p) * 2 + width > canvas[0] || u24(p + 3) * 2 + height > canvas[1]) return null;
+        const frame = chunks(p + 16, p + length);
+        if (!frame) return null;
+        const data = frame.filter(item => item.kind === 'VP8 ' || item.kind === 'VP8L');
+        if (data.length !== 1) return null;
+        const size = bitstream(data[0].kind, data[0].p, data[0].length);
+        if (!size || size[0] !== width || size[1] !== height) return null;
+        images++;
+      } else if (kind === 'VP8 ' || kind === 'VP8L') {
+        const size = bitstream(kind, p, length);
+        if (!size || !size[0] || !size[1] || animated || images
+          || (canvas && (canvas[0] !== size[0] || canvas[1] !== size[1]))) return null;
+        canvas = size;
+        images++;
+      }
     }
+    return images ? canvas : null;
   }
   if (type === 'image/jpeg' && view.getUint16(0) === 0xffd8) {
     let offset = 2;
