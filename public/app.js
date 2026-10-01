@@ -1,4 +1,5 @@
 import { renderGrid } from './grid.js';
+import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';
 const map = document.querySelector('#map');
 const mapSpace = document.querySelector('#map-space');
 const mapViewport = document.querySelector('#map-viewport');
@@ -93,9 +94,14 @@ const tokens = new Map();
 const npcs = new Map();
 let npcDefinitions = [];
 const npcBusy = new Set();
+const npcPortraitUncertain = new Set();
 let npcRequest = 0;
 let npcAdding = false;
 const npcStatus = document.querySelector('#npc-status');
+function setNpcStatus(text, portraitError = false) {
+  npcStatus.textContent = text;
+  npcStatus.setAttribute('class', portraitError ? 'portrait-error' : '');
+}
 const npcList = document.querySelector('#npc-list');
 const npcForm = document.querySelector('#npc-form');
 document.querySelector('#npc-controls').hidden = !leaderMode;
@@ -251,6 +257,21 @@ function clearNpcs() {
   npcList.replaceChildren();
 }
 
+async function loadNpcPortrait(state, mapId) {
+  const version = mapVersion;
+  try {
+    const url = await portraitImageUrl(state.npcId, { entityType: 'npc', mapId });
+    if (!url || version !== mapVersion || activeMapId !== mapId || npcs.get(state.id) !== state) return;
+    const image = document.createElement('img');
+    image.alt = '';
+    image.draggable = false;
+    image.referrerPolicy = 'no-referrer';
+    image.addEventListener('error', () => image.remove());
+    image.src = url;
+    state.element.append(image);
+  } catch { /* Keep the initial when the image is unavailable or access changed. */ }
+}
+
 async function refreshNpcs() {
   if (!activeMapId) return;
   const version = mapVersion;
@@ -270,10 +291,13 @@ async function refreshNpcs() {
       state.element.remove(); state.item?.remove(); npcs.delete(id);
     }
     for (const row of rows) {
+      const isNew = !npcs.has(row.id);
       const state = npcs.get(row.id) || createToken({ character_id: row.id,
-        name: row.name || 'NPC', portrait_path: row.image_url }, true);
+        name: row.name || 'NPC' }, true);
       state.saved = { x: row.x, y: row.y };
       state.npcId = row.npc_id;
+      // Existing tokens keep their image until the game/token is recreated (MVP).
+      if (isNew && row.image_url != null) void loadNpcPortrait(state, row.map_id);
       state.visible = row.visible;
       state.element.title = `${row.name || 'NPC'}${row.visible ? '' : ' (skryté hráčům)'}`;
       state.element.style.opacity = row.visible ? '1' : '0.5';
@@ -284,7 +308,7 @@ async function refreshNpcs() {
     console.error('Načtení NPC selhalo:', error);
     if (version === mapVersion && request === npcRequest) {
       clearNpcs();
-      npcStatus.textContent = 'NPC se nepodařilo načíst. Zkus obnovit stránku.';
+      setNpcStatus('NPC se nepodařilo načíst. Zkus obnovit stránku.');
     }
   }
 }
@@ -298,21 +322,75 @@ function drawNpcList() {
     const label = document.createElement('span');
     label.textContent = `${definition.name || 'NPC'}${state ? state.visible ? ' — na mapě' : ' — skryté na mapě' : ''} `;
     item.append(label);
-    const button = (text, action) => {
+    const button = (text, action, portrait = false) => {
       const element = document.createElement('button');
       element.type = 'button'; element.textContent = text;
-      element.disabled = npcBusy.has(definition.id) || Boolean(state?.busy);
+      element.disabled = npcBusy.has(definition.id) || Boolean(state?.busy)
+        || (portrait && npcPortraitUncertain.has(definition.id));
       element.addEventListener('click', action); item.append(element);
     };
     button(state ? 'Odebrat z mapy' : 'Přidat na mapu', () => state
       ? saveNpc(state, 'remove') : changeNpcDefinition(definition, 'add'));
     if (state) button(state.visible ? 'Skrýt' : 'Odhalit', () => saveNpc(state, 'visibility'));
+    const file = document.createElement('input');
+    file.type = 'file'; file.hidden = true;
+    file.accept = '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';
+    file.addEventListener('change', () => {
+      const selected = file.files?.[0];
+      file.value = '';
+      if (selected) return changeNpcPortrait(definition.id, selected);
+    });
+    item.append(file);
+    button(definition.image_url == null ? 'Nahrát obrázek' : 'Změnit obrázek', () => file.click(), true);
+    if (definition.image_url != null) button('Odstranit obrázek', () => changeNpcPortrait(definition.id), true);
     button('Smazat NPC', () => {
       if (window.confirm('Opravdu smazat NPC? Tato akce odstraní NPC ze seznamu a ze všech map.')) {
         return changeNpcDefinition(definition, 'delete');
       }
     });
     npcList.append(item);
+  }
+}
+
+async function changeNpcPortrait(id, file) {
+  if (!leaderMode || npcBusy.has(id) || npcPortraitUncertain.has(id) || drag
+      || [...npcs.values()].some(state => state.npcId === id && state.busy)
+      || !npcDefinitions.some(definition => definition.id === id)) return;
+  const version = mapVersion;
+  npcBusy.add(id); drawNpcList();
+  setNpcStatus('Ukládám obrázek NPC…');
+  try {
+    const result = file ? await uploadPortrait(id, file, { entityType: 'npc' })
+      : await removePortrait(id, { entityType: 'npc' });
+    // Invalidate list reads started before this confirmed write.
+    if (version === mapVersion) npcRequest++;
+    npcDefinitions = npcDefinitions.map(definition => definition.id === id
+      ? { ...definition, image_url: result.object_path } : definition);
+    if (version === mapVersion) setNpcStatus(result.cleanup_pending
+      ? 'Obrázek NPC uložen; úklid starého souboru čeká na dokončení. Token se obnoví po znovunačtení hry.'
+      : 'Obrázek NPC uložen. Token se obnoví po znovunačtení hry.');
+  } catch (error) {
+    if (version === mapVersion) setNpcStatus(error.code === 'FILE_TOO_LARGE'
+      ? error.message : 'Změnu obrázku NPC se nepodařilo uložit.', true);
+    if (error.status === 409 || error.outcome_unknown) {
+      npcPortraitUncertain.add(id);
+      const request = version === mapVersion ? ++npcRequest : npcRequest;
+      try {
+        const definitions = await window.parent.loadNpcDefinitions();
+        if (!Array.isArray(definitions)) throw new Error('Invalid NPC list');
+        if (version === mapVersion && request === npcRequest) {
+          npcDefinitions = definitions;
+          npcPortraitUncertain.delete(id);
+          setNpcStatus('Výsledek změny nebyl potvrzen. Seznam byl znovu načten; můžete akci zopakovat. Token se obnoví po znovunačtení hry.', true);
+        }
+      } catch { /* Keep writes locked until a page reload establishes the state. */ }
+      if (version === mapVersion && npcPortraitUncertain.has(id)) {
+        setNpcStatus('Stav obrázku NPC nelze ověřit. Před další změnou obnovte stránku.', true);
+      }
+    }
+  } finally {
+    npcBusy.delete(id);
+    drawNpcList();
   }
 }
 
@@ -323,17 +401,17 @@ async function changeNpcDefinition(definition, action) {
   if (action === 'add') {
     if (!mapReady || !configReady) return;
     const point = snapToCell({ x: map.naturalWidth / 2, y: map.naturalHeight / 2 });
-    if (!point) { npcStatus.textContent = 'Mapa neobsahuje celé pole pro NPC.'; return; }
+    if (!point) { setNpcStatus('Mapa neobsahuje celé pole pro NPC.'); return; }
     Object.assign(args, { p_map_id: activeMapId, p_x: point.x, p_y: point.y });
   }
   npcBusy.add(definition.id); drawNpcList();
-  npcStatus.textContent = 'Ukládám NPC…';
+  setNpcStatus('Ukládám NPC…');
   try {
     await window.parent.mutateNpc(action, args);
-    if (version === mapVersion) npcStatus.textContent = '';
+    if (version === mapVersion) setNpcStatus('');
   } catch (error) {
     console.error('Změna NPC selhala:', error);
-    if (version === mapVersion) npcStatus.textContent = 'Změnu NPC se nepodařilo uložit. Zkus to znovu.';
+    if (version === mapVersion) setNpcStatus('Změnu NPC se nepodařilo uložit. Zkus to znovu.');
   } finally {
     npcBusy.delete(definition.id);
     if (version === mapVersion) await refreshNpcs();
@@ -345,17 +423,17 @@ async function saveNpc(state, action, point) {
   const version = mapVersion;
   state.busy = true;
   drawNpcList();
-  npcStatus.textContent = 'Ukládám NPC…';
+  setNpcStatus('Ukládám NPC…');
   try {
     const args = { p_placement_id: state.id };
     if (action === 'move') Object.assign(args, { p_x: point.x, p_y: point.y });
     if (action === 'visibility') args.p_visible = !state.visible;
     await window.parent.mutateNpc(action, args);
     if (action === 'move') state.saved = point;
-    if (version === mapVersion) npcStatus.textContent = '';
+    if (version === mapVersion) setNpcStatus('');
   } catch (error) {
     console.error('Změna NPC selhala:', error);
-    if (version === mapVersion) npcStatus.textContent = 'Změnu NPC se nepodařilo uložit. Zkus to znovu.';
+    if (version === mapVersion) setNpcStatus('Změnu NPC se nepodařilo uložit. Zkus to znovu.');
   } finally {
     state.busy = false;
     if (version === mapVersion) {
@@ -369,19 +447,18 @@ npcForm.addEventListener('submit', async event => {
   event.preventDefault();
   if (!leaderMode || npcAdding) return;
   const name = document.querySelector('#npc-name').value.trim();
-  if (!name) { npcStatus.textContent = 'Zadej název NPC.'; return; }
+  if (!name) { setNpcStatus('Zadej název NPC.'); return; }
   const version = mapVersion;
   npcAdding = true;
   const button = npcForm.querySelector('button');
   button.disabled = true;
-  npcStatus.textContent = 'Vytvářím NPC…';
+  setNpcStatus('Vytvářím NPC…');
   try {
-    await window.parent.mutateNpc('create', { p_name: name,
-      p_image_url: document.querySelector('#npc-image').value.trim() || null });
-    if (version === mapVersion) { npcForm.reset(); npcStatus.textContent = ''; await refreshNpcs(); }
+    await window.parent.mutateNpc('create', { p_name: name, p_image_url: null });
+    if (version === mapVersion) { npcForm.reset(); setNpcStatus(''); await refreshNpcs(); }
   } catch (error) {
     console.error('Přidání NPC selhalo:', error);
-    if (version === mapVersion) npcStatus.textContent = 'NPC se nepodařilo přidat. Zkus to znovu.';
+    if (version === mapVersion) setNpcStatus('NPC se nepodařilo přidat. Zkus to znovu.');
   } finally { npcAdding = false; button.disabled = false; }
 });
 
@@ -392,7 +469,7 @@ async function activateMap(mapId, refresh = false) {
   if (mapId === activeMapId && configReady && !refresh) return;
   const version = ++mapVersion;
   clearNpcs();
-  npcStatus.textContent = '';
+  setNpcStatus('');
   if (mapId !== activeMapId) resetCamera();
   activeMapId = mapId;
   configReady = false;
