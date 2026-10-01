@@ -162,21 +162,9 @@ function createToken(row, npc = false) {
   element.style.width = element.style.height = `${tokenDiameter}px`;
   element.setAttribute('aria-label', row.name || 'Postava');
   element.textContent = (row.name || '?').slice(0, 1);
-  if (row.portrait_path) {
-    try {
-      const url = new URL(row.portrait_path, document.baseURI);
-      if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Invalid portrait URL');
-      const portrait = document.createElement('img');
-      portrait.alt = '';
-      portrait.draggable = false;
-      portrait.referrerPolicy = 'no-referrer';
-      portrait.addEventListener('error', () => portrait.remove());
-      portrait.src = url.href;
-      element.append(portrait);
-    } catch (error) { console.error('Portrét tokenu nelze načíst:', error); }
-  }
   mapSpace.append(element);
   const state = { id: row.character_id, name: row.name, npc, element, saved: null, shown: null, busy: false, revision: 0 };
+  if (!npc) state.hasPortrait = row.portrait_path != null;
   (npc ? npcs : tokens).set(state.id, state);
   if (leaderMode && !npc) {
     state.item = document.createElement('li');
@@ -652,7 +640,27 @@ map.addEventListener('error', () => {
 });
 if (map.complete && map.naturalWidth) mapLoaded();
 
+async function loadPlayerPortrait(state, mapId) {
+  const version = mapVersion;
+  state.portraitRequested = true;
+  try {
+    const url = await portraitImageUrl(state.id, { mapId });
+    if (!url || version !== mapVersion || mapId !== activeMapId
+        || tokens.get(state.id) !== state || !state.saved) return;
+    const image = document.createElement('img');
+    image.alt = '';
+    image.draggable = false;
+    image.referrerPolicy = 'no-referrer';
+    image.addEventListener('error', () => image.remove());
+    image.src = url;
+    state.element.append(image);
+  } catch { /* The initial remains visible when signing or authorization fails. */ }
+}
+
 function render(state, point) {
+  if (!state.npc && state.saved && state.hasPortrait && !state.portraitRequested) {
+    void loadPlayerPortrait(state, activeMapId);
+  }
   if (!point) {
     state.element.hidden = true;
     state.shown = null;
