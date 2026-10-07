@@ -101,7 +101,8 @@ Aplikace nemá učit pravidla místo PJ a nemá hrát za dítě.
 -   Neimplementujeme mechaniku jen proto, že existuje v D&D. Musí ji
     skutečně potřebovat naše kampaň.
 -   Web je mechanická podpora online D&D. Papírový deník slouží primárně
-    pro lore, školu, příběh a vlastní poznámky.
+    pro lore, školu, příběh a vlastní dlouhodobé zápisky. Webový Studentský
+    sešit slouží pro pracovní poznámky potřebné při online hraní.
 -   Na mapě optimalizujeme pro rychlé použití. V plném deníku pro správu
     a učení.
 -   Jednoduché, dokončené a pochopitelné řešení má přednost před
@@ -322,7 +323,7 @@ Papírový deník je primární místo pro:
 -   příběh,
 -   NPC poznámky,
 -   lekce,
--   vlastní zápisky a vzpomínky.
+-   osobní a vlastní dlouhodobé zápisky a vzpomínky.
 
 Web je primárně mechanická podpora online D&D.
 
@@ -331,10 +332,14 @@ vyprávění rychlý přístup.
 
 Rozlišujeme:
 
--   **Zázemí / Background** --- mechanický D&D údaj.
+-   **Zázemí / Background** --- samostatný strukturovaný mechanický D&D údaj
+    mezi základními údaji Studentského průkazu; neslučuje se se Studentským sešitem.
 -   **Příběhové pozadí** --- jednoduché free-text pole.
 
-Web může mít také jednoduché obecné **Poznámky** pro situační informace.
+Webový **Studentský sešit** je součástí MVP pro první session: jednoduchá
+pracovní plocha pro poznámky potřebné při online hraní. Nenahrazuje osobní
+dlouhodobé zápisky na papíře. Nevytváříme komplexní digitální deník ani
+knowledge-management systém. Rozsah sešitu a základního Markdownu popisuje §15.
 
 ------------------------------------------------------------------------
 
@@ -346,7 +351,7 @@ Základní identita postavy:
 -   jméno,
 -   rasa,
 -   povolání,
--   zázemí,
+-   zázemí / Background jako samostatný strukturovaný údaj,
 -   level,
 -   XP.
 
@@ -437,8 +442,11 @@ Aplikace automaticky vypočítá:
 
 -   modifikátory vlastností,
 -   proficiency bonus podle levelu,
--   bonusy dovedností,
 -   bonusy záchranných hodů.
+
+Skills jako samostatný seznam dovedností v UI a samostatná evidence
+proficiencies jsou **Později**. Nejsou podmínkou první session. Již
+existující výpočty bonusů dovedností, proficiency a saves se neodstraňují.
 
 V aktuálním MVP se proficiency u **záchranných hodů** automaticky odvozuje z
 `class_code` podle základních povolání D&D 5e 2014. Pro saves proto
@@ -477,6 +485,10 @@ tečkou `●`. Tečka je pouze informační, není klikací ani editovatelná.
 ------------------------------------------------------------------------
 
 ## 12. Iniciativa a pasivní vnímání
+
+Iniciativa (Initiative) a pasivní vnímání (Passive Perception) jsou
+**Později**. Jejich chybějící UI a další implementace nemají blokovat první
+session. Níže uvedený směr platí pro pozdější doplnění; hotové výpočty zůstávají.
 
 **Iniciativa:** aplikace automaticky zobrazuje bonus odvozený z DEX.
 Dítě samo hodí k20 a bonus přičte.
@@ -533,6 +545,8 @@ obratnost“, aby dítě chápalo, odkud hodnota pochází.
 Aplikace AC nepočítá z vybavení.
 
 ### Rychlost
+
+Rychlost (Speed) je **Později**; její chybějící UI není požadavkem první session.
 
 Rychlost je ručně zapsaná hodnota, například `30 ft`.
 
@@ -598,19 +612,40 @@ schopnost.
 
 ### Poznámkové oblasti
 
-Samostatná jednoduchá pole:
-
--   Jazyky,
--   Další odbornosti,
--   Odolnosti a další obrany,
--   Poznámky,
--   Příběhové pozadí.
+Jazyky, samostatná evidence proficiencies / dalších odborností a samostatné
+defenses/resistances (odolnosti a další obrany) jsou **Později**.
+Příběhové pozadí zůstává samostatným údajem podle §8.
 
 Aplikace jejich obsah mechanicky neinterpretuje.
+
+### Studentský sešit
+
+Studentský sešit je **MVP pro první session**. Je to jedno volné textové
+pole pro herní poznámky. Dítě jej edituje a samo si obsah strukturuje;
+Vedoucí jej může zobrazit pouze read-only. Nevytváříme samostatné kategorie
+typu Příběh, NPC nebo Úkoly.
+
+Používá autosave stejně jako ostatní editovatelné údaje, pokud je to
+slučitelné se současným způsobem ukládání.
+
+### Základní Markdown
+
+Inventář i Studentský sešit podporují v MVP pouze:
+
+-   nadpisy `#`–`###`,
+-   tučné písmo a kurzívu,
+-   odrážky a číslovaný seznam,
+-   checkboxy `- [ ]` / `- [x]`.
+
+Obrázky, tabulky, raw HTML, přílohy, pluginy ani pokročilý editor nejsou
+součástí tohoto rozsahu. WYSIWYG editor není požadavek MVP.
 
 ------------------------------------------------------------------------
 
 ## 16. Bojové položky
+
+Samostatný seznam útoků / combat items je **Později** a neblokuje první
+session. Následující popis zachovává směr pro pozdější doplnění.
 
 Zbraň nebo jiný útok má strukturu:
 
@@ -631,6 +666,10 @@ Nevytváříme databázi zbraní, automatické útoky ani automatické damage.
 ------------------------------------------------------------------------
 
 ## 17. Kouzla
+
+Kouzla a spellcasting UI jsou **Později** a neblokují první session.
+Následující popis včetně kouzelnické matematiky platí pro pozdější doplnění;
+již existující funkční výpočty se neodstraňují.
 
 Kouzla jsou strukturovanější, protože jejich struktura má výukovou
 hodnotu.
@@ -689,6 +728,9 @@ Automatizujeme výpočet čísla, nikoliv použití pravidla.
 
 ## 18. Spell sloty
 
+Spell sloty a jejich UI jsou **Později** a neblokují první session.
+Následující popis platí pro pozdější doplnění.
+
 Spell sloty jsou jednoduchý stav **aktuální / maximum**.
 
 Mohou být zobrazeny například:
@@ -711,22 +753,28 @@ Seznam kouzel znamená kouzla, která dítě aktuálně zná/používá.
 
 ## 19. Inventář
 
-Inventář je pasivní seznam:
+Inventář je **MVP pro první session** jako **jedno volné textové pole**.
+Dítě jej edituje a samo si zapisuje názvy, množství a další informace podle
+potřeby. Vedoucí jej může zobrazit pouze read-only. Nejde o strukturovaný
+seznam předmětů. Základní Markdown má stejný omezený rozsah jako Studentský
+sešit (§15).
 
--   název,
--   množství,
--   krátká poznámka.
-
-Peníze jsou běžná položka inventáře.
+Peníze si dítě může zapsat do stejného textu.
 
 Nevytváříme:
 
 -   samostatný měnový systém,
--   váhu/nosnost,
+-   automatickou váhu, cenu ani nosnost,
+-   počítadla ani pravidlovou automatizaci,
 -   equipped state,
 -   automatickou vazbu inventář → AC,
 -   automatickou vazbu inventář → útoky,
 -   databázi předmětů.
+
+**Budoucnost – vzdálená:** strukturovaný inventář, kde je každý předmět
+samostatný databázový záznam. Teď neřešíme item CRUD, množství jako
+samostatné databázové pole, váhu/cenu/nosnost, equipment rules ani
+automatické mechanické účinky předmětů.
 
 ------------------------------------------------------------------------
 
@@ -735,7 +783,7 @@ Nevytváříme:
 Samostatný systém stavových efektů není v MVP.
 
 Pokud je postava například otrávená, dítě si stav může dočasně napsat do
-Poznámek a PJ vysvětlí pravidlový význam.
+Studentského sešitu a PJ vysvětlí pravidlový význam.
 
 Nemáme ikony stavů na tokenech ani automatické efekty.
 
@@ -1068,13 +1116,16 @@ Po reloadu nebo reconnectu musí zůstat důležitý stav:
 -   HP a zdroje,
 -   XP,
 -   inventář,
--   útoky,
--   kouzla,
+-   Studentský sešit,
 -   aktivní mapa,
 -   map-specific pozice tokenů,
 -   NPC a jejich potřebný stav.
 
 Ukládáme aktuální stav, nikoliv zbytečnou historii.
+
+Persistence již existujících údajů zůstává zachována i při odložení
+jejich dalšího UI. Útoky a kouzla budou podléhat stejnému požadavku na
+persistenci při jejich pozdějším doplnění.
 
 Nepotřebujeme:
 
@@ -1088,6 +1139,9 @@ Realtime používáme pro společný herní stav, ne pro presence uživatelů.
 ## 29. Autosave
 
 Deník používá jednoduchý autosave.
+
+Pro Studentský sešit platí stejný autosave jako pro ostatní editovatelné
+údaje, pokud je slučitelný se současným způsobem ukládání.
 
 Uživatel může vidět nenápadné stavy:
 
@@ -1107,6 +1161,10 @@ použije se jednoduché rozumné ukládání/debounce.
 
 MVP zahrnuje:
 
+Pro první ostrou session platí následující rozsah. Přesuny do **Později**
+se týkají chybějícího UI a další implementace; nejsou požadavkem na odstranění
+již existujících funkčních mechanik ani výpočtů používaných jinými funkcemi.
+
 1.  jednoduché přihlášení předem vytvořených účtů + zachování platné session po refreshi,
 2.  dvě role Hráč / Vedoucí,
 3.  domovskou stránku Můj deník / Vstoupit do hry,
@@ -1120,36 +1178,29 @@ MVP zahrnuje:
 11. rasa/povolání/zázemí bez character-builder automatiky,
 12. vlastnosti a automatické modifikátory,
 13. proficiency bonus,
-14. skills/saves + jednoduché automatické bonusy; save proficiency se odvozuje z `class_code`,
-15. initiative bonus,
-16. jednoduché passive perception,
-17. HP current/max + jednoduché +/-,
-18. ruční AC + poznámka,
-19. rychlost,
-20. schopnosti jako název + poznámka,
-21. jazyky, odbornosti a obrany jako jednoduchá pole,
-22. XP + level a jednoduchý threshold hint; změna levelu zůstává ruční,
-23. společné Doplňující info s ručně doplňovaným vysvětlením již probraných D&D pravidel,
-24. ručně zadávané bojové položky,
-25. strukturovaná kouzla,
-26. spell attack bonus a spell save DC jako rutinní matematika,
-27. spell sloty jako aktuální/maximum,
-28. jednoduchý inventář,
-29. Příběhové pozadí + Poznámky,
-30. plný deník + kompaktní mapový panel nad stejnými daty,
-31. mapa + tokeny + kostky + panel deníku; lokální zoom/pan a ovladač „Přizpůsobit mapu“ pro hráče i Vedoucího,
-32. upload/příprava map Vedoucím,
-33. generovaná čtvercová mřížka a nastavení velikosti pole,
-34. knihovna připravených map pouze pro Vedoucího,
-35. jedna aktivní mapa a realtime přepnutí hráčů,
-36. hráčské tokeny s map-specific pozicemi; hráč může vlastní token přidat do aktivní mapy, odebrat a přesouvat,
-37. drag/drop + snap na pole + synchronizace po dropu,
-38. jednoduchý globální seznam NPC (jméno + volitelný obrázek),
-39. přidání/odebrání NPC na konkrétní mapu přes samostatné mapové umístění,
-40. map-specific pozice NPC + visible/hidden bez posílání hidden dat hráčům,
-41. jednoduché kostky,
-42. krátkodobý společný roll log,
-43. persistence důležitého stavu a reconnect.
+14. saves + jednoduché automatické bonusy; save proficiency se odvozuje z `class_code`,
+15. HP current/max + jednoduché +/-,
+16. ruční AC + poznámka,
+17. schopnosti jako název + poznámka,
+18. XP + level a jednoduchý threshold hint; změna levelu zůstává ruční,
+19. společné Doplňující info s ručně doplňovaným vysvětlením již probraných D&D pravidel,
+20. Inventář jako jedno volné textové pole; dítě edituje, Vedoucí čte read-only,
+21. samostatné Příběhové pozadí a Studentský sešit; sešit je jedno volné textové pole pro herní poznámky, dítě jej edituje, Vedoucí čte read-only,
+22. základní Markdown pro Inventář a Studentský sešit v rozsahu §15,
+23. plný deník + kompaktní mapový panel nad stejnými daty,
+24. mapa + tokeny + kostky + panel deníku; lokální zoom/pan a ovladač „Přizpůsobit mapu“ pro hráče i Vedoucího,
+25. upload/příprava map Vedoucím,
+26. generovaná čtvercová mřížka a nastavení velikosti pole,
+27. knihovna připravených map pouze pro Vedoucího,
+28. jedna aktivní mapa a realtime přepnutí hráčů,
+29. hráčské tokeny s map-specific pozicemi; hráč může vlastní token přidat do aktivní mapy, odebrat a přesouvat,
+30. drag/drop + snap na pole + synchronizace po dropu,
+31. jednoduchý globální seznam NPC (jméno + volitelný obrázek),
+32. přidání/odebrání NPC na konkrétní mapu přes samostatné mapové umístění,
+33. map-specific pozice NPC + visible/hidden bez posílání hidden dat hráčům,
+34. jednoduché kostky,
+35. krátkodobý společný roll log,
+36. persistence důležitého stavu a reconnect.
 ------------------------------------------------------------------------
 
 ## 31. Výslovně mimo MVP
@@ -1216,7 +1267,9 @@ První verze je úspěšná, pokud:
 -   přidá vlastní token do aktivní mapy, přesouvá ho a může ho odebrat,
 -   může otevřít deník bez opuštění mapy,
 -   používá jednoduché kostky,
--   mění HP, spell sloty a další běžný stav,
+-   mění HP a další běžný stav v rozsahu první session,
+-   edituje Inventář a Studentský sešit se základním Markdownem,
+-   Vedoucí může Inventář a Studentský sešit zobrazit read-only,
 -   Vedoucí dokáže měnit scénu,
 -   Vedoucí dokáže rozmísťovat hráče a NPC,
 -   důležité změny se synchronizují bez reloadu,
@@ -1297,18 +1350,19 @@ Pokud ne, řešíme architekturu/realtime, nikoliv CSS.
 
 ### Dny 8--11 --- Deník
 
--   identita,
+-   identita včetně samostatného Zázemí / Background,
 -   atributy,
--   skills/saves,
+-   saves a zachování existujících výpočtů,
 -   HP/AC,
 -   XP/level,
 -   schopnosti,
--   bojové položky,
--   kouzla,
--   spell sloty,
--   inventář,
--   poznámková pole,
+-   Inventář jako jedno volné textové pole,
+-   Studentský sešit jako jedno volné textové pole a Příběhové pozadí,
+-   základní Markdown pro Inventář a Studentský sešit,
 -   ukládání/autosave.
+
+Chybějící UI a další implementace funkcí uvedených v §35 jako **Později**
+neblokují dokončení této etapy pro první session.
 
 ### Dny 12--14 --- Herní obrazovka a integrace
 
@@ -1374,11 +1428,24 @@ Vysoká hodnota, ale první session může proběhnout bez toho.
 
 Aktuálně sem patří například:
 
+-   kouzla, spell sloty a spellcasting UI,
+-   Skills jako samostatný seznam dovedností v UI,
+-   Speed (rychlost),
+-   Initiative (iniciativa),
+-   Passive Perception (pasivní vnímání),
+-   jazyky,
+-   samostatná evidence proficiencies,
+-   defenses/resistances (odolnosti a další obrany),
+-   samostatný seznam útoků / combat items,
 -   Hit Dice,
 -   temporary HP,
 -   pinch zoom a fullscreen mapy,
 -   různé velikosti NPC tokenů,
 -   další pohodlné funkce potvrzené reálnou potřebou.
+
+Tyto položky nejsou podmínkou první session. Odklad se týká chybějícího UI
+a další implementace; již existující funkční mechaniky, data a výpočty
+používané jinými funkcemi zůstávají zachovány.
 
 ### Budoucnost
 
@@ -1386,6 +1453,11 @@ Nyní neřešit.
 
 Patří sem zejména funkce směřující k plnohodnotnému VTT, komplexní
 automatizaci pravidel nebo rozšiřování produktu mimo aktuální kampaň.
+
+**Budoucnost – vzdálená:** strukturovaný inventář se samostatným databázovým
+záznamem pro každý předmět. Item CRUD, množství jako samostatné pole,
+váhu/cenu/nosnost, equipment rules a automatické mechanické účinky předmětů
+teď neřešíme.
 
 ------------------------------------------------------------------------
 
@@ -1431,8 +1503,8 @@ Neřešit je předčasně jen kvůli „kompletnímu návrhu".
 4.  **Jednu informaci zadáváme pokud možno pouze jednou.**
 5.  **Strukturu poskytuje aplikace. Obsah dodává PJ a zapisuje hráč.**
 6.  **Deník není character builder ani rules engine.**
-7.  **Web = mechanická podpora; papír = příběh, lore a vlastní
-    poznámky.**
+7.  **Web = mechanická podpora a Studentský sešit pro online hraní;
+    papír = příběh, lore, škola a vlastní dlouhodobé zápisky.**
 8.  **Neimplementujeme mechaniku jen proto, že existuje v D&D.**
 9.  **Kostky simulují fyzickou kostku. Nic víc.**
 10. **PJ řídí scénu. Hráč řídí svou postavu.**
