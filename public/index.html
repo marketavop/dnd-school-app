@@ -95,6 +95,11 @@
     <section id="map-preparation" class="content-section" hidden>
       <button id="prep-back" type="button">← Mapy</button>
       <h1 id="prep-name">Příprava mapy</h1>
+      <label for="prep-content-mode">Typ obsahu</label>
+      <select id="prep-content-mode" disabled>
+        <option value="map">Mapa</option>
+        <option value="image">Obrázek</option>
+      </select>
       <label for="prep-cell-size">Velikost pole (px)</label>
       <input id="prep-cell-size" type="number" step="any" aria-describedby="prep-error" disabled>
       <p id="prep-error" class="error-message" role="status"></p>

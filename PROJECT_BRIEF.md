@@ -1,10 +1,21 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.8
+**Verze:** 1.1.9
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.9
+
+- dokončen režim **Mapa / Obrázek** pro aktivní scénu,
+- `map` je běžná mapa s mřížkou a tokeny; `image` je obrázek bez mřížky a tokenů,
+- Vedoucí nastavuje režim v přípravě map,
+- oba režimy používají existující knihovnu map a přepínání aktivní mapy,
+- režim Obrázek zachovává lokální zoom a posouvání; tokeny se pouze skryjí a jejich interakce se zablokují,
+- uložené pozice tokenů ani viditelnost NPC se při přepnutí režimu nemění; při návratu na mapu se původní tokeny obnoví,
+- přepnutí režimu se synchronizuje klientům přes existující realtime,
+- funkce prošla automatickými testy a osmi akceptačními scénáři se skutečným Supabase a dvěma klienty.
 
 ### Změny ve verzi 1.1.8
 
@@ -967,6 +978,18 @@ Zdrojové mapy jsou bez gridu. Aplikace přes ně vytvoří vlastní čtvercovou
 PJ při přípravě nastaví velikost pole a vidí okamžitý náhled. Každé pole
 představuje 5 ft. Jakmile se mapa používá, velikost gridu už neměníme.
 
+### Režim obsahu mapy
+
+Každá mapa má v MVP jeden z režimů obsahu:
+
+-   `map` — běžná mapa s mřížkou a tokeny,
+-   `image` — obrázek bez mřížky a tokenů.
+
+Vedoucí nastavuje režim v přípravě map. Režim Obrázek zachovává lokální
+zoom a posouvání. Tokeny se pouze skryjí a jejich interakce se zablokují;
+jejich uložené pozice ani viditelnost NPC se nemění. Při návratu do režimu
+Mapa se původní tokeny obnoví.
+
 V MVP nemáme:
 
 -   grid offset,
@@ -999,6 +1022,10 @@ neaktivních map.
 
 Vedoucí nastaví aktivní mapu a hráči jsou automaticky přepnuti v
 realtime.
+
+Oba režimy obsahu používají stejnou existující knihovnu map a stejné
+přepínání aktivní mapy. Přepnutí režimu se synchronizuje všem klientům
+přes existující realtime.
 
 PJ řídí scénu. Hráč mapu nevybírá.
 
@@ -1374,7 +1401,7 @@ Musí být spolehlivý, ale jednoduchý.
 
 ## 34. Roadmapa prvních 20 dní
 
-### Aktuální stav ve verzi 1.1.8
+### Aktuální stav ve verzi 1.1.9
 
 Reorganizace Vedoucího je implementovaná a ověřená se skutečným Supabase
 a dvěma klienty. Serverová autorizace Studentského průkazu zůstává otevřenou
@@ -1382,6 +1409,10 @@ prioritou MVP. SQL bezpečnostní regresní testy ještě vyžadují dokončení
 ověření. `tests/game-layout.cjs` má známý problém se zastaralou fixture;
 nejde o změnu produktového chování. Níže uvedená roadmapa zůstává původním
 plánovacím rámcem.
+
+Režim Mapa / Obrázek prošel automatickými testy a osmi akceptačními scénáři
+se skutečným Supabase a dvěma klienty. Kompletní vizuální redesign zůstává
+vyhrazen závěrečné fázi MVP.
 
 ### Dny 1--3 --- Technický spike
 

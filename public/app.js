@@ -245,6 +245,7 @@ let mapReady = false;
 let configReady = false;
 let savedCellSize = null;
 let configRevision = 0;
+let contentMode = 'map';
 let activeMapId = null;
 let mapVersion = 0;
 let gameStateRevision = 0;
@@ -262,13 +263,28 @@ function updateAddTokenButton() {
   const ready = positionLoaded && mapReady && configReady;
   addTokenButton.hidden = leaderMode || !ready || !own || Boolean(own.saved);
   removeTokenButton.hidden = leaderMode || !ready || !own?.saved;
-  addTokenButton.disabled = removeTokenButton.disabled = !connected || !positionConnected || loading || Boolean(own?.busy);
+  addTokenButton.disabled = removeTokenButton.disabled = contentMode === 'image'
+    || !connected || !positionConnected || loading || Boolean(own?.busy);
   for (const state of tokens.values()) {
     if (!state.action) continue;
     state.label.textContent = `${state.saved ? '●' : '○'} ${state.name}${state.saved ? ' — na mapě' : ''}`;
     state.action.textContent = state.saved ? 'Odebrat' : 'Přidat';
-    state.action.disabled = !ready || !connected || !positionConnected || loading || state.busy || Boolean(drag);
+    state.action.disabled = contentMode === 'image'
+      || !ready || !connected || !positionConnected || loading || state.busy || Boolean(drag);
   }
+}
+
+function applyContentMode() {
+  const imageOnly = contentMode === 'image';
+  grid.style.display = imageOnly ? 'none' : (mapReady ? '' : 'none');
+  for (const state of [...tokens.values(), ...npcs.values()]) {
+    if (imageOnly) state.element.hidden = true;
+    else if (state.saved) render(state, state.saved);
+  }
+  for (const control of [npcPickerToggle, quickNpcOpen]) if (control) control.disabled = imageOnly;
+  if (imageOnly) setNpcPicker(false);
+  refreshNpcViews();
+  updateAddTokenButton();
 }
 
 function createToken(row, npc = false) {
@@ -302,6 +318,7 @@ function createToken(row, npc = false) {
 }
 
 async function editToken(state, action) {
+  if (contentMode === 'image') return;
   if (!leaderMode && state?.id !== gameIdentity.character_id) return;
   if (!state || state.busy || drag || !positionLoaded || !mapReady || !configReady || !connected || !positionConnected || loading) return;
   if (action === 'remove' && !window.confirm('Odebrat postavu z této mapy?')) return;
@@ -433,7 +450,7 @@ function drawNpcPicker() {
     const item = document.createElement('li');
     const button = document.createElement('button');
     button.type = 'button';
-    button.disabled = npcBusy.has(definition.id);
+    button.disabled = contentMode === 'image' || npcBusy.has(definition.id);
     const label = document.createElement('span');
     label.textContent = definition.name || 'NPC';
     button.append(label);
@@ -481,7 +498,7 @@ function drawSceneNpcs() {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = text;
-      button.disabled = state.busy || npcBusy.has(state.npcId);
+      button.disabled = contentMode === 'image' || state.busy || npcBusy.has(state.npcId);
       button.addEventListener('click', () => saveNpc(state, action));
       item.append(button);
     }
@@ -495,7 +512,7 @@ function refreshNpcViews() {
 }
 
 async function addNpcToMap(definition) {
-  if (!leaderMode || npcBusy.has(definition.id) || drag) return;
+  if (contentMode === 'image' || !leaderMode || npcBusy.has(definition.id) || drag) return;
   const version = mapVersion;
   let succeeded = false;
   const args = { p_npc_id: definition.id };
@@ -522,7 +539,7 @@ async function addNpcToMap(definition) {
 }
 
 async function saveNpc(state, action, point) {
-  if (!leaderMode || state.busy || npcBusy.has(state.npcId) || npcs.get(state.id) !== state || drag) return;
+  if (contentMode === 'image' || !leaderMode || state.busy || npcBusy.has(state.npcId) || npcs.get(state.id) !== state || drag) return;
   const version = mapVersion;
   state.busy = true;
   refreshNpcViews();
@@ -672,7 +689,10 @@ function applyCellSize(value) {
   for (const state of [...tokens.values(), ...npcs.values()]) {
     state.element.style.width = state.element.style.height = `${tokenDiameter}px`;
   }
-  if (mapReady) renderGrid(document, grid, map.naturalWidth, map.naturalHeight, cellSize);
+  if (mapReady) {
+    renderGrid(document, grid, map.naturalWidth, map.naturalHeight, cellSize);
+    grid.style.display = contentMode === 'image' ? 'none' : '';
+  }
   cellSizeOutput.value = value;
   // Nevoláme render: jeho omezení na hranice by posunulo střed u kraje mapy.
 }
@@ -682,14 +702,16 @@ async function loadMapConfig(mapId = activeMapId, version = mapVersion) {
   configReady = false;
   showMessage('info', 'Načítám velikost pole z DB…', cellSizeStatus);
   try {
-    const { data, error } = await db.from('map_config').select('cell_size').eq('map_id', mapId).single();
+    const { data, error } = await db.from('map_config').select('cell_size, content_mode').eq('map_id', mapId).single();
     if (version !== mapVersion) return;
     if (error) throw error;
     if (revision === configRevision) {
       if (!validCellSize(data.cell_size)) throw new Error('Neplatná velikost pole v DB (povoleno 20–300 px)');
       savedCellSize = data.cell_size;
+      contentMode = data.content_mode === 'image' ? 'image' : 'map';
     }
     applyCellSize(savedCellSize);
+    applyContentMode();
     configReady = true;
     showMessage('info', 'Velikost pole načtena z DB.', cellSizeStatus);
   } catch (error) {
@@ -709,7 +731,9 @@ function receiveMapConfig(payload) {
   }
   configRevision += 1;
   savedCellSize = value;
+  contentMode = payload.new.content_mode === 'image' ? 'image' : 'map';
   applyCellSize(value);
+  applyContentMode();
   showMessage('info', 'Velikost pole přijata přes realtime.', cellSizeStatus);
 }
 
@@ -717,13 +741,14 @@ function mapLoaded() {
   if (!configReady || !map.complete || !map.naturalWidth) return;
   mapReady = true;
   map.hidden = false;
-  grid.style.display = '';
+  grid.style.display = contentMode === 'image' ? 'none' : '';
   mapSpace.style.width = `${map.naturalWidth}px`;
   mapSpace.style.height = `${map.naturalHeight}px`;
   fitMap();
   renderGrid(document, grid, map.naturalWidth, map.naturalHeight, cellSize);
   mapStatus.textContent = `Mapa: ${map.naturalWidth} × ${map.naturalHeight} px. Souřadnice označují střed tokenu.`;
   for (const state of [...tokens.values(), ...npcs.values()]) render(state, state.saved);
+  applyContentMode();
   updateAddTokenButton();
 }
 map.addEventListener('load', mapLoaded);
@@ -757,7 +782,7 @@ function render(state, point) {
   if (!state.npc && state.saved && state.hasPortrait && !state.portraitRequested) {
     void loadPlayerPortrait(state, activeMapId);
   }
-  if (!point) {
+  if (!point || contentMode === 'image') {
     state.element.hidden = true;
     state.shown = null;
     if (!leaderMode && !state.npc && state.id === gameIdentity.character_id) position.textContent = '—';
@@ -862,7 +887,7 @@ async function loadPosition(mapId = activeMapId, version = mapVersion) {
 }
 
 function beginDrag(state, event) {
-  if (event.button !== 0 || drag || !mapReady || !state.saved || state.busy || loading || !positionLoaded || !connected || !positionConnected || !configReady) return;
+  if (contentMode === 'image' || event.button !== 0 || drag || !mapReady || !state.saved || state.busy || loading || !positionLoaded || !connected || !positionConnected || !configReady) return;
   if (!leaderMode && (state.npc || state.id !== gameIdentity.character_id)) return;
   event.preventDefault();
   const rect = mapSpace.getBoundingClientRect();

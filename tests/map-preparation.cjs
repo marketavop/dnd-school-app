@@ -11,15 +11,16 @@ function page(role = 'leader') {
     addEventListener(k, v) { this.handlers[k] = v; }, replaceChildren() { this.children = []; },
     append(child) { this.children.push(child); }, click() {},
   });
-  for (const id of ['map-preparation', 'leader-maps', 'prep-cell-size', 'prep-error', 'prep-status', 'prep-save',
+  for (const id of ['map-preparation', 'leader-maps', 'prep-content-mode', 'prep-cell-size', 'prep-error', 'prep-status', 'prep-save',
     'prep-image', 'prep-grid', 'prep-space', 'prep-viewport', 'prep-name', 'prep-back', 'leader-maps-link', 'main']) elements[id] = element();
   Object.assign(elements['prep-image'], { complete: true, naturalWidth: 1310, naturalHeight: 1200 });
   Object.assign(elements['prep-viewport'], { clientWidth: 655, clientHeight: 600 });
   Object.defineProperty(elements['prep-cell-size'], 'valueAsNumber', { get() { return Number(this.value); } });
-  const rows = [{ map_id: 'mapa-akademie', name: 'Mapa akademie', image_path: './assets/maps/mapa-akademie.png', cell_size: 90 },
-    { map_id: 'test-map', name: 'Test map', image_path: './assets/maps/test-map.png', cell_size: 100 }];
+  const rows = [{ map_id: 'mapa-akademie', name: 'Mapa akademie', image_path: './assets/maps/mapa-akademie.png', cell_size: 90, content_mode: 'map' },
+    { map_id: 'test-map', name: 'Test map', image_path: './assets/maps/test-map.png', cell_size: 100, content_mode: 'map' }];
   const writes = [];
   let fail = false, wait = null, reads = 0;
+  let modeFail = false;
   const context = vm.createContext({
     getCurrentUser: () => ({ role }), ResizeObserver: class { observe() {} }, console: { error() {} },
     document: { querySelector: s => elements[s.replace(/^#/, '')], createElementNS: element },
@@ -28,19 +29,24 @@ function page(role = 'leader') {
       writes.push({ id, size }); if (wait) await wait; if (fail) throw new Error('denied');
       rows.find(row => row.map_id === id).cell_size = size; return size;
     },
+    setMapContentMode: async (id, mode) => {
+      if (modeFail) throw new Error('denied');
+      rows.find(row => row.map_id === id).content_mode = mode; return mode;
+    },
   });
   vm.runInContext(source, context, { importModuleDynamically: async () => ({ SUPABASE_URL: 'https://project.supabase.co' }) });
   return { elements, rows, writes, reads: () => reads,
     open: id => vm.runInContext(`openMapPreparation('${id}')`, context),
     input: value => { elements['prep-cell-size'].value = String(value); elements['prep-cell-size'].handlers.input(); },
     save: () => elements['prep-save'].handlers.click(), back: () => elements['prep-back'].handlers.click(),
-    fail: () => { fail = true; }, delay: promise => { wait = promise; },
+    fail: () => { fail = true; }, modeFail: () => { modeFail = true; }, delay: promise => { wait = promise; },
   };
 }
 (async () => {
   const p = page(); await p.open('mapa-akademie');
   assert.equal(p.elements['prep-image'].src, './assets/maps/mapa-akademie.png');
   assert.equal(p.elements['prep-cell-size'].value, 90);
+  assert.equal(p.elements['prep-content-mode'].value, 'map');
   assert.equal(p.elements['prep-grid'].children.length, 29);
   assert.equal(p.elements['prep-space'].style.transform, 'scale(0.5)');
   p.input(120);
@@ -48,13 +54,21 @@ function page(role = 'leader') {
   assert.equal(p.rows[0].cell_size, 90);
   assert.equal(p.writes.length, 0, 'Input never writes');
   await p.save(); assert.deepEqual(p.writes, [{ id: 'mapa-akademie', size: 120 }]);
+  p.elements['prep-content-mode'].value = 'image'; p.elements['prep-content-mode'].handlers.change();
+  assert.equal(p.elements['prep-grid'].style.display, 'none');
+  await p.save(); assert.equal(p.rows[0].content_mode, 'image'); assert.equal(p.rows[0].cell_size, 120);
+  p.back(); await p.open('mapa-akademie'); assert.equal(p.elements['prep-content-mode'].value, 'image');
+  assert.equal(p.elements['prep-grid'].style.display, 'none');
+  p.elements['prep-content-mode'].value = 'map'; p.elements['prep-content-mode'].handlers.change();
+  assert.equal(p.elements['prep-grid'].style.display, '');
   p.back(); await p.open('mapa-akademie'); assert.equal(p.elements['prep-cell-size'].value, 120);
   const lastGrid = p.elements['prep-grid'].children;
+  const writesBeforeInvalid = p.writes.length;
   for (const value of ['', 10, 500, 'NaN']) {
     p.input(value); assert.equal(p.elements['prep-save'].disabled, true);
     assert.equal(p.elements['prep-cell-size'].attributes['aria-invalid'], 'true');
     assert.equal(p.elements['prep-grid'].children, lastGrid);
-    await p.save(); assert.equal(p.writes.length, 1); assert.equal(p.rows[0].cell_size, 120);
+    await p.save(); assert.equal(p.writes.length, writesBeforeInvalid); assert.equal(p.rows[0].cell_size, 120);
   }
   for (const value of [20, 300, 80.5]) {
     p.input(value); assert.equal(p.elements['prep-error'].textContent, '');
