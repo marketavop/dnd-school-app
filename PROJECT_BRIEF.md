@@ -1,10 +1,17 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.9
+**Verze:** 1.1.10
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.10
+
+- schválený hlavní vizuální směr je **královská fantasy akademie**; akademický atlas zůstává doplňkovou inspirací,
+- dokončena stylizace loginu a homepage hráče i Vedoucího; tyto obrazovky prošly vizuální a funkční akceptací,
+- zachována navigace, dvě klikací karty hráče a čtyři klikací karty Vedoucího,
+- další plánovanou prací je vizuální sjednocení Studentského průkazu a herní obrazovky bez změny funkčního scope.
 
 ### Změny ve verzi 1.1.9
 
@@ -266,6 +273,10 @@ Homepage Vedoucího má samostatné sekce **Domů**, **Hráči**, **Mapy** a
 **NPC**. Navigace je ve všech sekcích stejná a zachovává přepínání přes
 `view=` včetně návratu, refresh a historie prohlížeče. Globální správa NPC
 nevyžaduje aktivní mapu.
+
+Homepage zachovává dvě celé klikací karty hráče **Můj deník** a
+**Vstoupit do hry** a čtyři celé klikací karty Vedoucího **Vstoupit do hry**,
+**Hráči**, **Mapy** a **NPC**. Vizuální stylizace tuto strukturu ani navigaci nemění.
 
 Nevytváříme dashboard, uživatelský profil, notifikace ani složité
 nastavení.
@@ -1401,7 +1412,7 @@ Musí být spolehlivý, ale jednoduchý.
 
 ## 34. Roadmapa prvních 20 dní
 
-### Aktuální stav ve verzi 1.1.9
+### Aktuální stav ve verzi 1.1.10
 
 Reorganizace Vedoucího je implementovaná a ověřená se skutečným Supabase
 a dvěma klienty. Serverová autorizace Studentského průkazu zůstává otevřenou
@@ -1411,8 +1422,10 @@ nejde o změnu produktového chování. Níže uvedená roadmapa zůstává pův
 plánovacím rámcem.
 
 Režim Mapa / Obrázek prošel automatickými testy a osmi akceptačními scénáři
-se skutečným Supabase a dvěma klienty. Kompletní vizuální redesign zůstává
-vyhrazen závěrečné fázi MVP.
+se skutečným Supabase a dvěma klienty. První vizuální etapa je dokončená:
+login a homepage hráče i Vedoucího prošly vizuální a funkční akceptací.
+Další plánovanou prací je vizuální sjednocení Studentského průkazu a herní
+obrazovky podle §39. Ostatní otevřené úkoly MVP a jejich priority se nemění.
 
 ### Dny 1--3 --- Technický spike
 
@@ -1582,8 +1595,7 @@ chvíli, kdy jsou potřeba:
 -   detaily jednoduché pomůcky pro generování hodnot vlastností,
 -   přesný způsob výběru aktivní postavy / přepínání mezi více postavami na jednom účtu,
 -   potřeba dalších záložek Studentského průkazu nad rámec MVP trojice
-    Průkaz / Inventář / Sešit podle skutečného hraní,
--   finální barevná paleta a vizuální charakter „D&D akademie“ (směr je přívětivější a barevnější, přesné řešení ještě není uzavřené).
+    Průkaz / Inventář / Sešit podle skutečného hraní.
 
 Neřešit je předčasně jen kvůli „kompletnímu návrhu".
 
@@ -1618,22 +1630,27 @@ FE polish nemění produktové chování ani herní mechaniky.
 
 Schválený vizuální směr celé aplikace je:
 
-> **Akademický atlas / školní registr magické akademie.**
+> **Královská fantasy akademie.**
+
+Akademický atlas / školní registr magické akademie zůstává doplňkovou
+inspirací pro informační plochy, nikoliv jediným hlavním stylem.
 
 Vizuální referencí je schválený návrh akademie **Academia Magna Illistrass**.
 Reference neurčuje přesný layout ani se nekopíruje 1:1. Slouží jako vodítko
 pro celkový vizuální jazyk aplikace:
 
--   teplý papírový / ivory základ,
--   tmavý inkoustový text,
--   jemné lineární rámečky a dělení sekcí,
--   tlumené zlato a hlubší heraldické akcenty,
--   akademicko-kartografický charakter,
+-   světlé pergamenové pozadí,
+-   inkoustová modř a tlumené zlato,
+-   heraldický erb akademie, astrologický kruh a heraldická stuha,
+-   fantasy medailony a rámečky klikacích karet,
+-   panorama akademie a boční architektonické dekorace,
+-   jemné dělení informačních sekcí s doplňkovou akademicko-kartografickou inspirací,
 -   kombinace výraznějšího serifového písma pro titulky a dobře čitelného
     běžného písma pro obsah a ovládací prvky.
 
-Atmosféra má připomínat školní registr, atlas, archivní kartu nebo studijní
-záznam z magické akademie. Nemá působit jako moderní SaaS/admin dashboard.
+Atmosféra má připomínat královskou fantasy akademii. Školní registr,
+atlas, archivní karta nebo studijní záznam doplňují charakter informačních
+ploch. Aplikace nemá působit jako moderní SaaS/admin dashboard.
 
 ### Použití napříč aplikací
 
@@ -1649,14 +1666,16 @@ přebarvovat, filtrovat ani měnit jeho souřadnicová či drag logika.
 
 Styl se zavádí postupně:
 
-1.  `character.html` jako referenční stránka,
-2.  po ověření `index.html`,
-3.  následně okolní UI `game.html`.
+1.  Login a homepage hráče i Vedoucího (`index.html`) jsou vizuálně
+    dokončené a prošly vizuální a funkční akceptací.
+2.  Vizuální sjednocení Studentského průkazu (`character.html`) je další
+    plánovaná práce.
+3.  Vizuální sjednocení okolního UI herní obrazovky (`game.html`) je další
+    plánovaná práce.
 
-Tím omezujeme náklady na případnou změnu směru.
-
-Kompletní vizuální redesign je plánovaný až do závěrečné fáze MVP, po
-dokončení funkčního scope a bezpečnostního ověření.
+Zachováváme existující navigaci a dvě klikací karty hráče a čtyři klikací
+karty Vedoucího podle §5. Vizuální sjednocení nepřidává nové funkce ani
+nemění priority otevřených funkčních a bezpečnostních úkolů MVP.
 
 ### Preferujeme
 
@@ -1677,7 +1696,7 @@ dokončení funkčního scope a bezpečnostního ověření.
 ### Nechceme
 
 -   těžké pergamenové textury přes celé UI,
--   dekorativní fantasy rámy,
+-   dekorativní fantasy rámy, které zhoršují čitelnost nebo použitelnost,
 -   ornamentální přeplácanost,
 -   špatně čitelné fantasy fonty,
 -   šest křiklavých barev pro šest vlastností,
@@ -1691,7 +1710,7 @@ dokončení funkčního scope a bezpečnostního ověření.
 Přesné hex hodnoty nejsou produktové rozhodnutí. Mohou se iterativně
 upravovat podle reálného vzhledu a čitelnosti.
 
-Referenční stránkou pro první ověření stylu zůstává `character.html`.
+Referencí pro další vizuální sjednocení jsou schválený login a homepage.
 
 ------------------------------------------------------------------------
 
