@@ -18,6 +18,7 @@ const base = { id, name: 'Eliška', background: null, inventory: null, notes: nu
 
 async function page(query, row = base, error = null, leader = false, authorized = false, portraitControl = {}) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
+    'student-pages', 'tab-card', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-inventory', 'panel-notes',
     'inventory-hint', 'inventory-count', 'notes-hint', 'notes-count',
     'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
     'inventory', 'inventory-toggle', 'character-inventory', 'edit-inventory', 'inventory-status', 'error-inventory',
@@ -129,10 +130,76 @@ async function page(query, row = base, error = null, leader = false, authorized 
     } },
   });
   await vm.runInContext(`(async () => { ${pageSource}\n })()`, context);
-  return { advanceTime, portraitCalls, elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control };
+  return { document: context.document, advanceTime, portraitCalls, elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control };
 }
 
 (async () => {
+  // NAV-01: one visible panel, roving focus, no reload or additional reads.
+  for (const leader of [false, true]) {
+    const view = await page(`?${leader ? 'mode=leader&' : ''}character_id=${id}`, { ...base }, null, leader, !leader);
+    const els = view.elements;
+    function active(name) {
+      for (const other of ['card', 'inventory', 'notes']) {
+        assert.equal(els[`panel-${other}`].hidden, other !== name);
+        assert.equal(els[`tab-${other}`].attributes['aria-selected'], String(other === name));
+        assert.equal(els[`tab-${other}`].tabIndex, other === name ? 0 : -1);
+      }
+    }
+    active('card');
+    const reads = view.reads + view.leaderReads;
+    for (const name of ['inventory', 'notes', 'card']) {
+      els[`tab-${name}`].handlers.click(); active(name);
+    }
+    for (const [from, key, to] of [['card','ArrowRight','inventory'], ['inventory','End','notes'],
+      ['notes','ArrowRight','card'], ['card','ArrowLeft','notes'], ['notes','Home','card']]) {
+      let prevented = false;
+      els[`tab-${from}`].handlers.keydown({ key, preventDefault() { prevented = true; } });
+      assert.equal(prevented, true); active(to);
+      assert.equal(els[`tab-${to}`].focused, true);
+    }
+    assert.equal(view.reads + view.leaderReads, reads);
+    assert.equal(view.writes.length, 0);
+    if (leader) {
+      for (const name of ['inventory', 'notes']) {
+        assert.equal(els[`edit-${name}`].disabled, true);
+        assert.deepEqual(els[`edit-${name}`].handlers, {});
+      }
+    }
+  }
+  for (const [name, limit] of [['inventory', 5000], ['notes', 20000]]) {
+    const row = { ...base };
+    const view = await page(`?character_id=${id}`, row, null, false, true);
+    const els = view.elements, input = els[`edit-${name}`];
+    els[`tab-${name}`].handlers.click();
+    await els[`${name}-toggle`].handlers.click();
+    let pendingBlur;
+    view.document.activeElement = { blur() { pendingBlur = input.handlers.blur(); } };
+    input.value = 'x'.repeat(limit + 1);
+    input.handlers.input();
+    els['tab-card'].handlers.click();
+    await pendingBlur;
+    assert.equal(view.writes.length, 0);
+    view.document.activeElement = null;
+    els[`tab-${name}`].handlers.click();
+    assert.equal(input.value.length, limit + 1);
+    assert.match(els[`error-${name}`].textContent, /nejvýše/);
+    input.value = 'Rozepsaný\ntext';
+    input.handlers.input();
+    view.control.error = new Error('Offline');
+    view.document.activeElement = { blur() { pendingBlur = input.handlers.blur(); } };
+    els['tab-card'].handlers.click(); await pendingBlur;
+    view.document.activeElement = null;
+    els[`tab-${name}`].handlers.click();
+    assert.equal(input.value, 'Rozepsaný\ntext');
+    assert.match(els[`${name}-status`].textContent, /Nepodařilo/);
+    view.control.error = null;
+    await input.handlers.blur();
+    assert.equal(row[name], 'Rozepsaný\ntext');
+    els['tab-card'].handlers.click(); els[`tab-${name}`].handlers.click();
+    assert.equal(input.value, row[name]);
+    const reload = await page(`?character_id=${id}`, row, null, false, true);
+    assert.equal(reload.elements['panel-card'].hidden, false);
+  }
   for (const [key, limit] of [['inventory', 5000], ['notes', 20000]]) {
     const view = await page(`?character_id=${id}`, { ...base }, null, false, true);
     const input = view.elements[`edit-${key}`];
@@ -1025,6 +1092,12 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(leaderPortrait.elements['edit-toggle'].hidden, true);
   assert.equal(leaderPortrait.elements['edit-name'].disabled, true);
   const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
+  assert.equal((html.match(/role="tab"/g) || []).length, 3);
+  assert.equal((html.match(/role="tabpanel"/g) || []).length, 3);
+  assert.ok(html.indexOf('id="panel-card"') < html.indexOf('id="student-card"'));
+  assert.ok(html.indexOf('id="abilities"') < html.indexOf('id="panel-inventory"'));
+  assert.ok(html.indexOf('id="panel-inventory"') < html.indexOf('id="inventory"'));
+  assert.ok(html.indexOf('id="panel-notes"') < html.indexOf('id="notes"'));
   assert.ok(html.indexOf('id="notes"') > html.indexOf('id="inventory"'));
   assert.match(html, /<section id="notes"[^>]*hidden>/);
   assert.match(html, /<textarea id="edit-notes" rows="14"[^>]*hidden><\/textarea>/);

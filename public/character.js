@@ -117,6 +117,36 @@ async function setupPortrait(character, reload) {
   remove.addEventListener('click', () => change('remove'));
 }
 
+function setupTabs() {
+  const names = ['card', 'inventory', 'notes'];
+  const tabs = names.map(name => document.querySelector('#tab-' + name));
+  const panels = names.map(name => document.querySelector('#panel-' + name));
+  let active = 0;
+  function select(index) {
+    // Flush a focused editor through its existing blur handler before hiding it.
+    if (index !== active) document.activeElement?.blur();
+    active = index;
+    tabs.forEach((tab, i) => {
+      tab.setAttribute('aria-selected', String(i === index));
+      tab.tabIndex = i === index ? 0 : -1;
+      panels[i].hidden = i !== index;
+    });
+  }
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => { select(i); tab.focus(); });
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const index = event.key === 'Home' ? 0 : event.key === 'End' ? 2 :
+        (i + (event.key === 'ArrowRight' ? 1 : -1) + 3) % 3;
+      select(index);
+      tabs[index].focus();
+    });
+  });
+  select(0);
+  document.querySelector('#student-pages').hidden = false;
+}
+
 function setupInventory(db, character) {
   const section = document.querySelector('#inventory');
   const display = document.querySelector('#character-inventory');
@@ -624,6 +654,7 @@ if (!ids.length) {
     enableEditing(db, character);
     setupInventory(db, character);
     setupNotes(db, character);
+    setupTabs();
     card.hidden = false;
     document.querySelector('#abilities').hidden = false;
     status.textContent = '';

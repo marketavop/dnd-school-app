@@ -275,9 +275,19 @@ samostatné výpočty pro herní panel.
 
 ### Listování Studentským průkazem
 
-Studentský průkaz má být do budoucna možné jednoduše „listovat“ pomocí
-záložek. Záložky patří **dovnitř Studentského průkazu**, nejsou novou
-hlavní navigací aplikace.
+Studentský průkaz obsahuje v MVP tři záložky:
+
+1.  **Průkaz** — výchozí záložka. Obsahuje základní údaje postavy,
+    portrét, HP, AC, XP, Zázemí a šest atributů.
+2.  **Inventář** — obsahuje stávající editovatelné pole `inventory`.
+3.  **Sešit** — obsahuje stávající Studentský sešit (`notes`).
+
+Záložky patří **dovnitř Studentského průkazu**, nejsou hlavní navigací
+aplikace. Stejné uspořádání je dostupné hráči i v read-only náhledu
+Vedoucího (PJ); v tomto náhledu zůstávají všechna pole pouze pro čtení.
+
+Přepínání probíhá na jedné stránce bez routeru a bez nových databázových
+požadavků. Nesmí způsobit ztrátu rozepsaného textu.
 
 Implementace má zůstat jednoduchá:
 
@@ -287,8 +297,8 @@ Implementace má zůstat jednoduchá:
 -   žádná persistence aktivní záložky,
 -   žádná databázová logika kvůli listování.
 
-Neimplementujeme prázdné budoucí stránky jen proto, že mohou jednou
-existovat. Další stránka vznikne až pro konkrétní obsah.
+Další záložky se nevytvářejí předem. Jejich potřebu vyhodnotíme podle
+skutečného hraní.
 
 ### Studijní panel na herní obrazovce
 
@@ -1488,7 +1498,8 @@ chvíli, kdy jsou potřeba:
 -   rozsah class-specific částí deníku,
 -   detaily jednoduché pomůcky pro generování hodnot vlastností,
 -   přesný způsob výběru aktivní postavy / přepínání mezi více postavami na jednom účtu,
--   přesný počet a obsah budoucích stran Studentského průkazu,
+-   potřeba dalších záložek Studentského průkazu nad rámec MVP trojice
+    Průkaz / Inventář / Sešit podle skutečného hraní,
 -   finální barevná paleta a vizuální charakter „D&D akademie“ (směr je přívětivější a barevnější, přesné řešení ještě není uzavřené).
 
 Neřešit je předčasně jen kvůli „kompletnímu návrhu".
