@@ -5,6 +5,11 @@ Nasadit migraci `20260925140000_npc_definitions_placements.sql` po migraci
 Staré RPC jsou odstraněné; otevřené staré klienty obnovit.
 Žádná Edge Function ani Storage změna není potřeba.
 
+Pro skrytí nových umístění nasadit také migraci
+`20261008120000_npc_placements_hidden_by_default.sql`. Nastavuje DEFAULT
+i INSERT v `leader_add_npc_to_map` na `visible=false`; existující umístění
+nemění. RPC rozhraní i oprávnění zůstávají stejné.
+
 ## Model a převod
 
 - `app_private.npcs`: id, name, image_url.
@@ -24,7 +29,7 @@ Její případné odstranění je samostatný krok až po živém ověření.
 - `leader_create_npc(p_session_token,p_name,p_image_url)` — samotná definice.
 - `leader_delete_npc(p_session_token,p_npc_id)` — definice a všechny placements.
 - `leader_add_npc_to_map(p_session_token,p_npc_id,p_map_id,p_x,p_y)` — aktivní
-  mapa, viditelné umístění; opakované přidání nepoškodí existující pozici.
+  mapa, skryté umístění; opakované přidání zachová existující pozici i viditelnost.
 - `leader_remove_npc_from_map(p_session_token,p_placement_id)` — pouze umístění.
 - `leader_set_npc_position(p_session_token,p_placement_id,p_x,p_y)`.
 - `leader_set_npc_visibility(p_session_token,p_placement_id,p_visible)`.
@@ -63,8 +68,16 @@ psql -X -v ON_ERROR_STOP=1 -d <EMPTY_TEST_DATABASE> -f tests/npc-placements-migr
 Ověřuje převod dat včetně duplicitních názvů, zálohu, autorizaci, hidden a
 inactive filtrování, cascade, unikátnost a prázdný broadcast payload.
 
+Nový výchozí stav ověřit v samostatné PRÁZDNÉ jednorázové databázi:
+```
+psql -X -v ON_ERROR_STOP=1 -d <EMPTY_TEST_DATABASE> -f tests/npc-hidden-default-migration.sql
+```
+Test zahrnuje předchozí SQL testy, zachování existujících dat a grantů,
+skrytí už při INSERTu, pohyb skrytého NPC, explicitní odhalení, opakované
+přidání, odebrání a nové přidání, autorizaci a prázdný realtime payload.
+
 Po nasazení: leader vytvoří NPC bez umístění, přidá na A, odebere a znovu
-přidá, přidá na B a skryje pouze B. Ověřit dvěma browsery realtime a player
+přidá (vždy skryté), explicitně odhalí na A a přidá skryté na B. Ověřit dvěma browsery realtime a player
 Network. Na A zůstane vlastní pozice/visibility. Zrušit globální delete
 confirm, pak potvrdit a ověřit smazání ze seznamu i obou map. Reload nesmí
 obnovit smazané placementy. Porovnat stará data s `npc_tokens_5a_backup`.
