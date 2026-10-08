@@ -94,6 +94,13 @@
 :where(.character-page) :where(a, button, input, select):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 :where(.character-page) input:disabled, :where(.character-page) select:disabled, :where(.character-page) input[readonly] { background: #eeebe4; color: var(--muted); cursor: default; }
 :where(.character-page) input[aria-invalid="true"], :where(.character-page) select[aria-invalid="true"] { border: 2px solid var(--error); background: #fff8f7; }
+:where(.character-page) #inventory { margin-top: 24px; }
+:where(.character-page) #inventory-title { margin: 0; }
+:where(.character-page) #character-inventory { white-space: pre-wrap; overflow-wrap: anywhere; }
+:where(.character-page) #edit-inventory { box-sizing: border-box; width: 100%; min-height: 240px; resize: vertical; padding: 12px; font: inherit; line-height: 1.5; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 3px; }
+:where(.character-page) #edit-inventory[aria-invalid="true"] { border: 2px solid var(--error); }
+:where(.character-page) #edit-inventory:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:where(.character-page) #inventory-status[data-error="true"] { color: var(--error); }
 :where(.character-page) .field-error { display: block; margin-top: 4px; font-size: 13px; line-height: 1.4; font-weight: 400; color: var(--error); }
 :where(.character-page) .field-error:empty, :where(.character-page) #load-status:empty { display: none; }
 :where(.character-page) #save-status { min-height: 20px; font-size: 13px; line-height: 20px; color: var(--muted); }

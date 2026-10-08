@@ -117,6 +117,88 @@ async function setupPortrait(character, reload) {
   remove.addEventListener('click', () => change('remove'));
 }
 
+function setupInventory(db, character) {
+  const section = document.querySelector('#inventory');
+  const display = document.querySelector('#character-inventory');
+  const input = document.querySelector('#edit-inventory');
+  const toggle = document.querySelector('#inventory-toggle');
+  const message = document.querySelector('#inventory-status');
+  const error = document.querySelector('#error-inventory');
+  let editing = false, busy = false, failed = false;
+  function render() {
+    display.textContent = character.inventory || 'Inventář zatím není vyplněný.';
+    display.dataset.empty = String(!character.inventory);
+    display.hidden = editing || failed;
+    input.hidden = !(editing || failed);
+    input.disabled = busy || readOnly;
+    toggle.disabled = readOnly;
+    toggle.textContent = editing ? 'Ukončit editaci' : 'Upravit inventář';
+    toggle.setAttribute('aria-pressed', String(editing));
+  }
+  input.value = character.inventory ?? '';
+  render();
+  section.hidden = false;
+  if (readOnly) {
+    toggle.hidden = true;
+    input.readOnly = true;
+    message.textContent = 'Pouze pro čtení';
+    return;
+  }
+  function validate() {
+    // Match the server's character count, rather than UTF-16 code units.
+    return [...input.value].length <= 5000;
+  }
+  input.addEventListener('input', () => {
+    if (validate()) {
+      error.textContent = '';
+      input.setAttribute('aria-invalid', 'false');
+    }
+  });
+  async function save() {
+    if (busy || (!editing && !failed)) return;
+    if (!validate()) {
+      failed = true;
+      error.textContent = 'Inventář může mít nejvýše 5 000 znaků.';
+      input.setAttribute('aria-invalid', 'true');
+      message.textContent = 'Nepodařilo se uložit';
+      message.dataset.error = 'true';
+      render();
+      return;
+    }
+    const value = input.value === '' ? null : input.value;
+    if (value === character.inventory && !failed) return;
+    busy = true;
+    error.textContent = '';
+    input.setAttribute('aria-invalid', 'false');
+    message.textContent = 'Ukládám…';
+    message.dataset.error = 'false';
+    render();
+    try {
+      const updated = await updateCharacterField(db, character.id, 'inventory', value, playerSessionToken);
+      character.inventory = updated.inventory;
+      input.value = character.inventory ?? '';
+      failed = false;
+      message.textContent = 'Uloženo';
+    } catch {
+      failed = true;
+      error.textContent = 'Nepodařilo se uložit. Pro opakování klikni do pole a znovu jej opusť.';
+      message.textContent = 'Nepodařilo se uložit';
+      message.dataset.error = 'true';
+    } finally {
+      busy = false;
+      render();
+    }
+  }
+  input.addEventListener('blur', save);
+  toggle.addEventListener('click', async () => {
+    const saving = editing ? save() : null;
+    editing = !editing;
+    render();
+    if (editing) input.focus();
+    await saving;
+  });
+}
+
 function enableEditing(db, character) {
   const toggle = document.querySelector('#edit-toggle');
   const saveStatus = document.querySelector('#save-status');
@@ -410,6 +492,7 @@ if (!ids.length) {
     showValue('#character-ac', character.ac);
     showValue('#character-ac_note', character.ac_note);
     enableEditing(db, character);
+    setupInventory(db, character);
     card.hidden = false;
     document.querySelector('#abilities').hidden = false;
     status.textContent = '';

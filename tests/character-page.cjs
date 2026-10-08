@@ -13,11 +13,12 @@ const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'u
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
 const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-const base = { id, name: 'Eliška', background: null, race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
+const base = { id, name: 'Eliška', background: null, inventory: null, race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
 async function page(query, row = base, error = null, leader = false, authorized = false, portraitControl = {}) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
+    'inventory', 'inventory-toggle', 'character-inventory', 'edit-inventory', 'inventory-status', 'error-inventory',
     'portrait-controls', 'portrait-upload', 'portrait-remove', 'portrait-file', 'portrait-status',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
@@ -28,6 +29,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     removeAttribute(key) { if (key === 'src') delete this.src; delete this.attributes[key]; },
     getAttribute(key) { return this[key] ?? null; },
     click() { this.clicked = true; },
+    focus() { this.focused = true; },
     setAttribute(key, value) { this.attributes[key] = value; },
     addEventListener(event, handler) { this.handlers[event] = handler; },
   }]));
@@ -119,6 +121,74 @@ async function page(query, row = base, error = null, leader = false, authorized 
 }
 
 (async () => {
+  // UI-05: multiline inventory stays plain text and uses one-field authorized RPCs.
+  const inventoryRow = { ...base };
+  const inventoryPage = await page(`?character_id=${id}`, inventoryRow, null, false, true);
+  const inv = inventoryPage.elements;
+  assert.equal(inv.inventory.hidden, false);
+  assert.equal(inv['character-inventory'].textContent, 'Inventář zatím není vyplněný.');
+  assert.equal(inv['edit-inventory'].hidden, true);
+  await inv['inventory-toggle'].handlers.click();
+  assert.equal(inv['edit-inventory'].hidden, false);
+  assert.equal(inv['edit-inventory'].focused, true);
+  assert.equal(inv['edit-inventory'].handlers.keydown, undefined, 'Enter uses native textarea behavior');
+  const saveInventory = async value => {
+    inv['edit-inventory'].value = value;
+    inv['edit-inventory'].handlers.input();
+    await inv['edit-inventory'].handlers.blur();
+  };
+  const multiline = 'Lano\n  Kniha\nMeč';
+  for (const value of [multiline, 'Lano\n  Mapa\nMeč', '', multiline, 'ž'.repeat(5000), '😀'.repeat(5000)]) {
+    const before = { ...inventoryRow };
+    await saveInventory(value);
+    assert.deepEqual(inventoryPage.rpcCalls.at(-1).args.p_patch, { inventory: value || null });
+    assert.deepEqual(inventoryRow, { ...before, inventory: value || null });
+    assert.equal(inv['inventory-status'].textContent, 'Uloženo');
+    const reload = await page(`?character_id=${id}`, inventoryRow, null, false, true);
+    assert.equal(reload.elements['character-inventory'].textContent, value || 'Inventář zatím není vyplněný.');
+  }
+  const inventoryCalls = inventoryPage.rpcCalls.length;
+  for (const value of ['x'.repeat(5001), '😀'.repeat(5001)]) {
+    await saveInventory(value);
+    assert.equal(inventoryPage.rpcCalls.length, inventoryCalls);
+    assert.equal(inv['edit-inventory'].value, value);
+    assert.match(inv['error-inventory'].textContent, /5 000/);
+    assert.equal(inv['edit-inventory'].attributes['aria-invalid'], 'true');
+  }
+  await inv['inventory-toggle'].handlers.click();
+  assert.equal(inv['edit-inventory'].hidden, false, 'invalid draft remains visible after closing');
+  await saveInventory(multiline);
+  assert.equal(inv['edit-inventory'].hidden, true);
+  assert.equal(inv['error-inventory'].textContent, '');
+  assert.equal(inv['edit-inventory'].attributes['aria-invalid'], 'false');
+  await inv['inventory-toggle'].handlers.click();
+  inventoryPage.control.error = new Error('Offline');
+  const draftInventory = 'Lano\n<img src=x onerror=alert(1)>\nŠtít';
+  await saveInventory(draftInventory);
+  assert.equal(inv['edit-inventory'].value, draftInventory);
+  assert.equal(inventoryRow.inventory, multiline);
+  assert.equal(inv['inventory-status'].textContent, 'Nepodařilo se uložit');
+  await inv['inventory-toggle'].handlers.click();
+  assert.equal(inv['edit-inventory'].hidden, false);
+  inventoryPage.control.error = null;
+  let finishInventory;
+  inventoryPage.control.wait = new Promise(resolve => { finishInventory = resolve; });
+  const retryInventory = inv['edit-inventory'].handlers.blur();
+  assert.equal(inv['inventory-status'].textContent, 'Ukládám…');
+  assert.equal(inv['edit-inventory'].disabled, true);
+  finishInventory();
+  await retryInventory;
+  assert.equal(inv['inventory-status'].textContent, 'Uloženo');
+  assert.equal(inv['character-inventory'].textContent, draftInventory);
+  assert.equal(inv['edit-inventory'].hidden, true);
+  const leaderInventory = await page(`?mode=leader&character_id=${id}`, inventoryRow, null, true);
+  assert.equal(leaderInventory.elements['character-inventory'].textContent, draftInventory);
+  assert.equal(leaderInventory.elements['edit-inventory'].hidden, true);
+  assert.equal(leaderInventory.elements['edit-inventory'].disabled, true);
+  assert.equal(leaderInventory.elements['inventory-toggle'].hidden, true);
+  assert.deepEqual(leaderInventory.elements['edit-inventory'].handlers, {});
+  assert.deepEqual(leaderInventory.elements['inventory-toggle'].handlers, {});
+  assert.equal(leaderInventory.writes.length, 0);
   // UI-04 uses the authorized RPC path and the existing blur editor.
   const backgroundRow = { ...base };
   const backgroundPage = await page(`?character_id=${id}`, backgroundRow, null, false, true);
@@ -762,6 +832,11 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(leaderPortrait.elements['edit-toggle'].hidden, true);
   assert.equal(leaderPortrait.elements['edit-name'].disabled, true);
   const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
+  assert.match(html, /<section id="inventory"[^>]*hidden>/);
+  assert.match(html, /<textarea id="edit-inventory" rows="10"[^>]*hidden><\/textarea>/);
+  const styles = readFileSync(resolve(__dirname, '../public/styles.css'), 'utf8');
+  assert.match(styles, /#character-inventory\s*\{[^}]*white-space: pre-wrap/);
+  assert.match(styles, /#edit-inventory\s*\{[^}]*min-height: 240px/);
   assert.ok(html.includes('<label for="edit-background">Zázemí</label>'));
   assert.match(html, /<input id="edit-background"[^>]*aria-describedby="error-background"[^>]*hidden/);
   assert.ok(!html.includes('<h1>Deník postavy</h1>'));

@@ -90,6 +90,19 @@
         <span id="error-cha" class="field-error" role="status"></span>
       </article>
     </section>
+    <section id="inventory" class="card" aria-labelledby="inventory-title" hidden>
+      <header class="card-header">
+        <h2 id="inventory-title">Inventář</h2>
+        <button id="inventory-toggle" type="button" aria-pressed="false" aria-controls="edit-inventory">Upravit inventář</button>
+      </header>
+      <div class="card-content">
+        <div id="character-inventory"></div>
+        <textarea id="edit-inventory" rows="10" aria-label="Inventář" aria-describedby="inventory-hint error-inventory" hidden></textarea>
+        <p id="inventory-hint" class="hint">Nejvýše 5 000 znaků. Změny se ukládají při opuštění pole.</p>
+        <span id="error-inventory" class="field-error" role="status"></span>
+        <p id="inventory-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
     <noscript>Pro zobrazení deníku povolte JavaScript.</noscript>
   </main>
   <script type="module" src="./character-page.js"></script>
