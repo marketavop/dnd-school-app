@@ -124,6 +124,7 @@ function enableEditing(db, character) {
     { key: 'name', slot: 'name' },
     { key: 'race_code', slot: 'race', choices: RACES },
     { key: 'class_code', slot: 'class', choices: CLASSES },
+    { key: 'background', slot: 'background', text: true },
     { key: 'level', slot: 'level' },
     { key: 'xp', slot: 'xp', resource: true },
     { key: 'ac', slot: 'ac', resource: true },
@@ -248,6 +249,8 @@ function enableEditing(db, character) {
       if (field.key === 'name') {
         if (!value.trim()) message = 'Jméno nemůže být prázdné.';
       } else if (field.text) {
+        // Count Unicode code points like PostgreSQL char_length, including emoji.
+        if (field.key === 'background' && [...value].length > 100) message = 'Zázemí může mít nejvýše 100 znaků.';
         value = value === '' ? null : value;
       } else if (field.resource) {
         value = value === '' ? null : Number(value);
@@ -288,6 +291,12 @@ function enableEditing(db, character) {
       error.textContent = message || (failures.has(field.key) ? 'Nepodařilo se uložit. Zkuste změnu znovu.' : '');
       input.setAttribute('aria-invalid', String(Boolean(message)));
       if (message) {
+        if (field.key === 'background') {
+          // Keep the draft editable even after closing the pencil editor.
+          failures.add(field.key);
+          updateStatus();
+          return;
+        }
         input.value = character[field.key] ?? '';
         showModifier(character[field.key]);
         return;
@@ -341,7 +350,7 @@ function enableEditing(db, character) {
   }
   function renderEditing() {
     for (const field of fields) {
-      if (!editing) field.clearValidation();
+      if (!editing && field.key !== 'background') field.clearValidation();
       const editable = editing || failures.has(field.key);
       if (field.ability) {
         field.input.readOnly = !editable;
@@ -396,6 +405,7 @@ if (!ids.length) {
     showValue('#character-name', character.name);
     showValue('#character-race', label(character.race_code, RACES, 'Neznámá rasa'));
     showValue('#character-class', label(character.class_code, CLASSES, 'Neznámé povolání'));
+    showValue('#character-background', character.background);
     showValue('#character-level', character.level);
     showValue('#character-ac', character.ac);
     showValue('#character-ac_note', character.ac_note);

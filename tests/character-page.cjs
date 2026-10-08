@@ -13,7 +13,7 @@ const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'u
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
 const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-const base = { id, name: 'Eliška', race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
+const base = { id, name: 'Eliška', background: null, race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
 async function page(query, row = base, error = null, leader = false, authorized = false, portraitControl = {}) {
@@ -21,8 +21,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
     'portrait-controls', 'portrait-upload', 'portrait-remove', 'portrait-file', 'portrait-status',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
-    'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
-    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'close-icon'].includes(key), dataset: {}, handlers: {},
+    'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['background', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
+    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'edit-background', 'close-icon'].includes(key), dataset: {}, handlers: {},
     value: '', disabled: false, validity: { badInput: false }, children: [], attributes: {},
     append(option) { this.children.push(option); },
     removeAttribute(key) { if (key === 'src') delete this.src; delete this.attributes[key]; },
@@ -119,6 +119,69 @@ async function page(query, row = base, error = null, leader = false, authorized 
 }
 
 (async () => {
+  // UI-04 uses the authorized RPC path and the existing blur editor.
+  const backgroundRow = { ...base };
+  const backgroundPage = await page(`?character_id=${id}`, backgroundRow, null, false, true);
+  const bg = backgroundPage.elements;
+  assert.equal(bg['character-background'].textContent, '—');
+  assert.equal(bg['edit-background'].hidden, true);
+  bg['edit-toggle'].handlers.click();
+  const saveBackground = async value => {
+    bg['edit-background'].value = value;
+    bg['edit-background'].handlers.input();
+    await bg['edit-background'].handlers.blur();
+  };
+  for (const value of ['Folk Hero', 'Acolyte', '', 'Soldier', 'ž'.repeat(100), '😀'.repeat(100)]) {
+    const before = { ...backgroundRow };
+    await saveBackground(value);
+    assert.deepEqual(backgroundPage.rpcCalls.at(-1).args.p_patch, { background: value || null });
+    assert.deepEqual(backgroundRow, { ...before, background: value || null });
+    assert.equal(bg['save-status'].textContent, 'Uloženo');
+    const reloaded = await page(`?character_id=${id}`, backgroundRow, null, false, true);
+    assert.equal(reloaded.elements['character-background'].textContent, value || '—');
+  }
+  const callCount = backgroundPage.rpcCalls.length;
+  for (const value of ['a'.repeat(101), '😀'.repeat(101)]) {
+    await saveBackground(value);
+    assert.equal(backgroundPage.rpcCalls.length, callCount);
+    assert.equal(bg['edit-background'].value, value);
+    assert.match(bg['error-background'].textContent, /100 znaků/);
+    assert.equal(bg['edit-background'].attributes['aria-invalid'], 'true');
+  }
+  bg['edit-toggle'].handlers.click();
+  assert.equal(bg['edit-background'].hidden, false, 'invalid draft survives closing edit mode');
+  assert.match(bg['error-background'].textContent, /100 znaků/);
+  await saveBackground('Soldier');
+  assert.equal(backgroundRow.background, 'Soldier');
+  assert.equal(bg['edit-background'].hidden, true);
+  assert.equal(bg['error-background'].textContent, '');
+  assert.equal(bg['edit-background'].attributes['aria-invalid'], 'false');
+  bg['edit-toggle'].handlers.click();
+  backgroundPage.control.error = new Error('Network unavailable');
+  await saveBackground('Folk Hero');
+  bg['edit-toggle'].handlers.click();
+  assert.equal(bg['edit-background'].value, 'Folk Hero');
+  assert.equal(bg['edit-background'].hidden, false);
+  assert.equal(backgroundRow.background, 'Soldier');
+  assert.equal(bg['save-status'].textContent, 'Nepodařilo se uložit');
+  backgroundPage.control.error = null;
+  let finishBackground;
+  backgroundPage.control.wait = new Promise(resolve => { finishBackground = resolve; });
+  const retryBackground = bg['edit-background'].handlers.blur();
+  assert.equal(bg['save-status'].textContent, 'Ukládám…');
+  assert.equal(bg['edit-background'].disabled, true);
+  finishBackground();
+  await retryBackground;
+  assert.equal(backgroundRow.background, 'Folk Hero');
+  assert.equal(bg['save-status'].textContent, 'Uloženo');
+  const backgroundLeader = await page(`?mode=leader&character_id=${id}`, backgroundRow, null, true);
+  assert.equal(backgroundLeader.elements['character-background'].textContent, 'Folk Hero');
+  assert.equal(backgroundLeader.elements['edit-background'].disabled, true);
+  assert.equal(backgroundLeader.elements['edit-background'].hidden, true);
+  assert.deepEqual(backgroundLeader.elements['edit-background'].handlers, {});
+  assert.equal(backgroundLeader.writes.length, 0);
+  const backgroundText = await page(`?character_id=${id}`, { ...base, background: '<b>Soldier</b>' }, null, false, true);
+  assert.equal(backgroundText.elements['character-background'].textContent, '<b>Soldier</b>');
   const hpStored = { ...base, current_hp: 10, max_hp: 20 };
   const hpPage = await page(`?character_id=${id}`, hpStored, null, false, true);
   const hp = hpPage.elements;
@@ -699,6 +762,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(leaderPortrait.elements['edit-toggle'].hidden, true);
   assert.equal(leaderPortrait.elements['edit-name'].disabled, true);
   const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
+  assert.ok(html.includes('<label for="edit-background">Zázemí</label>'));
+  assert.match(html, /<input id="edit-background"[^>]*aria-describedby="error-background"[^>]*hidden/);
   assert.ok(!html.includes('<h1>Deník postavy</h1>'));
   console.log('PASS: character page loading, UUID, portraits, edit toggle, exact choices, blur saves/reload, NULL, validation, unchanged values, failed/pending saves');
 })().catch(error => { console.error(error); process.exitCode = 1; });
