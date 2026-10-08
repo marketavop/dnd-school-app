@@ -42,6 +42,9 @@ button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: d
 #scene-npcs-list li > span { display: block; margin-bottom: 6px; }
 #scene-npcs-list button { margin: 4px 4px 0 0; max-width: 100%; }
 #scene-npcs-status:empty { display: none; }
+#scene-npc-options { list-style: none; padding: 0; }
+#scene-npc-options button { display: flex; align-items: center; gap: 8px; width: 100%; margin: 6px 0; text-align: left; overflow-wrap: anywhere; }
+#scene-npc-options img { width: 40px; height: 40px; object-fit: cover; flex-shrink: 0; }
 .panel-tabs { display: flex; background: #f8f4e9; border-bottom: 1px solid #b7a579; padding: 8px 12px 0; gap: 4px; }
 .panel-tabs button { flex: 1; min-width: 0; padding: 6px 4px; font-size: 13px; background: #f2eee5; border-color: #d5cdbd; border-bottom: 3px solid transparent; border-radius: 3px 3px 0 0; }
 .panel-tabs [aria-selected="true"] { border-bottom-color: #a68a4d; color: #263442; background: #fffdf8; font-weight: 600; }

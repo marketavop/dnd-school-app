@@ -101,6 +101,22 @@ const npcStatus = document.querySelector('#npc-status');
 const sceneNpcList = document.querySelector('#scene-npcs-list');
 const sceneNpcEmpty = document.querySelector('#scene-npcs-empty');
 const sceneNpcStatus = document.querySelector('#scene-npcs-status');
+const npcPicker = document.querySelector('#scene-npc-picker');
+const npcPickerToggle = document.querySelector('#scene-npc-add');
+const npcOptions = document.querySelector('#scene-npc-options');
+const npcPickerEmpty = document.querySelector('#scene-npc-picker-empty');
+const npcPreviewUrls = new Map();
+function setNpcPicker(open) {
+  npcPicker.hidden = !open || !leaderMode;
+  npcPickerToggle.setAttribute('aria-expanded', String(!npcPicker.hidden));
+  if (!npcPicker.hidden) drawNpcPicker();
+}
+npcPickerToggle.addEventListener('click', () => setNpcPicker(npcPicker.hidden));
+setNpcPicker(false);
+document.querySelector('#scene-npc-cancel').addEventListener('click', () => {
+  setNpcPicker(false);
+  npcPickerToggle.focus();
+});
 document.querySelector('#scene-npcs').hidden = !leaderMode;
 function setNpcStatus(text, portraitError = false) {
   npcStatus.textContent = text;
@@ -241,6 +257,8 @@ async function saveToken(state, action, point) {
 }
 
 function clearNpcs() {
+  setNpcPicker(false);
+  npcOptions.replaceChildren();
   npcRequest++;
   for (const state of npcs.values()) {
     if (drag?.state === state) cancelDrag({ pointerId: drag.id });
@@ -312,6 +330,50 @@ async function refreshNpcs() {
   }
 }
 
+function drawNpcPicker() {
+  if (!leaderMode || npcPicker.hidden) return;
+  npcOptions.replaceChildren();
+  const placed = new Set([...npcs.values()].map(state => state.npcId));
+  const available = npcDefinitions.filter(definition => !placed.has(definition.id));
+  npcPickerEmpty.hidden = available.length > 0;
+  for (const definition of available) {
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.disabled = npcBusy.has(definition.id);
+    const label = document.createElement('span');
+    label.textContent = definition.name || 'NPC';
+    button.append(label);
+    if (definition.image_url != null) {
+      const key = `${definition.id}:${definition.image_url}`;
+      if (!npcPreviewUrls.has(key)) {
+        npcPreviewUrls.set(key, portraitImageUrl(definition.id, { entityType: 'npc' }).catch(() => {
+          npcPreviewUrls.delete(key);
+          return null;
+        }));
+      }
+      void npcPreviewUrls.get(key).then(url => {
+        if (!url) return;
+        const image = document.createElement('img');
+        image.alt = '';
+        image.referrerPolicy = 'no-referrer';
+        image.addEventListener('error', () => { npcPreviewUrls.delete(key); image.remove(); });
+        image.src = url;
+        button.append(image);
+      });
+    }
+    button.addEventListener('click', async () => {
+      const version = mapVersion;
+      if (await changeNpcDefinition(definition, 'add') && version === mapVersion) {
+        setNpcPicker(false);
+        npcPickerToggle.focus();
+      }
+    });
+    item.append(button);
+    npcOptions.append(item);
+  }
+}
+
 function drawSceneNpcs() {
   if (!leaderMode) return;
   sceneNpcList.replaceChildren();
@@ -337,6 +399,7 @@ function drawSceneNpcs() {
 function drawNpcList() {
   if (!leaderMode) return;
   drawSceneNpcs();
+  drawNpcPicker();
   npcList.replaceChildren();
   for (const definition of npcDefinitions) {
     const state = [...npcs.values()].find(item => item.npcId === definition.id);
@@ -417,8 +480,10 @@ async function changeNpcPortrait(id, file) {
 async function changeNpcDefinition(definition, action) {
   if (!leaderMode || npcBusy.has(definition.id) || drag) return;
   const version = mapVersion;
+  let succeeded = false;
   const args = { p_npc_id: definition.id };
   if (action === 'add') {
+    if ([...npcs.values()].some(state => state.npcId === definition.id)) return;
     if (!mapReady || !configReady) return;
     const point = snapToCell({ x: map.naturalWidth / 2, y: map.naturalHeight / 2 });
     if (!point) { setNpcStatus('Mapa neobsahuje celé pole pro NPC.'); return; }
@@ -428,14 +493,17 @@ async function changeNpcDefinition(definition, action) {
   setNpcStatus('Ukládám NPC…');
   try {
     await window.parent.mutateNpc(action, args);
+    succeeded = true;
     if (version === mapVersion) setNpcStatus('');
   } catch (error) {
     console.error('Změna NPC selhala:', error);
     if (version === mapVersion) setNpcStatus('Změnu NPC se nepodařilo uložit. Zkus to znovu.');
   } finally {
-    npcBusy.delete(definition.id);
     if (version === mapVersion) await refreshNpcs();
+    npcBusy.delete(definition.id);
+    drawNpcList();
   }
+  return succeeded;
 }
 
 async function saveNpc(state, action, point) {

@@ -14,7 +14,7 @@ function client(role, portraitControl = {}) {
   const el = () => ({ style: {}, handlers: {}, children: [], value: '', checked: true, complete: false,
     naturalWidth: 1000, naturalHeight: 800, clientWidth: 500, clientHeight: 400,
     classList: { add() {}, remove() {} }, attributes: {}, setAttribute(key, value) { this.attributes[key] = value; },
-    click() { this.clicked = true; },
+    click() { this.clicked = true; }, focus() {},
     addEventListener(k, fn) { this.handlers[k] = fn; }, append(...items) { this.children.push(...items); },
     remove() { this.removed = true; }, reset() {}, replaceChildren() { this.children = []; }, querySelector() { return button; },
     setPointerCapture() {}, hasPointerCapture() { return false; }, releasePointerCapture() {},
@@ -338,5 +338,64 @@ function client(role, portraitControl = {}) {
   await scene.refresh();
   assert.equal(sceneRows().length, 1);
   assert.match(sceneRows()[0].children[0].textContent, /Other map — viditelné/);
+  // Picker reuses definitions, excludes only current-map placements, and signs previews.
+  definitions[2].image_url = 'npcs/unused/portrait.png';
+  await scene.refresh();
+  const readsBeforePicker = scene.definitionReads;
+  scene.run('setNpcPicker(true)');
+  const options = () => scene.elements['#scene-npc-options'].children;
+  const optionButton = index => options()[index].children[0];
+  assert.equal(options().length, 2);
+  assert.equal(optionButton(0).children[0].textContent, 'Secret');
+  assert.equal(optionButton(1).children[0].textContent, 'Unplaced');
+  await new Promise(setImmediate);
+  assert.equal(optionButton(1).children[1].src, 'https://storage.test/signed-npc');
+  assert.equal(scene.portraitCalls.at(-1).id, 'unused');
+  assert.equal(scene.portraitCalls.at(-1).mapId, undefined);
+  assert.equal(scene.definitionReads, readsBeforePicker);
+  const mutate = scene.ctx.window.parent.mutateNpc;
+  let finishAdd;
+  let failAdd = true;
+  let addAttempts = 0;
+  scene.ctx.window.parent.mutateNpc = async (action, args) => {
+    assert.equal(action, 'add');
+    addAttempts++;
+    if (failAdd) throw new Error('Fixture backend failure');
+    await new Promise(resolve => { finishAdd = resolve; });
+    await mutate(action, args);
+    // Model the deployed backend default, without a frontend visibility request.
+    rows.at(-1).visible = false;
+  };
+  await optionButton(0).handlers.click();
+  assert.equal(scene.elements['#scene-npc-picker'].hidden, false);
+  assert.match(scene.elements['#scene-npcs-status'].textContent, /nepodařilo/);
+  assert.equal(optionButton(0).disabled, false);
+  failAdd = false;
+  const beforeDefinitions = structuredClone(definitions);
+  const otherPlacements = structuredClone(rows);
+  const cameraBefore = scene.run('[userZoom, panX, panY].join()');
+  const selectedNpc = optionButton(0);
+  const adding = selectedNpc.handlers.click();
+  await selectedNpc.handlers.click();
+  assert.equal(addAttempts, 2, 'failure plus one in-flight retry, no duplicate');
+  assert.equal(optionButton(0).disabled, true);
+  finishAdd(); await adding;
+  assert.equal(scene.elements['#scene-npc-picker'].hidden, true);
+  assert.equal(scene.elements['#scene-npc-add'].attributes['aria-expanded'], 'false');
+  assert.equal(rows.at(-1).visible, false);
+  assert.deepEqual(definitions, beforeDefinitions);
+  assert.deepEqual(rows.slice(0, -1), otherPlacements);
+  assert.equal(scene.run('[userZoom, panX, panY].join()'), cameraBefore);
+  await selectedNpc.handlers.click();
+  assert.equal(addAttempts, 2, 'stale button must not add an already placed NPC');
+  scene.run('setNpcPicker(true)');
+  assert.equal(options().length, 1);
+  scene.elements['#scene-npc-cancel'].handlers.click();
+  assert.equal(scene.elements['#scene-npc-picker'].hidden, true);
+  scene.run('npcDefinitions = []; setNpcPicker(true)');
+  assert.equal(options().length, 0);
+  assert.equal(scene.elements['#scene-npc-picker-empty'].hidden, false);
+  scenePlayer.run('setNpcPicker(true)');
+  assert.equal(scenePlayer.elements['#scene-npc-picker'].hidden, true);
   console.log('PASS: NPC create/placements, portrait upload/replace/remove, busy/recovery, signed token/fallback and stale image guards');
 })().catch(error => { console.error(error); process.exitCode = 1; });
