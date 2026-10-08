@@ -10,6 +10,13 @@
   <main>
     <a id="home-link" href="./index.html">← Domů</a>
     <p id="load-status" role="status" aria-live="polite">Načítám postavu…</p>
+    <div id="student-pages" aria-label="Studentský průkaz" hidden>
+      <div class="card-tabs" role="tablist" aria-label="Stránky Studentského průkazu">
+        <button id="tab-card" type="button" role="tab" aria-selected="true" aria-controls="panel-card">Průkaz</button>
+        <button id="tab-inventory" type="button" role="tab" aria-selected="false" aria-controls="panel-inventory" tabindex="-1">Inventář</button>
+        <button id="tab-notes" type="button" role="tab" aria-selected="false" aria-controls="panel-notes" tabindex="-1">Sešit</button>
+      </div>
+      <div id="panel-card" role="tabpanel" aria-labelledby="tab-card" tabindex="0">
     <section id="student-card" class="card" aria-labelledby="card-title" hidden>
       <header class="card-header">
         <div class="card-heading"><p class="card-kicker">Studijní záznam</p><h1 id="card-title">Studentský průkaz</h1></div>
@@ -24,8 +31,6 @@
         </button>
         </div>
       </header>
-      <!-- Reserved for future page tabs; empty while the card has only one page. -->
-      <div class="card-tabs"></div>
       <div class="card-content">
       <div id="identity-page" class="card-page">
       <div class="identity">
@@ -37,6 +42,7 @@
           <div class="name"><dt><label for="edit-name">Jméno</label></dt><dd><span id="character-name"></span><input id="edit-name" type="text" required aria-describedby="error-name" hidden><span id="error-name" class="field-error" role="status"></span></dd></div>
           <div><dt><label for="edit-race">Rasa</label></dt><dd><span id="character-race"></span><select id="edit-race" aria-describedby="error-race" hidden></select><span id="error-race" class="field-error" role="status"></span></dd></div>
           <div><dt><label for="edit-class">Povolání</label></dt><dd><span id="character-class"></span><select id="edit-class" aria-describedby="error-class" hidden></select><span id="error-class" class="field-error" role="status"></span></dd></div>
+          <div><dt><label for="edit-background">Zázemí</label></dt><dd><span id="character-background"></span><input id="edit-background" type="text" placeholder="např. Folk Hero" aria-describedby="error-background" hidden><span id="error-background" class="field-error" role="status"></span></dd></div>
           <div><dt><label for="edit-level">Level</label></dt><dd><span id="character-level"></span><input id="edit-level" type="number" min="1" max="20" step="1" aria-describedby="error-level" hidden><span id="error-level" class="field-error" role="status"></span></dd></div>
           <div><dt><label for="edit-xp">XP</label></dt><dd><span id="character-xp"></span><input id="edit-xp" type="number" min="0" step="1" aria-describedby="error-xp" hidden><span id="error-xp" class="field-error" role="status"></span><span id="xp-next" class="hint"></span></dd></div>
           <div><dt><label for="edit-ac">AC</label></dt><dd><span id="character-ac"></span><input id="edit-ac" type="number" min="0" step="1" aria-describedby="error-ac" hidden><span id="error-ac" class="field-error" role="status"></span><label for="edit-ac_note" class="hint">Poznámka k AC</label><span id="character-ac_note" class="hint"></span><input id="edit-ac_note" type="text" placeholder="např. kožená zbroj + obratnost" aria-describedby="error-ac_note" hidden><span id="error-ac_note" class="field-error" role="status"></span></dd></div>
@@ -89,6 +95,48 @@
         <span id="error-cha" class="field-error" role="status"></span>
       </article>
     </section>
+      </div>
+      <div id="panel-inventory" role="tabpanel" aria-labelledby="tab-inventory" tabindex="0" hidden>
+    <section id="inventory" class="card" aria-labelledby="inventory-title" hidden>
+      <header class="card-header">
+        <h2 id="inventory-title">Inventář</h2>
+        <button id="inventory-toggle" type="button" aria-pressed="false" aria-controls="edit-inventory">Upravit inventář</button>
+      </header>
+      <div class="card-content">
+        <div id="character-inventory"></div>
+        <textarea id="edit-inventory" rows="10" aria-label="Inventář" aria-describedby="inventory-hint inventory-count error-inventory" hidden></textarea>
+        <p id="inventory-count" class="hint" hidden></p>
+        <p id="inventory-hint" class="hint" hidden>Nejvýše 5 000 znaků. Změny se ukládají při opuštění pole.</p>
+        <details id="inventory-help" class="markdown-help" hidden><summary>Jak upravit text?</summary>
+          <p><code># Nadpis</code> až <code>### Nadpis</code>; <code>**tučně**</code>; <code>*kurzíva*</code>.</p>
+          <p><code>- položka</code>, <code>1. položka</code>, <code>- [ ] úkol</code> nebo <code>- [x] hotovo</code>.</p>
+        </details>
+        <span id="error-inventory" class="field-error" role="status"></span>
+        <p id="inventory-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+      </div>
+      <div id="panel-notes" role="tabpanel" aria-labelledby="tab-notes" tabindex="0" hidden>
+    <section id="notes" class="card" aria-labelledby="notes-title" hidden>
+      <header class="card-header">
+        <h2 id="notes-title">Studentský sešit</h2>
+        <button id="notes-toggle" type="button" aria-pressed="false" aria-controls="edit-notes">✎ Upravit sešit</button>
+      </header>
+      <div class="card-content">
+        <div id="character-notes"></div>
+        <textarea id="edit-notes" rows="14" aria-label="Studentský sešit" aria-describedby="notes-hint notes-count error-notes" hidden></textarea>
+        <p id="notes-count" class="hint" hidden></p>
+        <p id="notes-hint" class="hint" hidden>Nejvýše 20 000 znaků. Změny se ukládají při opuštění pole.</p>
+        <details id="notes-help" class="markdown-help" hidden><summary>Jak upravit text?</summary>
+          <p><code># Nadpis</code> až <code>### Nadpis</code>; <code>**tučně**</code>; <code>*kurzíva*</code>.</p>
+          <p><code>- položka</code>, <code>1. položka</code>, <code>- [ ] úkol</code> nebo <code>- [x] hotovo</code>.</p>
+        </details>
+        <span id="error-notes" class="field-error" role="status"></span>
+        <p id="notes-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+      </div>
+    </div>
     <noscript>Pro zobrazení deníku povolte JavaScript.</noscript>
   </main>
   <script type="module" src="./character-page.js"></script>

@@ -2,6 +2,7 @@ import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';
 import { getCurrentUser } from './login.js';
 import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';
+import { renderBasicMarkdown } from './markdown.js';
 
 const RACES = new Map([
   ['human', 'Člověk'], ['elf', 'Elf'], ['halfling', 'Půlčík'], ['dwarf', 'Trpaslík'],
@@ -117,6 +118,262 @@ async function setupPortrait(character, reload) {
   remove.addEventListener('click', () => change('remove'));
 }
 
+function setupTabs() {
+  const names = ['card', 'inventory', 'notes'];
+  const tabs = names.map(name => document.querySelector('#tab-' + name));
+  const panels = names.map(name => document.querySelector('#panel-' + name));
+  let active = 0;
+  function select(index) {
+    // Flush a focused editor through its existing blur handler before hiding it.
+    if (index !== active) document.activeElement?.blur();
+    active = index;
+    tabs.forEach((tab, i) => {
+      tab.setAttribute('aria-selected', String(i === index));
+      tab.tabIndex = i === index ? 0 : -1;
+      panels[i].hidden = i !== index;
+    });
+  }
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => { select(i); tab.focus(); });
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const index = event.key === 'Home' ? 0 : event.key === 'End' ? 2 :
+        (i + (event.key === 'ArrowRight' ? 1 : -1) + 3) % 3;
+      select(index);
+      tabs[index].focus();
+    });
+  });
+  select(0);
+  document.querySelector('#student-pages').hidden = false;
+}
+
+function setupInventory(db, character) {
+  const section = document.querySelector('#inventory');
+  const display = document.querySelector('#character-inventory');
+  const input = document.querySelector('#edit-inventory');
+  const toggle = document.querySelector('#inventory-toggle');
+  const message = document.querySelector('#inventory-status');
+  const error = document.querySelector('#error-inventory');
+  const help = document.querySelector('#inventory-help');
+  const hint = document.querySelector('#inventory-hint');
+  const counter = document.querySelector('#inventory-count');
+  display.classList.add('markdown-content');
+  function updateCounter() {
+    const count = [...input.value].length;
+    counter.textContent = count.toLocaleString('cs-CZ') + ' / 5 000';
+    counter.dataset.error = String(count > 5000);
+  }
+  let editing = false, busy = false, failed = false;
+  let savedTimer = null;
+  function clearSavedTimer() {
+    clearTimeout(savedTimer);
+    savedTimer = null;
+  }
+  function render() {
+    if (character.inventory) renderBasicMarkdown(display, character.inventory);
+    else display.textContent = 'Inventář zatím není vyplněný.';
+    display.dataset.empty = String(!character.inventory);
+    display.hidden = editing || failed;
+    input.hidden = !(editing || failed);
+    hint.hidden = counter.hidden = input.hidden;
+    help.hidden = input.hidden;
+    updateCounter();
+    input.disabled = busy || readOnly;
+    toggle.disabled = readOnly;
+    toggle.textContent = editing ? 'Ukončit editaci' : 'Upravit inventář';
+    toggle.setAttribute('aria-pressed', String(editing));
+  }
+  input.value = character.inventory ?? '';
+  render();
+  section.hidden = false;
+  if (readOnly) {
+    toggle.hidden = true;
+    input.readOnly = true;
+    message.textContent = 'Pouze pro čtení';
+    return;
+  }
+  function validate() {
+    // Match the server's character count, rather than UTF-16 code units.
+    return [...input.value].length <= 5000;
+  }
+  input.addEventListener('input', () => {
+    updateCounter();
+    if (validate()) {
+      error.textContent = '';
+      input.setAttribute('aria-invalid', 'false');
+    } else {
+      error.textContent = 'Inventář může mít nejvýše 5 000 znaků.';
+      input.setAttribute('aria-invalid', 'true');
+    }
+  });
+  async function save() {
+    if (busy || (!editing && !failed)) return;
+    if (!validate()) {
+      clearSavedTimer();
+      failed = true;
+      error.textContent = 'Inventář může mít nejvýše 5 000 znaků.';
+      input.setAttribute('aria-invalid', 'true');
+      message.textContent = 'Nepodařilo se uložit';
+      message.dataset.error = 'true';
+      render();
+      return;
+    }
+    const value = input.value === '' ? null : input.value;
+    if (value === character.inventory && !failed) return;
+    clearSavedTimer();
+    busy = true;
+    error.textContent = '';
+    input.setAttribute('aria-invalid', 'false');
+    message.textContent = 'Ukládám…';
+    message.dataset.error = 'false';
+    render();
+    try {
+      const updated = await updateCharacterField(db, character.id, 'inventory', value, playerSessionToken);
+      character.inventory = updated.inventory;
+      input.value = character.inventory ?? '';
+      failed = false;
+      message.textContent = 'Uloženo';
+      savedTimer = setTimeout(() => {
+        message.textContent = '';
+        savedTimer = null;
+      }, 2000);
+    } catch {
+      failed = true;
+      error.textContent = 'Nepodařilo se uložit. Pro opakování klikni do pole a znovu jej opusť.';
+      message.textContent = 'Nepodařilo se uložit';
+      message.dataset.error = 'true';
+    } finally {
+      busy = false;
+      render();
+    }
+  }
+  input.addEventListener('blur', event => {
+    if (event?.relatedTarget && help.contains(event.relatedTarget)) return;
+    return save();
+  });
+  toggle.addEventListener('click', async () => {
+    const saving = editing ? save() : null;
+    editing = !editing;
+    render();
+    if (editing) input.focus();
+    await saving;
+  });
+}
+
+function setupNotes(db, character) {
+  const section = document.querySelector('#notes');
+  const display = document.querySelector('#character-notes');
+  const input = document.querySelector('#edit-notes');
+  const toggle = document.querySelector('#notes-toggle');
+  const message = document.querySelector('#notes-status');
+  const error = document.querySelector('#error-notes');
+  const help = document.querySelector('#notes-help');
+  const hint = document.querySelector('#notes-hint');
+  const counter = document.querySelector('#notes-count');
+  display.classList.add('markdown-content');
+  function updateCounter() {
+    const count = [...input.value].length;
+    counter.textContent = count.toLocaleString('cs-CZ') + ' / 20 000';
+    counter.dataset.error = String(count > 20000);
+  }
+  let editing = false, busy = false, failed = false;
+  let savedTimer = null;
+  function clearSavedTimer() {
+    clearTimeout(savedTimer);
+    savedTimer = null;
+  }
+  function render() {
+    if (character.notes) renderBasicMarkdown(display, character.notes);
+    else display.textContent = 'Studentský sešit zatím není vyplněný.';
+    display.dataset.empty = String(!character.notes);
+    display.hidden = editing || failed;
+    input.hidden = !(editing || failed);
+    hint.hidden = counter.hidden = input.hidden;
+    help.hidden = input.hidden;
+    updateCounter();
+    input.disabled = busy || readOnly;
+    toggle.disabled = readOnly;
+    toggle.textContent = editing ? 'Ukončit editaci' : '✎ Upravit sešit';
+    toggle.setAttribute('aria-pressed', String(editing));
+  }
+  input.value = character.notes ?? '';
+  render();
+  section.hidden = false;
+  if (readOnly) {
+    toggle.hidden = true;
+    input.readOnly = true;
+    message.textContent = 'Pouze pro čtení';
+    return;
+  }
+  function validate() {
+    // Match the server's character count, rather than UTF-16 code units.
+    return [...input.value].length <= 20000;
+  }
+  input.addEventListener('input', () => {
+    updateCounter();
+    if (validate()) {
+      error.textContent = '';
+      input.setAttribute('aria-invalid', 'false');
+    } else {
+      error.textContent = 'Studentský sešit může mít nejvýše 20 000 znaků.';
+      input.setAttribute('aria-invalid', 'true');
+    }
+  });
+  async function save() {
+    if (busy || (!editing && !failed)) return;
+    if (!validate()) {
+      clearSavedTimer();
+      failed = true;
+      error.textContent = 'Studentský sešit může mít nejvýše 20 000 znaků.';
+      input.setAttribute('aria-invalid', 'true');
+      message.textContent = 'Nepodařilo se uložit';
+      message.dataset.error = 'true';
+      render();
+      return;
+    }
+    const value = input.value === '' ? null : input.value;
+    if (value === character.notes && !failed) return;
+    clearSavedTimer();
+    busy = true;
+    error.textContent = '';
+    input.setAttribute('aria-invalid', 'false');
+    message.textContent = 'Ukládám…';
+    message.dataset.error = 'false';
+    render();
+    try {
+      const updated = await updateCharacterField(db, character.id, 'notes', value, playerSessionToken);
+      character.notes = updated.notes;
+      input.value = character.notes ?? '';
+      failed = false;
+      message.textContent = 'Uloženo';
+      savedTimer = setTimeout(() => {
+        message.textContent = '';
+        savedTimer = null;
+      }, 2000);
+    } catch {
+      failed = true;
+      error.textContent = 'Nepodařilo se uložit. Pro opakování klikni do pole a znovu jej opusť.';
+      message.textContent = 'Nepodařilo se uložit';
+      message.dataset.error = 'true';
+    } finally {
+      busy = false;
+      render();
+    }
+  }
+  input.addEventListener('blur', event => {
+    if (event?.relatedTarget && help.contains(event.relatedTarget)) return;
+    return save();
+  });
+  toggle.addEventListener('click', async () => {
+    const saving = editing ? save() : null;
+    editing = !editing;
+    render();
+    if (editing) input.focus();
+    await saving;
+  });
+}
+
 function enableEditing(db, character) {
   const toggle = document.querySelector('#edit-toggle');
   const saveStatus = document.querySelector('#save-status');
@@ -124,6 +381,7 @@ function enableEditing(db, character) {
     { key: 'name', slot: 'name' },
     { key: 'race_code', slot: 'race', choices: RACES },
     { key: 'class_code', slot: 'class', choices: CLASSES },
+    { key: 'background', slot: 'background', text: true },
     { key: 'level', slot: 'level' },
     { key: 'xp', slot: 'xp', resource: true },
     { key: 'ac', slot: 'ac', resource: true },
@@ -248,6 +506,8 @@ function enableEditing(db, character) {
       if (field.key === 'name') {
         if (!value.trim()) message = 'Jméno nemůže být prázdné.';
       } else if (field.text) {
+        // Count Unicode code points like PostgreSQL char_length, including emoji.
+        if (field.key === 'background' && [...value].length > 100) message = 'Zázemí může mít nejvýše 100 znaků.';
         value = value === '' ? null : value;
       } else if (field.resource) {
         value = value === '' ? null : Number(value);
@@ -288,6 +548,12 @@ function enableEditing(db, character) {
       error.textContent = message || (failures.has(field.key) ? 'Nepodařilo se uložit. Zkuste změnu znovu.' : '');
       input.setAttribute('aria-invalid', String(Boolean(message)));
       if (message) {
+        if (field.key === 'background') {
+          // Keep the draft editable even after closing the pencil editor.
+          failures.add(field.key);
+          updateStatus();
+          return;
+        }
         input.value = character[field.key] ?? '';
         showModifier(character[field.key]);
         return;
@@ -341,7 +607,7 @@ function enableEditing(db, character) {
   }
   function renderEditing() {
     for (const field of fields) {
-      if (!editing) field.clearValidation();
+      if (!editing && field.key !== 'background') field.clearValidation();
       const editable = editing || failures.has(field.key);
       if (field.ability) {
         field.input.readOnly = !editable;
@@ -396,10 +662,14 @@ if (!ids.length) {
     showValue('#character-name', character.name);
     showValue('#character-race', label(character.race_code, RACES, 'Neznámá rasa'));
     showValue('#character-class', label(character.class_code, CLASSES, 'Neznámé povolání'));
+    showValue('#character-background', character.background);
     showValue('#character-level', character.level);
     showValue('#character-ac', character.ac);
     showValue('#character-ac_note', character.ac_note);
     enableEditing(db, character);
+    setupInventory(db, character);
+    setupNotes(db, character);
+    setupTabs();
     card.hidden = false;
     document.querySelector('#abilities').hidden = false;
     status.textContent = '';

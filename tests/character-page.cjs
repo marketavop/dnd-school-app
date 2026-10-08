@@ -9,28 +9,58 @@ const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'u
   .replace("import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';", dataSource)
   .replace("import { getCurrentUser } from './login.js';", 'const getCurrentUser = () => ({ session_token: testSessionToken, role: testRole });')
   .replace("import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';", '')
+  .replace("import { renderBasicMarkdown } from './markdown.js';", readFileSync(resolve(__dirname, '../public/markdown.js'), 'utf8').replace('export function', 'function'))
   .replace("await import('./config.local.js')", 'getConfig()')
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
 const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-const base = { id, name: 'Eliška', race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
+const base = { id, name: 'Eliška', background: null, inventory: null, notes: null, race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
 async function page(query, row = base, error = null, leader = false, authorized = false, portraitControl = {}) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
+    'student-pages', 'tab-card', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-inventory', 'panel-notes',
+    'inventory-hint', 'inventory-count', 'inventory-help', 'notes-hint', 'notes-count', 'notes-help',
+    'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
+    'inventory', 'inventory-toggle', 'character-inventory', 'edit-inventory', 'inventory-status', 'error-inventory',
     'portrait-controls', 'portrait-upload', 'portrait-remove', 'portrait-file', 'portrait-status',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
-    'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
-    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'close-icon'].includes(key), dataset: {}, handlers: {},
+    'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['background', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
+    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'edit-background', 'close-icon', 'inventory-help', 'notes-help', 'inventory-count', 'notes-count'].includes(key), dataset: {}, handlers: {},
     value: '', disabled: false, validity: { badInput: false }, children: [], attributes: {},
     append(option) { this.children.push(option); },
     removeAttribute(key) { if (key === 'src') delete this.src; delete this.attributes[key]; },
     getAttribute(key) { return this[key] ?? null; },
     click() { this.clicked = true; },
+    focus() { this.focused = true; },
     setAttribute(key, value) { this.attributes[key] = value; },
     addEventListener(event, handler) { this.handlers[event] = handler; },
   }]));
+  function node(tagName = 'div', text = '') {
+    let ownText = text;
+    const result = { tagName, children: [], attributes: {}, dataset: {}, className: '',
+      append(...children) { this.children.push(...children); },
+      replaceChildren(...children) { this.children = children; ownText = ''; },
+      setAttribute(key, value) { this.attributes[key] = value; },
+      getAttribute(key) { return this.attributes[key] ?? null; },
+      classList: { add(value) { result.className = `${result.className} ${value}`.trim(); } },
+    };
+    Object.defineProperty(result, 'textContent', {
+      get() { return ownText + (this.tagName === 'br' ? '\n' : this.children.map(child => child.textContent ?? '').join('')); },
+      set(value) { ownText = String(value); this.children = []; },
+    });
+    return result;
+  }
+  for (const element of Object.values(elements)) {
+    element.append = node().append;
+    element.replaceChildren = node().replaceChildren;
+  }
+  for (const key of ['character-inventory', 'character-notes']) elements[key] = node();
+  for (const key of ['inventory-help', 'notes-help']) {
+    elements[key].summary = node('summary', 'Jak upravit text?');
+    elements[key].contains = target => target === elements[key].summary;
+  }
   // SVG has no HTMLElement.hidden reflection. Catch accidental property writes.
   Object.defineProperty(elements['portrait-placeholder'], 'hidden', {
     get() { return Object.hasOwn(this.attributes, 'hidden'); },
@@ -77,7 +107,17 @@ async function page(query, row = base, error = null, leader = false, authorized 
     };
   } };
   const portraitCalls = [];
+  let now = 0, timerId = 0;
+  const timers = new Map();
+  function advanceTime(ms) {
+    now += ms;
+    for (const [id, timer] of timers) {
+      if (timer.at <= now) { timers.delete(id); timer.callback(); }
+    }
+  }
   const context = vm.createContext({
+    setTimeout(callback, ms) { const id = ++timerId; timers.set(id, { callback, at: now + ms }); return id; },
+    clearTimeout(id) { timers.delete(id); },
     testRole: leader ? 'leader' : 'player',
     async portraitImageUrl(characterId) {
       portraitCalls.push(['read', characterId]);
@@ -105,7 +145,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
         if (error) throw error;
         return { ...row };
       } } : undefined },
-    document: { createElement: () => ({}), querySelector: selector => { assert.ok(elements[selector.slice(1)], selector); return elements[selector.slice(1)]; } },
+    document: { createElement: tag => node(tag), createTextNode: value => node('#text', String(value)), querySelector: selector => { assert.ok(elements[selector.slice(1)], selector); return elements[selector.slice(1)]; } },
     console: { error: (...args) => logs.push(args) },
     getConfig() { configs++; return { SUPABASE_URL: 'https://project.supabase.co', SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' }; },
     sdk: { createClient(url, key, options) {
@@ -115,10 +155,410 @@ async function page(query, row = base, error = null, leader = false, authorized 
     } },
   });
   await vm.runInContext(`(async () => { ${pageSource}\n })()`, context);
-  return { portraitCalls, elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control };
+  return { document: context.document, advanceTime, portraitCalls, elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control };
 }
 
 (async () => {
+  // NAV-01: one visible panel, roving focus, no reload or additional reads.
+  for (const leader of [false, true]) {
+    const view = await page(`?${leader ? 'mode=leader&' : ''}character_id=${id}`, { ...base }, null, leader, !leader);
+    const els = view.elements;
+    function active(name) {
+      for (const other of ['card', 'inventory', 'notes']) {
+        assert.equal(els[`panel-${other}`].hidden, other !== name);
+        assert.equal(els[`tab-${other}`].attributes['aria-selected'], String(other === name));
+        assert.equal(els[`tab-${other}`].tabIndex, other === name ? 0 : -1);
+      }
+    }
+    active('card');
+    const reads = view.reads + view.leaderReads;
+    for (const name of ['inventory', 'notes', 'card']) {
+      els[`tab-${name}`].handlers.click(); active(name);
+    }
+    for (const [from, key, to] of [['card','ArrowRight','inventory'], ['inventory','End','notes'],
+      ['notes','ArrowRight','card'], ['card','ArrowLeft','notes'], ['notes','Home','card']]) {
+      let prevented = false;
+      els[`tab-${from}`].handlers.keydown({ key, preventDefault() { prevented = true; } });
+      assert.equal(prevented, true); active(to);
+      assert.equal(els[`tab-${to}`].focused, true);
+    }
+    assert.equal(view.reads + view.leaderReads, reads);
+    assert.equal(view.writes.length, 0);
+    if (leader) {
+      for (const name of ['inventory', 'notes']) {
+        assert.equal(els[`edit-${name}`].disabled, true);
+        assert.deepEqual(els[`edit-${name}`].handlers, {});
+      }
+    }
+  }
+  for (const [name, limit] of [['inventory', 5000], ['notes', 20000]]) {
+    const row = { ...base };
+    const view = await page(`?character_id=${id}`, row, null, false, true);
+    const els = view.elements, input = els[`edit-${name}`];
+    els[`tab-${name}`].handlers.click();
+    await els[`${name}-toggle`].handlers.click();
+    let pendingBlur;
+    view.document.activeElement = { blur() { pendingBlur = input.handlers.blur({ relatedTarget: els["tab-card"] }); } };
+    input.value = 'x'.repeat(limit + 1);
+    input.handlers.input();
+    els['tab-card'].handlers.click();
+    await pendingBlur;
+    assert.equal(view.writes.length, 0);
+    view.document.activeElement = null;
+    els[`tab-${name}`].handlers.click();
+    assert.equal(input.value.length, limit + 1);
+    assert.match(els[`error-${name}`].textContent, /nejvýše/);
+    input.value = 'Rozepsaný\ntext';
+    input.handlers.input();
+    view.control.error = new Error('Offline');
+    view.document.activeElement = { blur() { pendingBlur = input.handlers.blur({ relatedTarget: els["tab-card"] }); } };
+    els['tab-card'].handlers.click(); await new Promise(resolve => setImmediate(resolve));
+    view.document.activeElement = null;
+    els[`tab-${name}`].handlers.click();
+    assert.equal(input.value, 'Rozepsaný\ntext');
+    assert.match(els[`${name}-status`].textContent, /Nepodařilo/);
+    view.control.error = null;
+    await input.handlers.blur();
+    assert.equal(row[name], 'Rozepsaný\ntext');
+    els['tab-card'].handlers.click(); els[`tab-${name}`].handlers.click();
+    assert.equal(input.value, row[name]);
+    const reload = await page(`?character_id=${id}`, row, null, false, true);
+    assert.equal(reload.elements['panel-card'].hidden, false);
+  }
+  for (const [key, limit] of [['inventory', 5000], ['notes', 20000]]) {
+    const view = await page(`?character_id=${id}`, { ...base }, null, false, true);
+    const input = view.elements[`edit-${key}`];
+    const status = view.elements[`${key}-status`];
+    await view.elements[`${key}-toggle`].handlers.click();
+    input.value = 'První';
+    await input.handlers.blur();
+    assert.equal(status.textContent, 'Uloženo');
+    view.advanceTime(1000);
+    // An unchanged blur must not leave the success message permanently visible.
+    await input.handlers.blur();
+    view.advanceTime(999);
+    assert.equal(status.textContent, 'Uloženo');
+    view.advanceTime(1);
+    assert.equal(status.textContent, '');
+    input.value = 'Druhé';
+    await input.handlers.blur();
+    view.advanceTime(1000);
+    let finish;
+    view.control.wait = new Promise(resolve => { finish = resolve; });
+    input.value = 'Třetí';
+    const saving = input.handlers.blur();
+    view.advanceTime(3000);
+    assert.equal(status.textContent, 'Ukládám…', 'old timer cannot hide pending save');
+    finish(); await saving;
+    view.control.wait = null;
+    view.advanceTime(1000);
+    input.value = 'Čtvrté';
+    await input.handlers.blur();
+    view.advanceTime(1000);
+    assert.equal(status.textContent, 'Uloženo', 'previous success cannot hide newer success');
+    view.control.error = new Error('Offline');
+    input.value = 'Draft';
+    await input.handlers.blur();
+    view.advanceTime(5000);
+    assert.equal(status.textContent, 'Nepodařilo se uložit');
+    assert.match(view.elements[`error-${key}`].textContent, /Nepodařilo/);
+    assert.equal(input.value, 'Draft');
+    view.control.error = null;
+    await input.handlers.blur();
+    input.value = 'x'.repeat(limit + 1);
+    input.handlers.input();
+    await input.handlers.blur();
+    view.advanceTime(5000);
+    assert.equal(status.textContent, 'Nepodařilo se uložit');
+    assert.match(view.elements[`error-${key}`].textContent, /nejvýše/);
+    assert.equal(input.value.length, limit + 1);
+  }
+  // UI-06a: contextual help, live Unicode counts, immediate validation.
+  for (const [key, limit, maximum] of [['inventory', 5000, '5 000'], ['notes', 20000, '20 000']]) {
+    const row = { ...base, [key]: 'A😀\nB' };
+    const view = await page(`?character_id=${id}`, row, null, false, true);
+    const els = view.elements;
+    const hint = els[`${key}-hint`], count = els[`${key}-count`];
+    const input = els[`edit-${key}`], toggle = els[`${key}-toggle`];
+    assert.equal(hint.hidden, true);
+    assert.equal(count.hidden, true);
+    await toggle.handlers.click();
+    assert.equal(hint.hidden, false);
+    assert.equal(count.hidden, false);
+    assert.equal(count.textContent, `4 / ${maximum}`);
+    const before = view.rpcCalls.length;
+    for (const length of [0, limit, limit + 1]) {
+      input.value = '😀'.repeat(length);
+      input.handlers.input();
+      assert.equal(count.textContent.replaceAll('\u00a0', ' '), `${length.toLocaleString('cs-CZ').replaceAll('\u00a0', ' ')} / ${maximum}`);
+      assert.equal(count.dataset.error, String(length > limit));
+      assert.equal(input.attributes['aria-invalid'], String(length > limit));
+      assert.equal(view.rpcCalls.length, before, 'input never saves');
+    }
+    assert.match(els[`error-${key}`].textContent, /nejvýše/);
+    await toggle.handlers.click();
+    assert.equal(view.rpcCalls.length, before, 'invalid text never reaches API');
+    assert.equal(input.value, '😀'.repeat(limit + 1));
+    assert.equal(hint.hidden, false, 'help remains with invalid editable draft');
+    assert.equal(count.hidden, false);
+    input.value = 'Opraveno';
+    input.handlers.input();
+    assert.equal(count.textContent, `8 / ${maximum}`);
+    assert.equal(count.dataset.error, 'false');
+    assert.equal(els[`error-${key}`].textContent, '');
+    await input.handlers.blur();
+    assert.equal(hint.hidden, true);
+    assert.equal(count.hidden, true);
+    await toggle.handlers.click();
+    input.value = 'Další text';
+    input.handlers.input();
+    await input.handlers.blur();
+    assert.equal(count.hidden, false, 'successful save keeps count while editing');
+    await toggle.handlers.click();
+    assert.equal(hint.hidden, true);
+    assert.equal(count.hidden, true);
+    const leader = await page(`?mode=leader&character_id=${id}`, row, null, true);
+    assert.equal(leader.elements[`${key}-hint`].hidden, true);
+    assert.equal(leader.elements[`${key}-count`].hidden, true);
+  }
+  // UI-05: multiline inventory stays plain text and uses one-field authorized RPCs.
+  const inventoryRow = { ...base };
+  const inventoryPage = await page(`?character_id=${id}`, inventoryRow, null, false, true);
+  const inv = inventoryPage.elements;
+  assert.equal(inv.inventory.hidden, false);
+  assert.equal(inv['character-inventory'].textContent, 'Inventář zatím není vyplněný.');
+  assert.equal(inv['inventory-help'].hidden, true);
+  assert.equal(inv['edit-inventory'].hidden, true);
+  await inv['inventory-toggle'].handlers.click();
+  assert.equal(inv['edit-inventory'].hidden, false);
+  assert.equal(inv['inventory-help'].hidden, false);
+  const helpDraft = '**Lano**\n<img src=x onerror=alert(1)>';
+  inv['edit-inventory'].value = helpDraft;
+  const callsBeforeHelp = inventoryPage.rpcCalls.length;
+  await inv['edit-inventory'].handlers.blur({ relatedTarget: inv['inventory-help'].summary });
+  assert.equal(inv['edit-inventory'].value, helpDraft);
+  assert.equal(inventoryPage.rpcCalls.length, callsBeforeHelp, 'focus into help does not save');
+  inv['edit-inventory'].value = '';
+  const markdownValue = '# Vybavení\n- **Lano**\n- [ ] Mapa';
+  const markdownInventory = await page(`?character_id=${id}`, { ...base, inventory: markdownValue }, null, false, true);
+  assert.equal(markdownInventory.elements['character-inventory'].children[0].tagName, 'h2');
+  assert.equal(markdownInventory.elements['character-inventory'].children[1].tagName, 'ul');
+  await markdownInventory.elements['inventory-toggle'].handlers.click();
+  assert.equal(markdownInventory.elements['edit-inventory'].value, markdownValue, 'textarea keeps source Markdown');
+  assert.equal(inv['edit-inventory'].focused, true);
+  assert.equal(inv['edit-inventory'].handlers.keydown, undefined, 'Enter uses native textarea behavior');
+  const saveInventory = async value => {
+    inv['edit-inventory'].value = value;
+    inv['edit-inventory'].handlers.input();
+    await inv['edit-inventory'].handlers.blur();
+  };
+  const multiline = 'Lano\n  Kniha\nMeč';
+  for (const value of [multiline, 'Lano\n  Mapa\nMeč', '', multiline, 'ž'.repeat(5000), '😀'.repeat(5000)]) {
+    const before = { ...inventoryRow };
+    await saveInventory(value);
+    assert.deepEqual(inventoryPage.rpcCalls.at(-1).args.p_patch, { inventory: value || null });
+    assert.deepEqual(inventoryRow, { ...before, inventory: value || null });
+    assert.equal(inv['inventory-status'].textContent, 'Uloženo');
+    const reload = await page(`?character_id=${id}`, inventoryRow, null, false, true);
+    assert.equal(reload.elements['character-inventory'].textContent, value || 'Inventář zatím není vyplněný.');
+  }
+  const inventoryCalls = inventoryPage.rpcCalls.length;
+  for (const value of ['x'.repeat(5001), '😀'.repeat(5001)]) {
+    await saveInventory(value);
+    assert.equal(inventoryPage.rpcCalls.length, inventoryCalls);
+    assert.equal(inv['edit-inventory'].value, value);
+    assert.match(inv['error-inventory'].textContent, /5 000/);
+    assert.equal(inv['edit-inventory'].attributes['aria-invalid'], 'true');
+  }
+  await inv['inventory-toggle'].handlers.click();
+  assert.equal(inv['edit-inventory'].hidden, false, 'invalid draft remains visible after closing');
+  await saveInventory(multiline);
+  assert.equal(inv['edit-inventory'].hidden, true);
+  assert.equal(inv['error-inventory'].textContent, '');
+  assert.equal(inv['edit-inventory'].attributes['aria-invalid'], 'false');
+  await inv['inventory-toggle'].handlers.click();
+  inventoryPage.control.error = new Error('Offline');
+  const draftInventory = 'Lano\n<img src=x onerror=alert(1)>\nŠtít';
+  await saveInventory(draftInventory);
+  assert.equal(inv['edit-inventory'].value, draftInventory);
+  assert.equal(inventoryRow.inventory, multiline);
+  assert.equal(inv['inventory-status'].textContent, 'Nepodařilo se uložit');
+  await inv['inventory-toggle'].handlers.click();
+  assert.equal(inv['edit-inventory'].hidden, false);
+  inventoryPage.control.error = null;
+  let finishInventory;
+  inventoryPage.control.wait = new Promise(resolve => { finishInventory = resolve; });
+  const retryInventory = inv['edit-inventory'].handlers.blur();
+  assert.equal(inv['inventory-status'].textContent, 'Ukládám…');
+  assert.equal(inv['edit-inventory'].disabled, true);
+  finishInventory();
+  await retryInventory;
+  assert.equal(inv['inventory-status'].textContent, 'Uloženo');
+  assert.equal(inv['character-inventory'].textContent, draftInventory);
+  assert.equal(inv['edit-inventory'].hidden, true);
+  const leaderInventory = await page(`?mode=leader&character_id=${id}`, inventoryRow, null, true);
+  assert.equal(leaderInventory.elements['character-inventory'].textContent, draftInventory);
+  assert.equal(leaderInventory.elements['character-inventory'].children[0].tagName, 'p');
+  assert.ok(leaderInventory.elements['character-inventory'].children[0].children.every(child => child.tagName !== 'img'));
+  assert.equal(leaderInventory.elements['edit-inventory'].hidden, true);
+  assert.equal(leaderInventory.elements['edit-inventory'].disabled, true);
+  assert.equal(leaderInventory.elements['inventory-toggle'].hidden, true);
+  assert.equal(leaderInventory.elements['inventory-help'].hidden, true);
+  assert.deepEqual(leaderInventory.elements['edit-inventory'].handlers, {});
+  assert.deepEqual(leaderInventory.elements['inventory-toggle'].handlers, {});
+  assert.equal(leaderInventory.writes.length, 0);
+  // UI-06: notesMultiline notes stays plain text and uses one-field authorized RPCs.
+  const notesRow = { ...base };
+  const notesPage = await page(`?character_id=${id}`, notesRow, null, false, true);
+  const nt = notesPage.elements;
+  assert.equal(nt.notes.hidden, false);
+  assert.equal(nt['character-notes'].textContent, 'Studentský sešit zatím není vyplněný.');
+  assert.equal(nt['notes-help'].hidden, true);
+  assert.equal(nt['edit-notes'].hidden, true);
+  await nt['notes-toggle'].handlers.click();
+  assert.equal(nt['edit-notes'].hidden, false);
+  assert.equal(nt['notes-help'].hidden, false);
+  assert.equal(nt['edit-notes'].focused, true);
+  assert.equal(nt['edit-notes'].handlers.keydown, undefined, 'Enter uses native textarea behavior');
+  const saveNotes = async value => {
+    nt['edit-notes'].value = value;
+    nt['edit-notes'].handlers.input();
+    await nt['edit-notes'].handlers.blur();
+  };
+  const notesMultiline = 'Lano\n  Kniha\nMeč';
+  for (const value of [notesMultiline, 'Lano\n  Mapa\nMeč', '', notesMultiline, 'ž'.repeat(20000), '😀'.repeat(20000)]) {
+    const before = { ...notesRow };
+    await saveNotes(value);
+    assert.deepEqual(notesPage.rpcCalls.at(-1).args.p_patch, { notes: value || null });
+    assert.deepEqual(notesRow, { ...before, notes: value || null });
+    assert.equal(nt['notes-status'].textContent, 'Uloženo');
+    const reload = await page(`?character_id=${id}`, notesRow, null, false, true);
+    assert.equal(reload.elements['character-notes'].textContent, value || 'Studentský sešit zatím není vyplněný.');
+  }
+  const notesCalls = notesPage.rpcCalls.length;
+  for (const value of ['x'.repeat(20001), '😀'.repeat(20001)]) {
+    await saveNotes(value);
+    assert.equal(notesPage.rpcCalls.length, notesCalls);
+    assert.equal(nt['edit-notes'].value, value);
+    assert.match(nt['error-notes'].textContent, /20 000/);
+    assert.equal(nt['edit-notes'].attributes['aria-invalid'], 'true');
+  }
+  await nt['notes-toggle'].handlers.click();
+  assert.equal(nt['edit-notes'].hidden, false, 'invalid draft remains visible after closing');
+  await saveNotes(notesMultiline);
+  assert.equal(nt['edit-notes'].hidden, true);
+  assert.equal(nt['error-notes'].textContent, '');
+  assert.equal(nt['edit-notes'].attributes['aria-invalid'], 'false');
+  await nt['notes-toggle'].handlers.click();
+  notesPage.control.error = new Error('Offline');
+  const draftNotes = 'Lano\n<img src=x onerror=alert(1)>\nŠtít';
+  await saveNotes(draftNotes);
+  assert.equal(nt['edit-notes'].value, draftNotes);
+  assert.equal(notesRow.notes, notesMultiline);
+  assert.equal(nt['notes-status'].textContent, 'Nepodařilo se uložit');
+  await nt['notes-toggle'].handlers.click();
+  assert.equal(nt['edit-notes'].hidden, false);
+  notesPage.control.error = null;
+  let finishNotes;
+  notesPage.control.wait = new Promise(resolve => { finishNotes = resolve; });
+  const retryNotes = nt['edit-notes'].handlers.blur();
+  assert.equal(nt['notes-status'].textContent, 'Ukládám…');
+  assert.equal(nt['edit-notes'].disabled, true);
+  finishNotes();
+  await retryNotes;
+  assert.equal(nt['notes-status'].textContent, 'Uloženo');
+  assert.equal(nt['character-notes'].textContent, draftNotes);
+  assert.equal(nt['edit-notes'].hidden, true);
+  const leaderNotes = await page(`?mode=leader&character_id=${id}`, notesRow, null, true);
+  assert.equal(leaderNotes.elements['character-notes'].textContent, draftNotes);
+  assert.ok(leaderNotes.elements['character-notes'].children.length > 0);
+  assert.equal(leaderNotes.elements['edit-notes'].hidden, true);
+  assert.equal(leaderNotes.elements['edit-notes'].disabled, true);
+  assert.equal(leaderNotes.elements['notes-toggle'].hidden, true);
+  assert.equal(leaderNotes.elements['notes-help'].hidden, true);
+  assert.deepEqual(leaderNotes.elements['edit-notes'].handlers, {});
+  assert.deepEqual(leaderNotes.elements['notes-toggle'].handlers, {});
+  assert.equal(leaderNotes.writes.length, 0);
+  // Independent section saves must not replace a notes draft with server data.
+  const independentRow = { ...base, notes: 'Uložené poznámky', inventory: 'Lano' };
+  const independent = await page(`?character_id=${id}`, independentRow, null, false, true);
+  const independentEls = independent.elements;
+  await independentEls['notes-toggle'].handlers.click();
+  independentEls['edit-notes'].value = 'Rozepsané\npoznámky';
+  const beforeTyping = independent.rpcCalls.length;
+  independentEls['edit-notes'].handlers.input();
+  assert.equal(independent.rpcCalls.length, beforeTyping, 'typing does not autosave');
+  await independentEls['inventory-toggle'].handlers.click();
+  independentEls['edit-inventory'].value = 'Lano\nKniha';
+  await independentEls['edit-inventory'].handlers.blur();
+  assert.equal(independentEls['edit-notes'].value, 'Rozepsané\npoznámky');
+  assert.equal(independentRow.notes, 'Uložené poznámky');
+  await independentEls['edit-notes'].handlers.blur();
+  assert.equal(independentRow.notes, 'Rozepsané\npoznámky');
+  assert.equal(independentRow.inventory, 'Lano\nKniha');
+  // UI-04 uses the authorized RPC path and the existing blur editor.
+  const backgroundRow = { ...base };
+  const backgroundPage = await page(`?character_id=${id}`, backgroundRow, null, false, true);
+  const bg = backgroundPage.elements;
+  assert.equal(bg['character-background'].textContent, '—');
+  assert.equal(bg['edit-background'].hidden, true);
+  bg['edit-toggle'].handlers.click();
+  const saveBackground = async value => {
+    bg['edit-background'].value = value;
+    bg['edit-background'].handlers.input();
+    await bg['edit-background'].handlers.blur();
+  };
+  for (const value of ['Folk Hero', 'Acolyte', '', 'Soldier', 'ž'.repeat(100), '😀'.repeat(100)]) {
+    const before = { ...backgroundRow };
+    await saveBackground(value);
+    assert.deepEqual(backgroundPage.rpcCalls.at(-1).args.p_patch, { background: value || null });
+    assert.deepEqual(backgroundRow, { ...before, background: value || null });
+    assert.equal(bg['save-status'].textContent, 'Uloženo');
+    const reloaded = await page(`?character_id=${id}`, backgroundRow, null, false, true);
+    assert.equal(reloaded.elements['character-background'].textContent, value || '—');
+  }
+  const callCount = backgroundPage.rpcCalls.length;
+  for (const value of ['a'.repeat(101), '😀'.repeat(101)]) {
+    await saveBackground(value);
+    assert.equal(backgroundPage.rpcCalls.length, callCount);
+    assert.equal(bg['edit-background'].value, value);
+    assert.match(bg['error-background'].textContent, /100 znaků/);
+    assert.equal(bg['edit-background'].attributes['aria-invalid'], 'true');
+  }
+  bg['edit-toggle'].handlers.click();
+  assert.equal(bg['edit-background'].hidden, false, 'invalid draft survives closing edit mode');
+  assert.match(bg['error-background'].textContent, /100 znaků/);
+  await saveBackground('Soldier');
+  assert.equal(backgroundRow.background, 'Soldier');
+  assert.equal(bg['edit-background'].hidden, true);
+  assert.equal(bg['error-background'].textContent, '');
+  assert.equal(bg['edit-background'].attributes['aria-invalid'], 'false');
+  bg['edit-toggle'].handlers.click();
+  backgroundPage.control.error = new Error('Network unavailable');
+  await saveBackground('Folk Hero');
+  bg['edit-toggle'].handlers.click();
+  assert.equal(bg['edit-background'].value, 'Folk Hero');
+  assert.equal(bg['edit-background'].hidden, false);
+  assert.equal(backgroundRow.background, 'Soldier');
+  assert.equal(bg['save-status'].textContent, 'Nepodařilo se uložit');
+  backgroundPage.control.error = null;
+  let finishBackground;
+  backgroundPage.control.wait = new Promise(resolve => { finishBackground = resolve; });
+  const retryBackground = bg['edit-background'].handlers.blur();
+  assert.equal(bg['save-status'].textContent, 'Ukládám…');
+  assert.equal(bg['edit-background'].disabled, true);
+  finishBackground();
+  await retryBackground;
+  assert.equal(backgroundRow.background, 'Folk Hero');
+  assert.equal(bg['save-status'].textContent, 'Uloženo');
+  const backgroundLeader = await page(`?mode=leader&character_id=${id}`, backgroundRow, null, true);
+  assert.equal(backgroundLeader.elements['character-background'].textContent, 'Folk Hero');
+  assert.equal(backgroundLeader.elements['edit-background'].disabled, true);
+  assert.equal(backgroundLeader.elements['edit-background'].hidden, true);
+  assert.deepEqual(backgroundLeader.elements['edit-background'].handlers, {});
+  assert.equal(backgroundLeader.writes.length, 0);
+  const backgroundText = await page(`?character_id=${id}`, { ...base, background: '<b>Soldier</b>' }, null, false, true);
+  assert.equal(backgroundText.elements['character-background'].textContent, '<b>Soldier</b>');
   const hpStored = { ...base, current_hp: 10, max_hp: 20 };
   const hpPage = await page(`?character_id=${id}`, hpStored, null, false, true);
   const hp = hpPage.elements;
@@ -699,6 +1139,29 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(leaderPortrait.elements['edit-toggle'].hidden, true);
   assert.equal(leaderPortrait.elements['edit-name'].disabled, true);
   const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
+  assert.equal((html.match(/role="tab"/g) || []).length, 3);
+  assert.equal((html.match(/role="tabpanel"/g) || []).length, 3);
+  assert.ok(html.indexOf('id="panel-card"') < html.indexOf('id="student-card"'));
+  assert.ok(html.indexOf('id="abilities"') < html.indexOf('id="panel-inventory"'));
+  assert.ok(html.indexOf('id="panel-inventory"') < html.indexOf('id="inventory"'));
+  assert.ok(html.indexOf('id="panel-notes"') < html.indexOf('id="notes"'));
+  assert.ok(html.indexOf('id="notes"') > html.indexOf('id="inventory"'));
+  assert.match(html, /<section id="notes"[^>]*hidden>/);
+  assert.match(html, /<textarea id="edit-notes" rows="14"[^>]*hidden><\/textarea>/);
+  assert.match(html, /<section id="inventory"[^>]*hidden>/);
+  assert.match(html, /<textarea id="edit-inventory" rows="10"[^>]*hidden><\/textarea>/);
+  for (const key of ['inventory', 'notes']) {
+    assert.match(html, new RegExp(`<details id="${key}-help"[^>]*hidden><summary>Jak upravit text\\?</summary>`));
+    assert.match(html, new RegExp(`<code># Nadpis</code>.*<code>\\*\\*tučně\\*\\*</code>`));
+  }
+  const styles = readFileSync(resolve(__dirname, '../public/styles.css'), 'utf8');
+  assert.match(styles, /#character-notes\s*\{[^}]*white-space: pre-wrap/);
+  assert.match(styles, /#edit-notes\s*\{[^}]*min-height: 320px/);
+  assert.match(styles, /\.markdown-content h2/);
+  assert.match(styles, /#character-inventory\s*\{[^}]*white-space: pre-wrap/);
+  assert.match(styles, /#edit-inventory\s*\{[^}]*min-height: 240px/);
+  assert.ok(html.includes('<label for="edit-background">Zázemí</label>'));
+  assert.match(html, /<input id="edit-background"[^>]*aria-describedby="error-background"[^>]*hidden/);
   assert.ok(!html.includes('<h1>Deník postavy</h1>'));
   console.log('PASS: character page loading, UUID, portraits, edit toggle, exact choices, blur saves/reload, NULL, validation, unchanged values, failed/pending saves');
 })().catch(error => { console.error(error); process.exitCode = 1; });
