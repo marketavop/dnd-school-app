@@ -93,6 +93,41 @@
   :where(.home-page) .academy-header-name { font-size: 11px; letter-spacing: .12em; }
 }
 
+/* Homepage scenery is absent from login and all administrative/game views. */
+:where(.home-page) .academy-scenery { display: none; pointer-events: none; user-select: none; }
+:where(.home-page):not(:has(#login-form:not([hidden]))):has(:is(#home-content, #leader-content):not([hidden])) .academy-scenery { display: block; }
+:where(.home-page) .academy-panorama {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+  mask-image: linear-gradient(to bottom, transparent, #000 24%);
+}
+:where(.home-page) .academy-side { display: none; }
+@media (min-width: 1280px) {
+  :where(.home-page):not(:has(#login-form:not([hidden]))):has(:is(#home-content, #leader-content):not([hidden])) body { display: flex; flex-direction: column; min-height: 100vh; }
+  :where(.home-page) .academy-scenery { margin-top: auto; flex-shrink: 0; }
+  :where(.home-page) .academy-side {
+    display: block;
+    position: absolute;
+    top: 0;
+    --side-width: min(240px, calc((100vw - 1040px) / 2 - 24px));
+    width: var(--side-width);
+    height: calc(var(--side-width) * 3);
+    z-index: 0;
+    background-repeat: no-repeat;
+    /* The artwork occupies roughly half of each transparent source image.
+       Size by the available gutter so the owl remains inside the frame. */
+    background-size: 200% auto;
+    mask-composite: intersect;
+    pointer-events: none;
+  }
+  :where(.home-page) .academy-side-left { left: 0; background-image: url('./assets/images/academy-side-left.webp'); background-position: left top; }
+  :where(.home-page) .academy-side-right { right: 0; background-image: url('./assets/images/academy-side-right.webp'); background-position: right top; }
+}
+:where(.home-page):has(:is(#home-content, #leader-content):not([hidden])) main { z-index: 1; }
+:where(.home-page) .academy-panorama { position: relative; z-index: 1; }
+
 /* Fantasy homepage treatment; login remains governed by its existing rules. */
 :where(.home-page):not(:has(#login-form:not([hidden]))) body {
   background-color: #f2ead9;
@@ -108,38 +143,47 @@
 }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header {
   position: relative;
-  gap: 10px;
-  margin-bottom: 30px;
-  padding-bottom: 18px;
+  isolation: isolate;
+  width: min(100%, 640px);
+  aspect-ratio: 3 / 2;
+  margin: 0 auto 24px;
+  padding: 0;
+  pointer-events: none;
 }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header::before,
 :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header::after {
-  position: absolute;
-  bottom: 0;
-  width: min(34%, 230px);
-  height: 1px;
-  background: var(--login-gold, #a68a4d);
-  content: "";
+  content: none;
 }
+:where(.home-page) .academy-header > img { position: absolute; display: block; object-fit: contain; pointer-events: none; user-select: none; }
+:where(.home-page) .academy-header .academy-astrolabe { top: 0; left: 25%; width: 50%; height: 75%; z-index: 0; }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header .academy-emblem { top: 5%; left: 32%; width: 36%; height: 54%; z-index: 1; }
+:where(.home-page) .academy-header .academy-ribbon { bottom: 0; left: 0; width: 100%; height: 50%; z-index: 2; }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header::before { right: calc(50% + 54px); }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header::after { left: calc(50% + 54px); }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header-name {
+  position: absolute;
+  z-index: 3;
+  top: 65%;
+  left: 13%;
+  width: 74%;
+  height: 20%;
+  display: grid;
+  place-items: center;
+  margin: 0;
   color: var(--login-ink, #1d3553);
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(13px, 1.8vw, 17px);
-  letter-spacing: .2em;
+  font-size: clamp(10px, 2.5vw, 26px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: .035em;
+  text-wrap: balance;
 }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header-name::before,
 :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header-name::after {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin: 0 12px 2px;
-  border: 1px solid var(--login-gold, #a68a4d);
-  transform: rotate(45deg);
-  content: "";
+  content: none;
 }
 :where(.home-page):not(:has(#login-form:not([hidden]))) :where(#home-content, #leader-content) > h1 {
+  font-size: clamp(24px, 3vw, 30px);
   padding-bottom: 12px;
   border-bottom: 1px solid rgb(166 138 77 / 62%);
   color: var(--login-ink, #1d3553);
@@ -147,32 +191,45 @@
 :where(.home-page):not(:has(#login-form:not([hidden]))) .action-grid { gap: 18px; }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .action-card {
   position: relative;
-  min-height: 142px;
+  min-height: 290px;
   justify-content: center;
-  padding: 22px 44px 22px 24px;
-  overflow: hidden;
-  border-color: rgb(166 138 77 / 64%);
+  align-items: center;
+  gap: 12px;
+  padding: 34px 28px;
+  text-align: center;
+  border: 4px double #a68a4d;
   border-radius: 3px;
   background: rgb(255 253 247 / 91%);
   box-shadow: 0 7px 18px rgb(29 53 83 / 10%), inset 0 0 0 3px rgb(166 138 77 / 8%);
 }
+/* Keep the supplied frame's ornaments at their native aspect ratio.
+   Only its central top/bottom details are shown; CSS draws the flexible edges. */
 :where(.home-page):not(:has(#login-form:not([hidden]))) .action-card::before,
 :where(.home-page):not(:has(#login-form:not([hidden]))) .action-card::after {
   position: absolute;
-  width: 12px;
-  height: 12px;
-  border-color: var(--login-gold, #a68a4d);
-  border-style: solid;
+  left: calc(50% - 48px);
+  width: 96px;
+  height: 38px;
+  background-image: url('./assets/images/academy-card-frame.webp');
+  background-repeat: no-repeat;
+  background-size: 320px auto;
+  pointer-events: none;
   content: "";
 }
-:where(.home-page):not(:has(#login-form:not([hidden]))) .action-card::before { top: 7px; left: 7px; border-width: 1px 0 0 1px; }
-:where(.home-page):not(:has(#login-form:not([hidden]))) .action-card::after { right: 7px; bottom: 7px; border-width: 0 1px 1px 0; }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .action-card::before { top: -18px; background-position: center -12px; }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .action-card::after { bottom: -18px; background-position: center calc(100% + 12px); }
+.home-page .action-medallion { display: block; flex: 0 0 auto; width: 104px; height: 104px; object-fit: contain; pointer-events: none; user-select: none; }
+.home-page .action-medallion-book { display: grid; place-items: center; width: 94px; height: 94px; margin: 5px; border: 5px double #c2a05b; border-radius: 50%; background: #1d3553; color: #e8cc89; box-shadow: 0 0 0 2px #1d3553, inset 0 0 0 3px #a68a4d; }
+.home-page .action-medallion-book svg { width: 58%; height: 58%; }
+.home-page .action-card > span { max-width: 100%; overflow-wrap: anywhere; }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .action-card:hover,
 :where(.home-page):not(:has(#login-form:not([hidden]))) .action-card:focus-visible {
-  transform: translateY(-2px);
+  border-color: #745719;
   background: #fffdf7;
   box-shadow: 0 10px 24px rgb(29 53 83 / 16%), inset 0 0 0 3px rgb(166 138 77 / 12%);
 }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .action-card:focus-visible { outline: 3px solid #1d3553; outline-offset: 4px; }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .action-card[aria-disabled="true"] { background: #eeebe4; box-shadow: none; }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .action-card-title {
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(20px, 2.5vw, 26px);
@@ -180,22 +237,64 @@
 }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .action-card-description { font-size: 15px; }
 :where(.home-page):not(:has(#login-form:not([hidden]))) .admin-nav {
-  padding: 6px;
+  /* The wide raster nav frame cannot follow wrapped rows without distortion. */
+  padding: 8px;
+  gap: 8px;
+  border: 4px double #a68a4d;
   border-radius: 3px;
-  background: rgb(247 240 223 / 92%);
+  background: #f7f0df;
+  box-shadow: 0 4px 12px rgb(29 53 83 / 10%);
 }
-:where(.home-page):not(:has(#login-form:not([hidden]))) .admin-nav a { font-family: Georgia, "Times New Roman", serif; }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .admin-nav a { flex: 1 1 auto; text-align: center; font-family: Georgia, "Times New Roman", serif; border: 1px solid transparent; }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .admin-nav a[aria-current="page"] { border-color: #a68a4d; }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .admin-nav a:focus-visible { outline: 3px solid #1d3553; outline-offset: 2px; }
 @media (max-width: 720px) {
   :where(.home-page):not(:has(#login-form:not([hidden]))) main { width: min(100% - 24px, 520px); margin-top: 18px; }
-  :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header { margin-bottom: 22px; }
+  :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header { width: calc(100% + 32px); margin: 0 -16px 22px; }
+  :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header-name { font-size: clamp(10px, 2.7vw, 14px); letter-spacing: 0; }
   :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header::before { right: calc(50% + 43px); }
   :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header::after { left: calc(50% + 43px); }
   :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header-name::before,
   :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header-name::after { margin-inline: 7px; }
-  :where(.home-page):not(:has(#login-form:not([hidden]))) .action-card { min-height: 124px; padding: 20px 34px 20px 18px; }
+  :where(.home-page):not(:has(#login-form:not([hidden]))) .action-card { min-height: 260px; padding: 30px 16px; }
+  .home-page .action-medallion { width: 88px; height: 88px; }
+  .home-page .action-medallion-book { width: 78px; height: 78px; }
+  :where(.home-page):not(:has(#login-form:not([hidden]))) .admin-nav a { flex: 1 1 35%; padding-inline: 8px; }
 }
 
 /* Character page (including responsive layout) */
+/* Compose only the two home views; other screens retain their own spacing. */
+:where(.home-page):not(:has(#login-form:not([hidden]))):has(:is(#home-content, #leader-content):not([hidden])) body { position: relative; margin: 0; }
+:where(.home-page):not(:has(#login-form:not([hidden]))):has(:is(#home-content, #leader-content):not([hidden])) main { margin: 20px auto 0; }
+:where(.home-page):not(:has(#login-form:not([hidden]))):has(:is(#home-content, #leader-content):not([hidden])) #session-logout { margin-bottom: 0; }
+:where(.home-page):not(:has(#login-form:not([hidden]))):has(:is(#home-content, #leader-content):not([hidden])) .academy-header { width: min(100%, 540px); margin: -28px auto 0; }
+@media (min-width: 721px) {
+  :where(.home-page):not(:has(#login-form:not([hidden]))):has(:is(#home-content, #leader-content):not([hidden])) .academy-header-name { font-size: 22px; letter-spacing: 0; }
+}
+:where(.home-page) :is(#home-content, #leader-content) { gap: 18px; }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .action-card {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 6px 24px;
+  min-height: 172px;
+  padding: 22px 26px;
+  text-align: left;
+}
+.home-page .action-card .action-medallion { grid-column: 1; grid-row: 1 / 3; justify-self: center; }
+.home-page .action-card .action-card-title { grid-column: 2; align-self: end; line-height: 1.2; }
+.home-page .action-card .action-card-description { grid-column: 2; align-self: start; }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .action-card::before { content: none; }
+:where(.home-page):not(:has(#login-form:not([hidden]))) .action-card::after { opacity: .55; transform: scale(.55); }
+:where(.home-page) .academy-side-left { mask-image: linear-gradient(to right, #000 38%, rgb(0 0 0 / 85%) 65%, transparent), linear-gradient(to bottom, #000 65%, transparent 100%); }
+:where(.home-page) .academy-side-right { mask-image: linear-gradient(to left, #000 38%, rgb(0 0 0 / 85%) 65%, transparent), linear-gradient(to bottom, #000 65%, transparent 100%); }
+@media (max-width: 720px) {
+  :where(.home-page):not(:has(#login-form:not([hidden]))):has(:is(#home-content, #leader-content):not([hidden])) main { width: min(100% - 32px, 520px); margin-top: 16px; }
+  :where(.home-page):not(:has(#login-form:not([hidden]))):has(:is(#home-content, #leader-content):not([hidden])) .academy-header { width: 100%; margin: 8px auto 12px; }
+  :where(.home-page):not(:has(#login-form:not([hidden]))) .action-card { display: flex; min-height: 216px; gap: 10px; padding: 22px 16px; text-align: center; }
+  .home-page .action-card :is(.action-card-title, .action-card-description) { align-self: center; }
+}
+
 .home-page #leader-npc-form { display: grid; gap: 8px; }
 .home-page #leader-npc-form input { min-width: 0; max-width: 100%; padding: 8px; font: inherit; }
 .home-page .npc-card { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px; background: #fffdf8; border: 1px solid #d5cdbd; border-radius: 8px; }

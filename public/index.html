@@ -18,15 +18,17 @@
       <p id="login-status" role="status" aria-live="polite"></p>
     </form>
     <header class="academy-header">
-      <img class="academy-emblem" src="./assets/images/academy-emblem.webp" alt="Erb Academia Magna Illistrass">
+      <img class="academy-astrolabe" src="./assets/images/academy-astrolabe.webp" alt="" aria-hidden="true" draggable="false">
+      <img class="academy-emblem" src="./assets/images/academy-emblem.webp" alt="" aria-hidden="true" draggable="false">
+      <img class="academy-ribbon" src="./assets/images/academy-ribbon.webp" alt="" aria-hidden="true" draggable="false">
       <p class="academy-header-name">ACADEMIA MAGNA ILLISTRASS</p>
     </header>
     <section id="home-content" hidden>
       <h1>Moje postava</h1>
       <p id="signed-in-status" role="status" hidden></p>
       <nav class="action-grid" aria-label="Hlavní akce">
-        <a id="diary-link" class="action-card" aria-disabled="true"><span class="action-card-title">Můj deník</span><span class="action-card-description">Prohlédnout a upravit svou postavu.</span></a>
-        <a id="game-link" class="action-card action-card-primary" aria-disabled="true"><span class="action-card-title">Vstoupit do hry</span><span class="action-card-description">Otevřít herní scénu a hrát.</span></a>
+        <a id="diary-link" class="action-card" aria-disabled="true"><span class="action-medallion action-medallion-book" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1zM12 6v14"/></svg></span><span class="action-card-title">Můj deník</span><span class="action-card-description">Prohlédnout a upravit svou postavu.</span></a>
+        <a id="game-link" class="action-card action-card-primary" aria-disabled="true"><img class="action-medallion" src="./assets/images/academy-icon-game.webp" alt="" aria-hidden="true" draggable="false"><span class="action-card-title">Vstoupit do hry</span><span class="action-card-description">Otevřít herní scénu a hrát.</span></a>
       </nav>
       <p id="navigation-status" role="status">Načítám odkaz na postavu…</p>
     </section>
@@ -39,10 +41,10 @@
         <a id="leader-npcs-nav" href="?view=npcs">NPC</a>
       </nav>
       <nav class="action-grid" aria-label="Akce Vedoucího">
-        <a id="leader-game-link" class="action-card action-card-primary" aria-disabled="true"><span class="action-card-title">Vstoupit do hry</span><span class="action-card-description">Otevřít herní scénu a hrát.</span></a>
-        <a id="leader-players-link" class="action-card" href="#leader-players"><span class="action-card-title">Hráči</span><span class="action-card-description">Správa hráčů a jejich postav.</span></a>
-        <a id="leader-maps-link" class="action-card" href="#leader-maps"><span class="action-card-title">Mapy</span><span class="action-card-description">Příprava scén pro dobrodružství.</span></a>
-        <a id="leader-npcs-link" class="action-card" href="?view=npcs"><span class="action-card-title">NPC</span><span class="action-card-description">Příprava postav a jejich obrázků.</span></a>
+        <a id="leader-game-link" class="action-card action-card-primary" aria-disabled="true"><img class="action-medallion" src="./assets/images/academy-icon-game.webp" alt="" aria-hidden="true" draggable="false"><span class="action-card-title">Vstoupit do hry</span><span class="action-card-description">Otevřít herní scénu a hrát.</span></a>
+        <a id="leader-players-link" class="action-card" href="#leader-players"><img class="action-medallion" src="./assets/images/academy-icon-players.webp" alt="" aria-hidden="true" draggable="false"><span class="action-card-title">Hráči</span><span class="action-card-description">Správa hráčů a jejich postav.</span></a>
+        <a id="leader-maps-link" class="action-card" href="#leader-maps"><img class="action-medallion" src="./assets/images/academy-icon-maps.webp" alt="" aria-hidden="true" draggable="false"><span class="action-card-title">Mapy</span><span class="action-card-description">Příprava scén pro dobrodružství.</span></a>
+        <a id="leader-npcs-link" class="action-card" href="?view=npcs"><img class="action-medallion" src="./assets/images/academy-icon-npc.webp" alt="" aria-hidden="true" draggable="false"><span class="action-card-title">NPC</span><span class="action-card-description">Příprava postav a jejich obrázků.</span></a>
       </nav>
       <p id="leader-status" role="status"></p>
     </section>
@@ -124,6 +126,11 @@
     <p id="role-error" role="alert" hidden></p>
     <noscript>Pro otevření deníku nebo hry povolte JavaScript.</noscript>
   </main>
+  <div class="academy-scenery" aria-hidden="true">
+    <div class="academy-side academy-side-left"></div>
+    <div class="academy-side academy-side-right"></div>
+    <img class="academy-panorama" src="./assets/images/academy-panorama.webp" alt="" draggable="false" width="2172" height="724">
+  </div>
   <script type="module" src="./navigation.js"></script>
   <script type="module" src="./admin-view.js"></script>
   <script type="module" src="./login-page.js"></script>
