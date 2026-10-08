@@ -3,13 +3,19 @@
 [hidden] { display: none !important; }
 .top-bar { display: flex; align-items: center; gap: 16px; padding: 6px 16px; border-bottom: 1px solid #d5cdbd; background: #fffdf8; }
 .top-bar a { margin-right: 16px; font-size: 13px; color: #68685f; white-space: nowrap; text-underline-offset: 4px; }
+.game-page[data-game-role="leader"] .top-bar { flex-wrap: wrap; flex-shrink: 0; }
+.top-bar #map-select { flex: 1; min-width: 0; width: 0; min-height: 44px; color: inherit; background: #fffdf8; border: 1px solid #d5cdbd; border-radius: 3px; }
+.game-page[data-game-role="leader"] #active-map-status { order: 1; flex-basis: 100%; font-size: 12px; }
+.game-page[data-game-role="leader"] #game-character-name { display: none; }
+#scene-toggle { margin-left: auto; flex-shrink: 0; min-height: 44px; }
+#scene-toggle[aria-expanded="true"] { background: #eee8d9; border-color: #a68a4d; }
 #game-character-name { margin-left: auto; margin-right: 0; min-width: 0; font: 600 21px/1.2 Georgia, "Times New Roman", serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #active-map-status { color: #595e5e; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 button, input { font: inherit; color: inherit; border: 1px solid #d5cdbd; border-radius: 3px; background: #fffdf8; min-height: 40px; padding: 6px 12px; }
 button { cursor: pointer; }
 button:hover:enabled { background: #eee8d9; border-color: #a39880; }
 button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: default; }
-:where(a, button, input):focus-visible { outline: 3px solid #314f63; outline-offset: 2px; }
+:where(a, button, input, select):focus-visible { outline: 3px solid #314f63; outline-offset: 2px; }
 #game-character-name { padding: 6px 8px; min-height: 44px; border: 1px solid transparent; background: transparent; text-decoration: underline; text-decoration-color: #b7a579; text-underline-offset: 5px; }
 #game-character-name:hover:enabled { background: #f2eee5; border-color: #d5cdbd; }
 #game-character-name[aria-expanded="true"] { background: #f8f4e9; border-color: #b7a579; }
@@ -29,7 +35,8 @@ button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: d
 #connection, #status { min-height: 0; }
 .map-notices > :not([data-message-type="error"]) { display: none; }
 [data-message-type="error"], .error { color: #b63832; }
-#character-panel, #dice-panel { flex: 0 0 clamp(250px, 28vw, 330px); min-width: 0; overflow-y: auto; border-left: 1px solid #b7a579; background: #fffdf8; }
+#character-panel, #dice-panel, #scene-panel { flex: 0 0 clamp(250px, 28vw, 330px); min-width: 0; min-height: 0; overflow-y: auto; border-left: 1px solid #b7a579; background: #fffdf8; }
+#scene-panel > div { margin: 16px; overflow-wrap: anywhere; }
 .panel-tabs { display: flex; background: #f8f4e9; border-bottom: 1px solid #b7a579; padding: 8px 12px 0; gap: 4px; }
 .panel-tabs button { flex: 1; min-width: 0; padding: 6px 4px; font-size: 13px; background: #f2eee5; border-color: #d5cdbd; border-bottom: 3px solid transparent; border-radius: 3px 3px 0 0; }
 .panel-tabs [aria-selected="true"] { border-bottom-color: #a68a4d; color: #263442; background: #fffdf8; font-weight: 600; }
@@ -71,8 +78,11 @@ input[aria-invalid="true"] { border-color: #b63832; }
   .top-bar a { margin-right: 0; }
   #game-character-name { flex: 1; margin-right: 0; font-size: 18px; }
   #active-map-status { order: 1; width: 100%; }
-  #character-panel, #dice-panel { flex-basis: min(250px, 60vw); }
-  #character-panel section, #diary-status, #dice-panel > div { margin: 8px; }
+  .game-page[data-game-role="leader"] #map-select-label { order: 1; }
+  .game-page[data-game-role="leader"] #map-select { order: 1; flex-basis: calc(100% - 100px); }
+  .game-page[data-game-role="leader"] #active-map-status { order: 2; }
+  #character-panel, #dice-panel, #scene-panel { flex-basis: min(250px, 60vw); }
+  #character-panel section, #diary-status, #dice-panel > div, #scene-panel > div { margin: 8px; }
   .panel-tabs { padding: 4px 4px 0; }
   .panel-tabs button { padding: 6px; }
   #last-roll { font-size: 15px; }

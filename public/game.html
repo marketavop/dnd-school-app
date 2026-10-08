@@ -10,8 +10,11 @@
 <body>
   <header class="top-bar">
     <a id="home-link" href="./index.html">← Domů</a>
+    <label for="map-select" id="map-select-label" hidden>Aktivní mapa</label>
+    <select id="map-select" aria-describedby="active-map-status" hidden disabled></select>
     <span id="active-map-status" role="status">Aktivní mapa: načítám…</span>
     <button id="game-character-name" type="button" aria-expanded="false" aria-controls="character-panel" title="Otevřít Studijní panel" disabled>Postava</button>
+    <button id="scene-toggle" type="button" aria-expanded="false" aria-controls="scene-panel" title="Otevřít Scénu" hidden disabled>Scéna</button>
     <button id="dice-toggle" type="button" aria-label="Kostky" aria-expanded="false" aria-controls="dice-panel" title="Otevřít Kostky" disabled>
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><g fill="currentColor"><circle cx="8" cy="8" r="1.5"/><circle cx="16" cy="8" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="8" cy="16" r="1.5"/><circle cx="16" cy="16" r="1.5"/></g></svg>
     </button>
@@ -26,8 +29,6 @@
           <span id="map-status" role="status">Načítám mapu…</span>
           <span id="cell-size-status" role="status"></span>
         </div>
-  <label for="map-select" id="map-select-label" hidden>Aktivní mapa</label>
-  <select id="map-select" aria-describedby="active-map-status" hidden disabled></select>
   <button id="add-token" type="button" aria-describedby="add-token-message" hidden>Přidat postavu na mapu</button>
   <p id="add-token-message" role="status"></p>
   <button id="remove-token" type="button" aria-describedby="remove-token-message" hidden>Odebrat postavu z mapy</button>
@@ -56,6 +57,12 @@
   </div>
 
       </section>
+      <aside id="scene-panel" aria-labelledby="scene-heading" hidden>
+        <div>
+          <h2 id="scene-heading">Scéna</h2>
+          <p>Obsah scény zde bude doplněn později.</p>
+        </div>
+      </aside>
       <aside id="character-panel" aria-label="Studijní panel" hidden>
         <div class="panel-tabs" role="tablist" aria-label="Studijní panel">
           <button id="overview-tab" role="tab" aria-selected="true" aria-controls="overview-panel">Přehled</button>
