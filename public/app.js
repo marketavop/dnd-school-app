@@ -106,6 +106,109 @@ const npcPickerToggle = document.querySelector('#scene-npc-add');
 const npcOptions = document.querySelector('#scene-npc-options');
 const npcPickerEmpty = document.querySelector('#scene-npc-picker-empty');
 const npcPreviewUrls = new Map();
+const quickNpcForm = document.querySelector('#scene-npc-form');
+const quickNpcName = document.querySelector('#scene-npc-name');
+const quickNpcImage = document.querySelector('#scene-npc-image');
+const quickNpcSave = document.querySelector('#scene-npc-save');
+const quickNpcOpen = document.querySelector('#scene-npc-create');
+const quickNpcClose = document.querySelector('#scene-npc-close');
+const quickNpcStatus = document.querySelector('#scene-npc-create-status');
+let quickNpcPending = null;
+let quickNpcBusy = false;
+function showQuickNpc(open) {
+  quickNpcForm.hidden = !open || !leaderMode;
+  quickNpcOpen.setAttribute('aria-expanded', String(!quickNpcForm.hidden));
+}
+quickNpcOpen.addEventListener('click', () => {
+  showQuickNpc(true);
+  if (!quickNpcPending) quickNpcName.focus();
+});
+quickNpcClose.addEventListener('click', () => {
+  if (quickNpcBusy) return;
+  quickNpcPending = null;
+  quickNpcForm.reset();
+  quickNpcStatus.textContent = '';
+  updateQuickNpcControls();
+  showQuickNpc(false);
+  quickNpcOpen.focus();
+});
+function updateQuickNpcControls() {
+  quickNpcName.disabled = quickNpcBusy || Boolean(quickNpcPending);
+  quickNpcImage.disabled = quickNpcBusy || Boolean(quickNpcPending?.uploaded || quickNpcPending?.uncertain);
+  quickNpcSave.disabled = quickNpcBusy || Boolean(quickNpcPending?.uncertain);
+  quickNpcClose.disabled = quickNpcBusy;
+  quickNpcSave.textContent = quickNpcPending
+    ? quickNpcPending.uploaded ? 'Znovu přidat na aktuální mapu' : 'Znovu nahrát obrázek a přidat'
+    : 'Vytvořit a přidat na mapu';
+}
+quickNpcForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!leaderMode || quickNpcBusy || quickNpcPending?.uncertain) return;
+  const name = quickNpcName.value.trim();
+  if (!quickNpcPending && (!name || name.length > 120)) {
+    quickNpcStatus.textContent = 'Zadej jméno NPC (1–120 znaků).';
+    return;
+  }
+  if (!mapReady || !configReady || !activeMapId) {
+    quickNpcStatus.textContent = 'Počkej na načtení aktivní mapy.';
+    return;
+  }
+  const targetMap = activeMapId;
+  if (quickNpcPending && !quickNpcPending.uploaded) {
+    quickNpcPending.file = quickNpcImage.files?.[0];
+    quickNpcPending.uploaded = !quickNpcPending.file;
+  }
+  quickNpcBusy = true;
+  updateQuickNpcControls();
+  try {
+    if (!quickNpcPending) {
+      quickNpcStatus.textContent = 'Vytvářím NPC…';
+      const id = await window.parent.mutateNpc('create', { p_name: name, p_image_url: null });
+      if (typeof id !== 'string' || !id) throw new Error('Missing NPC ID');
+      quickNpcPending = { id, name, file: quickNpcImage.files?.[0], uploaded: !quickNpcImage.files?.[0] };
+    }
+    const pending = quickNpcPending;
+    if (!pending.uploaded) {
+      quickNpcStatus.textContent = 'NPC vytvořeno. Nahrávám obrázek…';
+      try {
+        await uploadPortrait(pending.id, pending.file, { entityType: 'npc' });
+        pending.uploaded = true;
+      } catch (error) {
+        pending.uncertain = error.outcome_unknown || error.status === 409;
+        quickNpcStatus.textContent = pending.uncertain
+          ? 'NPC bylo vytvořeno, ale výsledek uploadu nelze ověřit. Obnov stránku a pokračuj s existujícím NPC v seznamu.'
+          : `NPC bylo vytvořeno, ale obrázek se nepodařilo nahrát. ${error.code === 'FILE_TOO_LARGE' ? error.message : 'Zkus nahrání znovu.'} NPC zůstává v globálním seznamu.`;
+        await refreshNpcs();
+        return;
+      }
+    }
+    if (activeMapId !== targetMap) {
+      quickNpcStatus.textContent = 'NPC bylo vytvořeno, ale aktivní mapa se změnila. Přidání na aktuální mapu spusť znovu.';
+      await refreshNpcs();
+      return;
+    }
+    quickNpcStatus.textContent = 'NPC vytvořeno. Přidávám na mapu…';
+    const placed = [...npcs.values()].some(state => state.npcId === pending.id);
+    if (placed || await changeNpcDefinition(pending, 'add')) {
+      quickNpcPending = null;
+      quickNpcForm.reset();
+      quickNpcStatus.textContent = '';
+      showQuickNpc(false);
+      setNpcPicker(false);
+      npcPickerToggle.focus();
+    } else {
+      quickNpcStatus.textContent = 'NPC bylo vytvořeno, ale nepodařilo se ho umístit. Zkus znovu pouze přidání na aktuální mapu.';
+    }
+  } catch (error) {
+    console.error('Rychlé vytvoření NPC selhalo:', error);
+    quickNpcStatus.textContent = quickNpcPending
+      ? 'NPC bylo vytvořeno. Dokončení se nepodařilo; zkus znovu přidání.'
+      : 'Vytvoření NPC se nepodařilo potvrdit. Zkontroluj globální seznam před dalším pokusem.';
+  } finally {
+    quickNpcBusy = false;
+    updateQuickNpcControls();
+  }
+});
 function setNpcPicker(open) {
   npcPicker.hidden = !open || !leaderMode;
   npcPickerToggle.setAttribute('aria-expanded', String(!npcPicker.hidden));

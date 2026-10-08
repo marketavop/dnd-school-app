@@ -3,7 +3,7 @@ const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const elements = {};
-for (const id of ['npc-controls', 'npc-status', 'npc-list', 'npc-form', 'scene-npcs', 'scene-npcs-list', 'scene-npcs-empty', 'scene-npcs-status', 'scene-npc-picker', 'scene-npc-add', 'scene-npc-options', 'scene-npc-picker-empty', 'scene-npc-cancel']) elements[id] = { setAttribute() {}, addEventListener() {}, replaceChildren() {} };
+for (const id of ['npc-controls', 'npc-status', 'npc-list', 'npc-form', 'scene-npcs', 'scene-npcs-list', 'scene-npcs-empty', 'scene-npcs-status', 'scene-npc-picker', 'scene-npc-add', 'scene-npc-options', 'scene-npc-picker-empty', 'scene-npc-cancel', 'scene-npc-form', 'scene-npc-name', 'scene-npc-image', 'scene-npc-save', 'scene-npc-create', 'scene-npc-close', 'scene-npc-create-status']) elements[id] = { setAttribute() {}, addEventListener() {}, replaceChildren() {} };
 for (const id of ['scene-players', 'scene-players-list', 'map', 'map-space', 'map-status', 'grid', 'token', 'status', 'connection', 'position', 'cell-size', 'cell-size-error', 'cell-size-status', 'map-select', 'active-map-status', 'add-token', 'add-token-message', 'remove-token', 'remove-token-message']) {
   elements[id] = { style: {}, hidden: true, handlers: {},
     setAttribute() {},

@@ -68,6 +68,16 @@
             <div id="scene-npc-picker" hidden>
               <h4>Vyber NPC</h4>
               <button id="scene-npc-cancel" type="button">Zpět do Scény</button>
+              <button id="scene-npc-create" type="button" aria-expanded="false" aria-controls="scene-npc-form">+ Vytvořit nové NPC</button>
+              <form id="scene-npc-form" hidden>
+                <label for="scene-npc-name">Jméno NPC</label>
+                <input id="scene-npc-name" maxlength="120" required>
+                <label for="scene-npc-image">Obrázek NPC (volitelný)</label>
+                <input id="scene-npc-image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                <button id="scene-npc-save" type="submit">Vytvořit a přidat na mapu</button>
+                <button id="scene-npc-close" type="button">Zavřít formulář</button>
+                <p id="scene-npc-create-status" role="status"></p>
+              </form>
               <p id="scene-npc-picker-empty" class="muted" hidden>Žádná další NPC nejsou dostupná pro tuto mapu.</p>
               <ul id="scene-npc-options"></ul>
             </div>
