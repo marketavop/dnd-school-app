@@ -9,7 +9,7 @@ const { resolve } = require('node:path');
     `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
   );
   const fields = ['id', 'user_id', 'name', 'portrait_path', 'race_code', 'class_code',
-    'level', 'str', 'dex', 'con', 'int', 'wis', 'cha', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note'];
+    'level', 'str', 'dex', 'con', 'int', 'wis', 'cha', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note', 'background', 'inventory', 'notes'];
   const row = Object.fromEntries(fields.map(field => [field, null]));
   Object.assign(row, { id: 'character-a', user_id: 'account-a', name: 'Test' });
   const other = { ...row, id: 'character-b' };
@@ -47,6 +47,7 @@ const { resolve } = require('node:path');
       ['race_code', 'elf'], ['race_code', null], ['class_code', 'wizard'],
       ['level', 1], ['dex', 12], ['con', 13], ['int', 14], ['wis', 15], ['cha', 16],
       ['ac', 15], ['ac_note', 'Kroužková zbroj'],
+      ['background', 'Učenec'], ['inventory', '- Lano\n- Kniha'], ['notes', '# Výuka\nPoznámky'],
     ]) {
       const before = { ...row };
       assert.deepEqual(await updateCharacterField(db, row.id, field, value), { ...before, [field]: value });
