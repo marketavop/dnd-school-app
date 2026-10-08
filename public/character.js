@@ -2,6 +2,7 @@ import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';
 import { getCurrentUser } from './login.js';
 import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';
+import { renderBasicMarkdown } from './markdown.js';
 
 const RACES = new Map([
   ['human', 'Člověk'], ['elf', 'Elf'], ['halfling', 'Půlčík'], ['dwarf', 'Trpaslík'],
@@ -154,8 +155,10 @@ function setupInventory(db, character) {
   const toggle = document.querySelector('#inventory-toggle');
   const message = document.querySelector('#inventory-status');
   const error = document.querySelector('#error-inventory');
+  const help = document.querySelector('#inventory-help');
   const hint = document.querySelector('#inventory-hint');
   const counter = document.querySelector('#inventory-count');
+  display.classList.add('markdown-content');
   function updateCounter() {
     const count = [...input.value].length;
     counter.textContent = count.toLocaleString('cs-CZ') + ' / 5 000';
@@ -168,11 +171,13 @@ function setupInventory(db, character) {
     savedTimer = null;
   }
   function render() {
-    display.textContent = character.inventory || 'Inventář zatím není vyplněný.';
+    if (character.inventory) renderBasicMarkdown(display, character.inventory);
+    else display.textContent = 'Inventář zatím není vyplněný.';
     display.dataset.empty = String(!character.inventory);
     display.hidden = editing || failed;
     input.hidden = !(editing || failed);
     hint.hidden = counter.hidden = input.hidden;
+    help.hidden = input.hidden;
     updateCounter();
     input.disabled = busy || readOnly;
     toggle.disabled = readOnly;
@@ -243,7 +248,10 @@ function setupInventory(db, character) {
       render();
     }
   }
-  input.addEventListener('blur', save);
+  input.addEventListener('blur', event => {
+    if (event?.relatedTarget && help.contains(event.relatedTarget)) return;
+    return save();
+  });
   toggle.addEventListener('click', async () => {
     const saving = editing ? save() : null;
     editing = !editing;
@@ -260,8 +268,10 @@ function setupNotes(db, character) {
   const toggle = document.querySelector('#notes-toggle');
   const message = document.querySelector('#notes-status');
   const error = document.querySelector('#error-notes');
+  const help = document.querySelector('#notes-help');
   const hint = document.querySelector('#notes-hint');
   const counter = document.querySelector('#notes-count');
+  display.classList.add('markdown-content');
   function updateCounter() {
     const count = [...input.value].length;
     counter.textContent = count.toLocaleString('cs-CZ') + ' / 20 000';
@@ -274,11 +284,13 @@ function setupNotes(db, character) {
     savedTimer = null;
   }
   function render() {
-    display.textContent = character.notes || 'Studentský sešit zatím není vyplněný.';
+    if (character.notes) renderBasicMarkdown(display, character.notes);
+    else display.textContent = 'Studentský sešit zatím není vyplněný.';
     display.dataset.empty = String(!character.notes);
     display.hidden = editing || failed;
     input.hidden = !(editing || failed);
     hint.hidden = counter.hidden = input.hidden;
+    help.hidden = input.hidden;
     updateCounter();
     input.disabled = busy || readOnly;
     toggle.disabled = readOnly;
@@ -349,7 +361,10 @@ function setupNotes(db, character) {
       render();
     }
   }
-  input.addEventListener('blur', save);
+  input.addEventListener('blur', event => {
+    if (event?.relatedTarget && help.contains(event.relatedTarget)) return;
+    return save();
+  });
   toggle.addEventListener('click', async () => {
     const saving = editing ? save() : null;
     editing = !editing;

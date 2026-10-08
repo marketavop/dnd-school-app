@@ -218,6 +218,19 @@
 
 :where(.character-page) :is(#inventory-count, #notes-count)[data-error="true"] { color: var(--error); font-weight: 600; }
 :where(.character-page) :is(#inventory-hint, #notes-hint, #inventory-count, #notes-count)[hidden] { display: none; }
+:where(.character-page) .markdown-help { margin: 8px 0; color: var(--muted); font-size: 14px; }
+:where(.character-page) .markdown-help summary { width: fit-content; cursor: pointer; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+:where(.character-page) .markdown-help p { margin: 6px 0; }
+:where(.character-page) .markdown-help code { color: var(--text); background: #f2eee5; padding: 1px 4px; }
+:where(.character-page) .markdown-content > :first-child { margin-top: 0; }
+:where(.character-page) .markdown-content > :last-child { margin-bottom: 0; }
+:where(.character-page) .markdown-content h2,
+:where(.character-page) .markdown-content h3,
+:where(.character-page) .markdown-content h4 { margin: 14px 0 6px; font-family: inherit; }
+:where(.character-page) .markdown-content ul,
+:where(.character-page) .markdown-content ol { margin: 8px 0; padding-left: 24px; }
+:where(.character-page) .markdown-content .markdown-checkbox { display: inline-block; width: 1.25em; color: var(--muted); user-select: none; }
+:where(.character-page) :is(#inventory, #notes) [hidden] { display: none; }
 
 :where(.character-page) .card-tabs { display: flex; gap: 4px; padding: 8px 8px 0; border-bottom: 1px solid var(--accent); }
 :where(.character-page) .card-tabs button { flex: 1; min-width: 0; border-radius: 6px 6px 0 0; border-bottom: 3px solid transparent; }
