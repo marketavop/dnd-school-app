@@ -10,8 +10,11 @@
 <body>
   <header class="top-bar">
     <a id="home-link" href="./index.html">← Domů</a>
+    <label for="map-select" id="map-select-label" hidden>Aktivní mapa</label>
+    <select id="map-select" aria-describedby="active-map-status" hidden disabled></select>
     <span id="active-map-status" role="status">Aktivní mapa: načítám…</span>
     <button id="game-character-name" type="button" aria-expanded="false" aria-controls="character-panel" title="Otevřít Studijní panel" disabled>Postava</button>
+    <button id="scene-toggle" type="button" aria-expanded="false" aria-controls="scene-panel" title="Otevřít Scénu" hidden disabled>Scéna</button>
     <button id="dice-toggle" type="button" aria-label="Kostky" aria-expanded="false" aria-controls="dice-panel" title="Otevřít Kostky" disabled>
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><g fill="currentColor"><circle cx="8" cy="8" r="1.5"/><circle cx="16" cy="8" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="8" cy="16" r="1.5"/><circle cx="16" cy="16" r="1.5"/></g></svg>
     </button>
@@ -26,28 +29,11 @@
           <span id="map-status" role="status">Načítám mapu…</span>
           <span id="cell-size-status" role="status"></span>
         </div>
-  <label for="map-select" id="map-select-label" hidden>Aktivní mapa</label>
-  <select id="map-select" aria-describedby="active-map-status" hidden disabled></select>
   <button id="add-token" type="button" aria-describedby="add-token-message" hidden>Přidat postavu na mapu</button>
   <p id="add-token-message" role="status"></p>
   <button id="remove-token" type="button" aria-describedby="remove-token-message" hidden>Odebrat postavu z mapy</button>
   <p id="remove-token-message" role="status"></p>
-  <section id="scene-players" hidden>
-    <h2>Hráči ve scéně</h2>
-    <ul id="scene-players-list"></ul>
-  </section>
   <button id="fit-map" type="button">Přizpůsobit mapu</button>
-  <section id="npc-controls" hidden>
-    <h2>NPC</h2>
-    <details><summary>+ Nové NPC</summary>
-      <form id="npc-form">
-        <label>Název <input id="npc-name" maxlength="120" required></label>
-        <button type="submit">Vytvořit NPC</button>
-      </form>
-    </details>
-    <ul id="npc-list"></ul>
-  </section>
-  <p id="npc-status" role="status"></p>
   <div id="map-viewport" aria-label="Herní mapa">
     <div id="map-space">
       <img id="map" alt="Aktivní mapa" draggable="false" hidden>
@@ -56,6 +42,38 @@
   </div>
 
       </section>
+      <aside id="scene-panel" aria-labelledby="scene-heading" hidden>
+        <div>
+          <h2 id="scene-heading">Scéna</h2>
+          <section id="scene-players" hidden>
+            <h3>Hráčské postavy</h3>
+            <ul id="scene-players-list"></ul>
+          </section>
+          <section id="scene-npcs" hidden>
+            <h3>NPC na mapě</h3>
+            <p id="scene-npcs-empty" class="muted">Načítám NPC…</p>
+            <ul id="scene-npcs-list"></ul>
+            <button id="scene-npc-add" type="button" aria-expanded="false" aria-controls="scene-npc-picker">+ Přidat NPC</button>
+            <div id="scene-npc-picker" hidden>
+              <h4>Vyber NPC</h4>
+              <button id="scene-npc-cancel" type="button">Zpět do Scény</button>
+              <button id="scene-npc-create" type="button" aria-expanded="false" aria-controls="scene-npc-form">+ Vytvořit nové NPC</button>
+              <form id="scene-npc-form" hidden>
+                <label for="scene-npc-name">Jméno NPC</label>
+                <input id="scene-npc-name" maxlength="120" required>
+                <label for="scene-npc-image">Obrázek NPC (volitelný)</label>
+                <input id="scene-npc-image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                <button id="scene-npc-save" type="submit">Vytvořit a přidat na mapu</button>
+                <button id="scene-npc-close" type="button">Zavřít formulář</button>
+                <p id="scene-npc-create-status" role="status"></p>
+              </form>
+              <p id="scene-npc-picker-empty" class="muted" hidden>Žádná další NPC nejsou dostupná pro tuto mapu.</p>
+              <ul id="scene-npc-options"></ul>
+            </div>
+            <p id="scene-npcs-status" role="status"></p>
+          </section>
+        </div>
+      </aside>
       <aside id="character-panel" aria-label="Studijní panel" hidden>
         <div class="panel-tabs" role="tablist" aria-label="Studijní panel">
           <button id="overview-tab" role="tab" aria-selected="true" aria-controls="overview-panel">Přehled</button>

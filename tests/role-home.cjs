@@ -76,7 +76,8 @@ function page(role, character = id) {
   assert.ok(leaderHtml.includes('Hráči') && leaderHtml.includes('Mapy'));
   assert.match(leaderHtml, /<nav class="action-grid"[\s\S]*<a id="leader-game-link" class="action-card[\s\S]*<span class="action-card-title">Vstoupit do hry<\/span>[\s\S]*<span class="action-card-description">/);
   const adminNav = /<nav class="admin-nav" aria-label="Administrace">[\s\S]*Domů[\s\S]*Hráči[\s\S]*Mapy[\s\S]*<\/nav>/;
-  assert.doesNotMatch(leaderHtml, /<nav class="admin-nav" aria-label="Administrace"(?![^>]*hidden)[^>]*>/);
+  assert.match(leaderHtml, /<nav class="admin-nav" aria-label="Administrace">/);
+  for (const view of ['home', 'players', 'maps', 'npcs']) assert.ok(leaderHtml.includes(`id="leader-${view}-nav"`));
   assert.match(html.split('<section id="leader-players"')[1].split('</section>')[0], adminNav);
   assert.match(html.split('<section id="leader-maps"')[1].split('</section>')[0], adminNav);
   assert.match(leaderHtml, /id="leader-home-nav"[^>]*aria-current="page"/);

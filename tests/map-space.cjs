@@ -3,7 +3,7 @@ const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const elements = {};
-for (const id of ['npc-controls', 'npc-status', 'npc-list', 'npc-form']) elements[id] = { setAttribute() {}, addEventListener() {}, replaceChildren() {} };
+for (const id of ['scene-npcs', 'scene-npcs-list', 'scene-npcs-empty', 'scene-npcs-status', 'scene-npc-picker', 'scene-npc-add', 'scene-npc-options', 'scene-npc-picker-empty', 'scene-npc-cancel', 'scene-npc-form', 'scene-npc-name', 'scene-npc-image', 'scene-npc-save', 'scene-npc-create', 'scene-npc-close', 'scene-npc-create-status']) elements[id] = { setAttribute() {}, addEventListener() {}, replaceChildren() {} };
 for (const id of ['scene-players', 'scene-players-list', 'map', 'map-space', 'map-status', 'grid', 'token', 'status', 'connection', 'position', 'cell-size', 'cell-size-error', 'cell-size-status', 'map-select', 'active-map-status', 'add-token', 'add-token-message', 'remove-token', 'remove-token-message']) {
   elements[id] = { style: {}, hidden: true, handlers: {},
     setAttribute() {},
@@ -49,7 +49,7 @@ const context = vm.createContext({ ResizeObserver, URLSearchParams, window: { pa
     setAttribute(name, value) { this.attributes[name] = String(value); } }; },
 } });
 // Zachováme skutečné handlery; síťový bootstrap nahradíme testovací DB.
-const source = (readFileSync('public/grid.js', 'utf8').replace('export ', '') + readFileSync('public/app.js', 'utf8').replace("import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';", '').replace("import { renderGrid } from './grid.js';", '')).replace(/\r\n/g, '\n').split('\ntry {\n  const { SUPABASE_URL')[0];
+const source = (readFileSync('public/grid.js', 'utf8').replace('export ', '') + readFileSync('public/app.js', 'utf8').replace("import { portraitImageUrl, uploadPortrait } from './portrait-api.js';", '').replace("import { renderGrid } from './grid.js';", '')).replace(/\r\n/g, '\n').split('\ntry {\n  const { SUPABASE_URL')[0];
 vm.runInContext(source.replace("import { configureMapImageUrl, resolveMapImage } from './map-image.js';", '') + "\nconst testState = createToken({ character_id: gameIdentity.character_id, name: 'Test' });", context);
 elements.token = vm.runInContext('testState.element', context);
 const input = elements['cell-size'];

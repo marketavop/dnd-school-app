@@ -2,6 +2,7 @@ export function showAdminView(document, view) {
   document.querySelector('#leader-content').hidden = view !== 'home';
   document.querySelector('#leader-players').hidden = view !== 'players';
   document.querySelector('#leader-maps').hidden = view !== 'maps';
+  document.querySelector('#leader-npcs').hidden = view !== 'npcs';
 }
 
 export function navigateAdminView(window, view) {

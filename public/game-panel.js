@@ -7,6 +7,9 @@ const toggle = $('game-character-name');
 const panel = $('character-panel');
 const diceToggle = $('dice-toggle');
 const dicePanel = $('dice-panel');
+const sceneToggle = $('scene-toggle');
+const scenePanel = $('scene-panel');
+const leader = gameUser?.role === 'leader' && Boolean(gameUser?.session_token);
 const ids = gameUser?.role === 'player' ? [gameUser.character_id] : [];
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
 const diceAvailable = ['player', 'leader'].includes(gameUser?.role) && Boolean(gameUser?.session_token);
@@ -30,12 +33,19 @@ tabs.forEach((tab, i) => {
   });
 });
 toggle.disabled = !valid;
+toggle.hidden = leader;
+sceneToggle.hidden = !leader;
+sceneToggle.disabled = !leader;
 diceToggle.disabled = !diceAvailable;
 let openPanel = null;
 function togglePanel(requested) {
+  if (requested === 'scene' && !leader) return;
   openPanel = openPanel === requested ? null : requested;
   panel.hidden = openPanel !== 'character';
   dicePanel.hidden = openPanel !== 'dice';
+  scenePanel.hidden = openPanel !== 'scene';
+  sceneToggle.title = scenePanel.hidden ? 'Otevřít Scénu' : 'Zavřít Scénu';
+  sceneToggle.setAttribute('aria-expanded', String(!scenePanel.hidden));
   toggle.title = panel.hidden ? 'Otevřít Studijní panel' : 'Zavřít Studijní panel';
   diceToggle.title = dicePanel.hidden ? 'Otevřít Kostky' : 'Zavřít Kostky';
   toggle.setAttribute('aria-expanded', String(!panel.hidden));
@@ -43,6 +53,7 @@ function togglePanel(requested) {
 }
 toggle.addEventListener('click', () => togglePanel('character'));
 diceToggle.addEventListener('click', () => togglePanel('dice'));
+sceneToggle.addEventListener('click', () => togglePanel('scene'));
 
 if (valid) {
   const status = $('diary-status');

@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const source = require('node:fs').readFileSync('public/admin-view.js', 'utf8').replaceAll('export ', '');
-const sections = Object.fromEntries(['leader-content', 'leader-players', 'leader-maps'].map(id => [id, { hidden: true }]));
+const sections = Object.fromEntries(['leader-content', 'leader-players', 'leader-maps', 'leader-npcs'].map(id => [id, { hidden: true }]));
 const document = { querySelector: selector => sections[selector.slice(1)] };
 const window = { location: { href: 'https://example.test/index.html?character_id=abc&view=players#leader-players' }, history: {
   pushState(_, __, href) { window.location.href = href; },
@@ -27,3 +27,9 @@ assert.equal(sections['leader-maps'].hidden, true);
 assert.equal(new URL(window.location.href).searchParams.get('view'), null);
 assert.equal(new URL(window.location.href).hash, '');
 console.log('PASS: exclusive admin views, players/maps/home transitions and fragment removal');
+vm.runInContext("navigateAdminView(window, 'npcs'); showAdminView(document, 'npcs');", context);
+assert.equal(sections['leader-npcs'].hidden, false);
+assert.equal(Object.values(sections).filter(section => !section.hidden).length, 1);
+assert.equal(new URL(window.location.href).searchParams.get('view'), 'npcs');
+vm.runInContext("showAdminView(document, 'home');", context);
+assert.equal(sections['leader-npcs'].hidden, true);

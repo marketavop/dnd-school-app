@@ -1,10 +1,20 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.7  
+**Verze:** 1.1.8
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.8
+
+- reorganizace Vedoucího je implementovaná a ověřená se skutečným Supabase a dvěma klienty,
+- homepage Vedoucího má sekce Domů, Hráči, Mapy a NPC s konzistentní navigací,
+- globální správa definic NPC je na homepage; herní obrazovka slouží vedení aktivní scény,
+- Scéna a Kostky používají vzájemně výlučné pravé panely; Scéna obsahuje hráče a NPC na aktivní mapě,
+- nová umístění NPC vznikají v databázi přímo jako skrytá a skrytá NPC se neposílají hráčům,
+- kompletní vizuální redesign zůstává vyhrazen závěrečné fázi MVP,
+- serverová autorizace Studentského průkazu a SQL bezpečnostní regresní testy zůstávají otevřené.
 
 ### Změny ve verzi 1.1.7
 
@@ -240,6 +250,11 @@ Máme jednu skupinu/kampaň, takže neexistuje výběr kampaně.
 
 Vedoucí navíc vidí jednoduchý seznam hráčů/postav a může otevřít jejich
 deníky read-only.
+
+Homepage Vedoucího má samostatné sekce **Domů**, **Hráči**, **Mapy** a
+**NPC**. Navigace je ve všech sekcích stejná a zachovává přepínání přes
+`view=` včetně návratu, refresh a historie prohlížeče. Globální správa NPC
+nevyžaduje aktivní mapu.
 
 Nevytváříme dashboard, uživatelský profil, notifikace ani složité
 nastavení.
@@ -816,7 +831,8 @@ MVP obsahuje jednoduchou sadu:
 Kliknutí na kostku provede jeden čistý náhodný hod.
 
 Kostky mají na herní obrazovce vlastní samostatný pravý panel.
-Panel Kostky se otevírá ikonou kostky v horní liště vedle jména postavy.
+Panel Kostky se otevírá tlačítkem v horní liště. U hráče je vedle jména
+postavy, u Vedoucího vedle výběru aktivní mapy a tlačítka Scéna.
 
 Studijní panel a panel Kostky používají stejný pravý prostor a jsou
 vzájemně výlučné. Otevřený může být vždy maximálně jeden z nich.
@@ -877,7 +893,9 @@ Během hraní dítě primárně vidí:
 
 Mapa zůstává hlavním obsahem obrazovky.
 
-Horní lišta obsahuje:
+### Hráč
+
+Horní lišta hráče obsahuje:
 
 -   `← Domů`,
 -   `Aktivní mapa: <název>`,
@@ -910,6 +928,23 @@ Dítě by kvůli běžnému hraní nemělo potřebovat opustit mapovou stránku.
 
 XP a další méně často používané informace mohou zůstat pouze
 ve Studentském průkazu.
+
+### Vedoucí
+
+Herní obrazovka Vedoucího má mapu jako dominantní obsah. Horní lišta
+obsahuje `← Domů`, výběr aktivní mapy, tlačítko **Scéna** a tlačítko
+**Kostky**. Scéna a Kostky používají stejný pravý prostor, jsou vzájemně
+výlučné a při načtení jsou zavřené.
+
+Panel Scéna zobrazuje všechny hráčské postavy včetně ovládání jejich tokenů
+a pod nimi NPC umístěná na aktivní mapě, včetně skrytých. Vedoucí může NPC
+skrýt, odhalit, odebrat z mapy nebo přidat existující definici. Během hry
+může také rychle vytvořit definici NPC s volitelným obrázkem a rovnou ji
+umístit na aktivní mapu. Nová definice zůstane zachovaná i při selhání
+umístění, které lze následně zopakovat bez vytvoření duplicity.
+
+Původní globální správa NPC byla z herní obrazovky odstraněna. Globální
+definice se spravují na homepage.
 ------------------------------------------------------------------------
 
 ## 23. Mapy a čtvercová mřížka
@@ -1055,6 +1090,10 @@ NPC existuje jednou v jednoduchém seznamu a obsahuje pouze:
 NPC může vzniknout bez obrázku; aplikace může zobrazit jednoduchý placeholder
 se jménem nebo iniciálou.
 
+Vedoucí definice vytváří, spravuje jejich obrázky a globálně je maže na
+homepage. Globální smazání odstraní také všechna umístění daného NPC na
+všech mapách.
+
 NPC nemá:
 
 -   character sheet,
@@ -1081,6 +1120,9 @@ konkrétního NPC na jedné mapě.
 
 Každá mapa si pamatuje umístění NPC a jejich pozice.
 
+Nové umístění vzniká při databázovém vložení přímo jako `visible = false`.
+Platí to pro přidání existující definice i pro rychlé vytvoření ve hře.
+
 Vedoucí může umístění:
 
 -   přidat na mapu,
@@ -1105,7 +1147,8 @@ Umístění NPC může být visible nebo hidden.
 
 Vedoucí skryté NPC při přípravě a hře vidí. Hráči ho nemají vidět ani dostávat,
 dokud není odhaleno. Hidden údaje nesmí být pouze schované v UI; player API a
-realtime nesmí spoiler data posílat.
+realtime nesmí spoiler data posílat. Definice NPC a jejich mapová umístění
+jsou oddělené entity.
 
 Nevytváříme individuální visibility, stealth engine ani perception engine.
 
@@ -1330,6 +1373,15 @@ Musí být spolehlivý, ale jednoduchý.
 ------------------------------------------------------------------------
 
 ## 34. Roadmapa prvních 20 dní
+
+### Aktuální stav ve verzi 1.1.8
+
+Reorganizace Vedoucího je implementovaná a ověřená se skutečným Supabase
+a dvěma klienty. Serverová autorizace Studentského průkazu zůstává otevřenou
+prioritou MVP. SQL bezpečnostní regresní testy ještě vyžadují dokončení
+ověření. `tests/game-layout.cjs` má známý problém se zastaralou fixture;
+nejde o změnu produktového chování. Níže uvedená roadmapa zůstává původním
+plánovacím rámcem.
 
 ### Dny 1--3 --- Technický spike
 
@@ -1571,6 +1623,9 @@ Styl se zavádí postupně:
 3.  následně okolní UI `game.html`.
 
 Tím omezujeme náklady na případnou změnu směru.
+
+Kompletní vizuální redesign je plánovaný až do závěrečné fáze MVP, po
+dokončení funkčního scope a bezpečnostního ověření.
 
 ### Preferujeme
 

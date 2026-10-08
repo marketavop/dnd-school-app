@@ -26,15 +26,17 @@
     </section>
     <section id="leader-content" hidden>
       <h1>Vedoucí</h1>
-      <nav class="admin-nav" aria-label="Administrace" hidden>
+      <nav class="admin-nav" aria-label="Administrace">
         <a id="leader-home-nav" href="#leader-content" aria-current="page">Domů</a>
         <a id="leader-players-nav" href="#leader-players">Hráči</a>
         <a id="leader-maps-nav" href="#leader-maps">Mapy</a>
+        <a id="leader-npcs-nav" href="?view=npcs">NPC</a>
       </nav>
       <nav class="action-grid" aria-label="Akce Vedoucího">
         <a id="leader-game-link" class="action-card action-card-primary" aria-disabled="true"><span class="action-card-title">Vstoupit do hry</span><span class="action-card-description">Otevřít herní scénu a hrát.</span></a>
         <a id="leader-players-link" class="action-card" href="#leader-players"><span class="action-card-title">Hráči</span><span class="action-card-description">Správa hráčů a jejich postav.</span></a>
         <a id="leader-maps-link" class="action-card" href="#leader-maps"><span class="action-card-title">Mapy</span><span class="action-card-description">Příprava scén pro dobrodružství.</span></a>
+        <a id="leader-npcs-link" class="action-card" href="?view=npcs"><span class="action-card-title">NPC</span><span class="action-card-description">Příprava postav a jejich obrázků.</span></a>
       </nav>
       <p id="leader-status" role="status"></p>
     </section>
@@ -43,6 +45,7 @@
         <a id="players-home-nav" href="#leader-content">Domů</a>
         <a id="players-players-nav" href="#leader-players" aria-current="page">Hráči</a>
         <a id="players-maps-nav" href="#leader-maps">Mapy</a>
+        <a id="players-npcs-nav" href="?view=npcs">NPC</a>
       </nav>
       <button id="players-back" type="button" hidden>← Vedoucí</button>
       <h1>Hráči</h1>
@@ -55,6 +58,7 @@
         <a id="maps-home-nav" href="#leader-content">Domů</a>
         <a id="maps-players-nav" href="#leader-players">Hráči</a>
         <a id="maps-maps-nav" href="#leader-maps" aria-current="page">Mapy</a>
+        <a id="maps-npcs-nav" href="?view=npcs">NPC</a>
       </nav>
       <button id="maps-back" type="button" hidden>← Vedoucí</button>
       <h1>Mapy</h1>
@@ -68,6 +72,25 @@
       </form>
       <p id="maps-status" role="status" aria-live="polite"></p>
       <ul id="maps-list" class="card-list"></ul>
+    </section>
+    <section id="leader-npcs" class="content-section" hidden>
+      <nav class="admin-nav" aria-label="Administrace">
+        <a id="npcs-home-nav" href="./index.html">Domů</a>
+        <a id="npcs-players-nav" href="?view=players">Hráči</a>
+        <a id="npcs-maps-nav" href="?view=maps">Mapy</a>
+        <a id="npcs-npcs-nav" href="?view=npcs" aria-current="page">NPC</a>
+      </nav>
+      <h1>NPC</h1>
+      <form id="leader-npc-form">
+        <label for="leader-npc-name">Jméno NPC</label>
+        <input id="leader-npc-name" maxlength="120" required>
+        <label for="leader-npc-image">Obrázek (volitelný)</label>
+        <input id="leader-npc-image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+        <button id="leader-npc-submit" type="submit" disabled>Vytvořit NPC</button>
+      </form>
+      <button id="npcs-reload" type="button">Obnovit seznam</button>
+      <p id="npcs-status" role="status" aria-live="polite"></p>
+      <ul id="leader-npcs-list" class="card-list"></ul>
     </section>
     <section id="map-preparation" class="content-section" hidden>
       <button id="prep-back" type="button">← Mapy</button>
@@ -95,6 +118,7 @@
   <script type="module" src="./login-page.js"></script>
   <script type="module" src="./leader-players.js"></script>
   <script type="module" src="./leader-maps.js"></script>
+  <script type="module" src="./leader-npcs.js"></script>
   <script type="module" src="./map-upload.js"></script>
   <script type="module" src="./leader-game.js"></script>
 </body>
