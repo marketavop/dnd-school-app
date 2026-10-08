@@ -64,7 +64,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     let patch;
     return {
       update(value) { patch = value; writes.push({ ...value }); return this; },
-      select(fields) { assert.equal(fields.split(',').length, 18); return this; },
+      select(fields) { assert.equal(fields.split(',').length, 21); return this; },
       eq(key, value) { assert.equal(key, 'id'); assert.equal(value.toLowerCase(), id); return this; },
       async single() {
         if (patch) {
