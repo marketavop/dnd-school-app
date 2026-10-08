@@ -13,11 +13,13 @@ const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'u
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
 const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-const base = { id, name: 'Eliška', background: null, inventory: null, race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
+const base = { id, name: 'Eliška', background: null, inventory: null, notes: null, race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
 async function page(query, row = base, error = null, leader = false, authorized = false, portraitControl = {}) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
+    'inventory-hint', 'inventory-count', 'notes-hint', 'notes-count',
+    'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
     'inventory', 'inventory-toggle', 'character-inventory', 'edit-inventory', 'inventory-status', 'error-inventory',
     'portrait-controls', 'portrait-upload', 'portrait-remove', 'portrait-file', 'portrait-status',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
@@ -79,7 +81,17 @@ async function page(query, row = base, error = null, leader = false, authorized 
     };
   } };
   const portraitCalls = [];
+  let now = 0, timerId = 0;
+  const timers = new Map();
+  function advanceTime(ms) {
+    now += ms;
+    for (const [id, timer] of timers) {
+      if (timer.at <= now) { timers.delete(id); timer.callback(); }
+    }
+  }
   const context = vm.createContext({
+    setTimeout(callback, ms) { const id = ++timerId; timers.set(id, { callback, at: now + ms }); return id; },
+    clearTimeout(id) { timers.delete(id); },
     testRole: leader ? 'leader' : 'player',
     async portraitImageUrl(characterId) {
       portraitCalls.push(['read', characterId]);
@@ -117,10 +129,106 @@ async function page(query, row = base, error = null, leader = false, authorized 
     } },
   });
   await vm.runInContext(`(async () => { ${pageSource}\n })()`, context);
-  return { portraitCalls, elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control };
+  return { advanceTime, portraitCalls, elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control };
 }
 
 (async () => {
+  for (const [key, limit] of [['inventory', 5000], ['notes', 20000]]) {
+    const view = await page(`?character_id=${id}`, { ...base }, null, false, true);
+    const input = view.elements[`edit-${key}`];
+    const status = view.elements[`${key}-status`];
+    await view.elements[`${key}-toggle`].handlers.click();
+    input.value = 'První';
+    await input.handlers.blur();
+    assert.equal(status.textContent, 'Uloženo');
+    view.advanceTime(1000);
+    // An unchanged blur must not leave the success message permanently visible.
+    await input.handlers.blur();
+    view.advanceTime(999);
+    assert.equal(status.textContent, 'Uloženo');
+    view.advanceTime(1);
+    assert.equal(status.textContent, '');
+    input.value = 'Druhé';
+    await input.handlers.blur();
+    view.advanceTime(1000);
+    let finish;
+    view.control.wait = new Promise(resolve => { finish = resolve; });
+    input.value = 'Třetí';
+    const saving = input.handlers.blur();
+    view.advanceTime(3000);
+    assert.equal(status.textContent, 'Ukládám…', 'old timer cannot hide pending save');
+    finish(); await saving;
+    view.control.wait = null;
+    view.advanceTime(1000);
+    input.value = 'Čtvrté';
+    await input.handlers.blur();
+    view.advanceTime(1000);
+    assert.equal(status.textContent, 'Uloženo', 'previous success cannot hide newer success');
+    view.control.error = new Error('Offline');
+    input.value = 'Draft';
+    await input.handlers.blur();
+    view.advanceTime(5000);
+    assert.equal(status.textContent, 'Nepodařilo se uložit');
+    assert.match(view.elements[`error-${key}`].textContent, /Nepodařilo/);
+    assert.equal(input.value, 'Draft');
+    view.control.error = null;
+    await input.handlers.blur();
+    input.value = 'x'.repeat(limit + 1);
+    input.handlers.input();
+    await input.handlers.blur();
+    view.advanceTime(5000);
+    assert.equal(status.textContent, 'Nepodařilo se uložit');
+    assert.match(view.elements[`error-${key}`].textContent, /nejvýše/);
+    assert.equal(input.value.length, limit + 1);
+  }
+  // UI-06a: contextual help, live Unicode counts, immediate validation.
+  for (const [key, limit, maximum] of [['inventory', 5000, '5 000'], ['notes', 20000, '20 000']]) {
+    const row = { ...base, [key]: 'A😀\nB' };
+    const view = await page(`?character_id=${id}`, row, null, false, true);
+    const els = view.elements;
+    const hint = els[`${key}-hint`], count = els[`${key}-count`];
+    const input = els[`edit-${key}`], toggle = els[`${key}-toggle`];
+    assert.equal(hint.hidden, true);
+    assert.equal(count.hidden, true);
+    await toggle.handlers.click();
+    assert.equal(hint.hidden, false);
+    assert.equal(count.hidden, false);
+    assert.equal(count.textContent, `4 / ${maximum}`);
+    const before = view.rpcCalls.length;
+    for (const length of [0, limit, limit + 1]) {
+      input.value = '😀'.repeat(length);
+      input.handlers.input();
+      assert.equal(count.textContent.replaceAll('\u00a0', ' '), `${length.toLocaleString('cs-CZ').replaceAll('\u00a0', ' ')} / ${maximum}`);
+      assert.equal(count.dataset.error, String(length > limit));
+      assert.equal(input.attributes['aria-invalid'], String(length > limit));
+      assert.equal(view.rpcCalls.length, before, 'input never saves');
+    }
+    assert.match(els[`error-${key}`].textContent, /nejvýše/);
+    await toggle.handlers.click();
+    assert.equal(view.rpcCalls.length, before, 'invalid text never reaches API');
+    assert.equal(input.value, '😀'.repeat(limit + 1));
+    assert.equal(hint.hidden, false, 'help remains with invalid editable draft');
+    assert.equal(count.hidden, false);
+    input.value = 'Opraveno';
+    input.handlers.input();
+    assert.equal(count.textContent, `8 / ${maximum}`);
+    assert.equal(count.dataset.error, 'false');
+    assert.equal(els[`error-${key}`].textContent, '');
+    await input.handlers.blur();
+    assert.equal(hint.hidden, true);
+    assert.equal(count.hidden, true);
+    await toggle.handlers.click();
+    input.value = 'Další text';
+    input.handlers.input();
+    await input.handlers.blur();
+    assert.equal(count.hidden, false, 'successful save keeps count while editing');
+    await toggle.handlers.click();
+    assert.equal(hint.hidden, true);
+    assert.equal(count.hidden, true);
+    const leader = await page(`?mode=leader&character_id=${id}`, row, null, true);
+    assert.equal(leader.elements[`${key}-hint`].hidden, true);
+    assert.equal(leader.elements[`${key}-count`].hidden, true);
+  }
   // UI-05: multiline inventory stays plain text and uses one-field authorized RPCs.
   const inventoryRow = { ...base };
   const inventoryPage = await page(`?character_id=${id}`, inventoryRow, null, false, true);
@@ -189,6 +297,91 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.deepEqual(leaderInventory.elements['edit-inventory'].handlers, {});
   assert.deepEqual(leaderInventory.elements['inventory-toggle'].handlers, {});
   assert.equal(leaderInventory.writes.length, 0);
+  // UI-06: notesMultiline notes stays plain text and uses one-field authorized RPCs.
+  const notesRow = { ...base };
+  const notesPage = await page(`?character_id=${id}`, notesRow, null, false, true);
+  const nt = notesPage.elements;
+  assert.equal(nt.notes.hidden, false);
+  assert.equal(nt['character-notes'].textContent, 'Studentský sešit zatím není vyplněný.');
+  assert.equal(nt['edit-notes'].hidden, true);
+  await nt['notes-toggle'].handlers.click();
+  assert.equal(nt['edit-notes'].hidden, false);
+  assert.equal(nt['edit-notes'].focused, true);
+  assert.equal(nt['edit-notes'].handlers.keydown, undefined, 'Enter uses native textarea behavior');
+  const saveNotes = async value => {
+    nt['edit-notes'].value = value;
+    nt['edit-notes'].handlers.input();
+    await nt['edit-notes'].handlers.blur();
+  };
+  const notesMultiline = 'Lano\n  Kniha\nMeč';
+  for (const value of [notesMultiline, 'Lano\n  Mapa\nMeč', '', notesMultiline, 'ž'.repeat(20000), '😀'.repeat(20000)]) {
+    const before = { ...notesRow };
+    await saveNotes(value);
+    assert.deepEqual(notesPage.rpcCalls.at(-1).args.p_patch, { notes: value || null });
+    assert.deepEqual(notesRow, { ...before, notes: value || null });
+    assert.equal(nt['notes-status'].textContent, 'Uloženo');
+    const reload = await page(`?character_id=${id}`, notesRow, null, false, true);
+    assert.equal(reload.elements['character-notes'].textContent, value || 'Studentský sešit zatím není vyplněný.');
+  }
+  const notesCalls = notesPage.rpcCalls.length;
+  for (const value of ['x'.repeat(20001), '😀'.repeat(20001)]) {
+    await saveNotes(value);
+    assert.equal(notesPage.rpcCalls.length, notesCalls);
+    assert.equal(nt['edit-notes'].value, value);
+    assert.match(nt['error-notes'].textContent, /20 000/);
+    assert.equal(nt['edit-notes'].attributes['aria-invalid'], 'true');
+  }
+  await nt['notes-toggle'].handlers.click();
+  assert.equal(nt['edit-notes'].hidden, false, 'invalid draft remains visible after closing');
+  await saveNotes(notesMultiline);
+  assert.equal(nt['edit-notes'].hidden, true);
+  assert.equal(nt['error-notes'].textContent, '');
+  assert.equal(nt['edit-notes'].attributes['aria-invalid'], 'false');
+  await nt['notes-toggle'].handlers.click();
+  notesPage.control.error = new Error('Offline');
+  const draftNotes = 'Lano\n<img src=x onerror=alert(1)>\nŠtít';
+  await saveNotes(draftNotes);
+  assert.equal(nt['edit-notes'].value, draftNotes);
+  assert.equal(notesRow.notes, notesMultiline);
+  assert.equal(nt['notes-status'].textContent, 'Nepodařilo se uložit');
+  await nt['notes-toggle'].handlers.click();
+  assert.equal(nt['edit-notes'].hidden, false);
+  notesPage.control.error = null;
+  let finishNotes;
+  notesPage.control.wait = new Promise(resolve => { finishNotes = resolve; });
+  const retryNotes = nt['edit-notes'].handlers.blur();
+  assert.equal(nt['notes-status'].textContent, 'Ukládám…');
+  assert.equal(nt['edit-notes'].disabled, true);
+  finishNotes();
+  await retryNotes;
+  assert.equal(nt['notes-status'].textContent, 'Uloženo');
+  assert.equal(nt['character-notes'].textContent, draftNotes);
+  assert.equal(nt['edit-notes'].hidden, true);
+  const leaderNotes = await page(`?mode=leader&character_id=${id}`, notesRow, null, true);
+  assert.equal(leaderNotes.elements['character-notes'].textContent, draftNotes);
+  assert.equal(leaderNotes.elements['edit-notes'].hidden, true);
+  assert.equal(leaderNotes.elements['edit-notes'].disabled, true);
+  assert.equal(leaderNotes.elements['notes-toggle'].hidden, true);
+  assert.deepEqual(leaderNotes.elements['edit-notes'].handlers, {});
+  assert.deepEqual(leaderNotes.elements['notes-toggle'].handlers, {});
+  assert.equal(leaderNotes.writes.length, 0);
+  // Independent section saves must not replace a notes draft with server data.
+  const independentRow = { ...base, notes: 'Uložené poznámky', inventory: 'Lano' };
+  const independent = await page(`?character_id=${id}`, independentRow, null, false, true);
+  const independentEls = independent.elements;
+  await independentEls['notes-toggle'].handlers.click();
+  independentEls['edit-notes'].value = 'Rozepsané\npoznámky';
+  const beforeTyping = independent.rpcCalls.length;
+  independentEls['edit-notes'].handlers.input();
+  assert.equal(independent.rpcCalls.length, beforeTyping, 'typing does not autosave');
+  await independentEls['inventory-toggle'].handlers.click();
+  independentEls['edit-inventory'].value = 'Lano\nKniha';
+  await independentEls['edit-inventory'].handlers.blur();
+  assert.equal(independentEls['edit-notes'].value, 'Rozepsané\npoznámky');
+  assert.equal(independentRow.notes, 'Uložené poznámky');
+  await independentEls['edit-notes'].handlers.blur();
+  assert.equal(independentRow.notes, 'Rozepsané\npoznámky');
+  assert.equal(independentRow.inventory, 'Lano\nKniha');
   // UI-04 uses the authorized RPC path and the existing blur editor.
   const backgroundRow = { ...base };
   const backgroundPage = await page(`?character_id=${id}`, backgroundRow, null, false, true);
@@ -832,9 +1025,14 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(leaderPortrait.elements['edit-toggle'].hidden, true);
   assert.equal(leaderPortrait.elements['edit-name'].disabled, true);
   const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
+  assert.ok(html.indexOf('id="notes"') > html.indexOf('id="inventory"'));
+  assert.match(html, /<section id="notes"[^>]*hidden>/);
+  assert.match(html, /<textarea id="edit-notes" rows="14"[^>]*hidden><\/textarea>/);
   assert.match(html, /<section id="inventory"[^>]*hidden>/);
   assert.match(html, /<textarea id="edit-inventory" rows="10"[^>]*hidden><\/textarea>/);
   const styles = readFileSync(resolve(__dirname, '../public/styles.css'), 'utf8');
+  assert.match(styles, /#character-notes\s*\{[^}]*white-space: pre-wrap/);
+  assert.match(styles, /#edit-notes\s*\{[^}]*min-height: 320px/);
   assert.match(styles, /#character-inventory\s*\{[^}]*white-space: pre-wrap/);
   assert.match(styles, /#edit-inventory\s*\{[^}]*min-height: 240px/);
   assert.ok(html.includes('<label for="edit-background">Zázemí</label>'));

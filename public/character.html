@@ -97,10 +97,25 @@
       </header>
       <div class="card-content">
         <div id="character-inventory"></div>
-        <textarea id="edit-inventory" rows="10" aria-label="Inventář" aria-describedby="inventory-hint error-inventory" hidden></textarea>
-        <p id="inventory-hint" class="hint">Nejvýše 5 000 znaků. Změny se ukládají při opuštění pole.</p>
+        <textarea id="edit-inventory" rows="10" aria-label="Inventář" aria-describedby="inventory-hint inventory-count error-inventory" hidden></textarea>
+        <p id="inventory-count" class="hint" hidden></p>
+        <p id="inventory-hint" class="hint" hidden>Nejvýše 5 000 znaků. Změny se ukládají při opuštění pole.</p>
         <span id="error-inventory" class="field-error" role="status"></span>
         <p id="inventory-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+    <section id="notes" class="card" aria-labelledby="notes-title" hidden>
+      <header class="card-header">
+        <h2 id="notes-title">Studentský sešit</h2>
+        <button id="notes-toggle" type="button" aria-pressed="false" aria-controls="edit-notes">✎ Upravit sešit</button>
+      </header>
+      <div class="card-content">
+        <div id="character-notes"></div>
+        <textarea id="edit-notes" rows="14" aria-label="Studentský sešit" aria-describedby="notes-hint notes-count error-notes" hidden></textarea>
+        <p id="notes-count" class="hint" hidden></p>
+        <p id="notes-hint" class="hint" hidden>Nejvýše 20 000 znaků. Změny se ukládají při opuštění pole.</p>
+        <span id="error-notes" class="field-error" role="status"></span>
+        <p id="notes-status" role="status" aria-live="polite"></p>
       </div>
     </section>
     <noscript>Pro zobrazení deníku povolte JavaScript.</noscript>
