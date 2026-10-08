@@ -68,6 +68,12 @@
 }
 
 /* Character page (including responsive layout) */
+.home-page #leader-npc-form { display: grid; gap: 8px; }
+.home-page #leader-npc-form input { min-width: 0; max-width: 100%; padding: 8px; font: inherit; }
+.home-page .npc-card { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px; background: #fffdf8; border: 1px solid #d5cdbd; border-radius: 8px; }
+.home-page .npc-card img { width: 64px; height: 64px; object-fit: cover; }
+.home-page .npc-card span { flex: 1; min-width: 100px; overflow-wrap: anywhere; }
+.home-page .npc-card button { min-height: 44px; padding: 8px; font: inherit; }
 :root:where(.character-page) {
   color-scheme: light;
   --text: #263442;

@@ -3,6 +3,21 @@ import { showRoleHome } from './role-home.js';
 import { openGame } from './leader-game.js';
 import { showLogout, showSessionError, continueAfterLogin } from './session-page.js';
 import { showAdminView } from './admin-view.js';
+import './leader-npcs.js';
+import './leader-players.js';
+import './leader-maps.js';
+
+// Reuse the existing section entry handlers so URL/history and role checks agree.
+for (const [id, view] of [['leader-players-nav', 'players'], ['leader-maps-nav', 'maps'],
+  ['leader-npcs-nav', 'npcs'], ['players-npcs-nav', 'npcs'], ['maps-npcs-nav', 'npcs']]) {
+  document.getElementById(id).addEventListener('click', event => {
+    event.preventDefault();
+    if (getCurrentUser()?.role === 'leader') document.getElementById(`leader-${view}-link`).click();
+  });
+}
+for (const id of ['leader-home-nav', 'players-players-nav', 'maps-maps-nav', 'npcs-npcs-nav']) {
+  document.getElementById(id).addEventListener('click', event => event.preventDefault());
+}
 
 function syncAdminView() {
   const user = getCurrentUser();
@@ -17,6 +32,9 @@ function syncAdminView() {
   } else if (view === 'maps') {
     showAdminView(document, 'maps');
     document.querySelector('#leader-maps-link').click();
+  } else if (view === 'npcs') {
+    showAdminView(document, 'npcs');
+    document.querySelector('#leader-npcs-link').click();
   } else if (view !== 'game') {
     showAdminView(document, 'home');
     const panel = document.querySelector('#leader-players');
