@@ -28,6 +28,14 @@ export async function setMapCellSize(mapId, cellSize) {
     || rows[0].cell_size < 20 || rows[0].cell_size > 300) throw new Error('Invalid cell size response');
   return rows[0].cell_size;
 }
+export async function setMapContentMode(mapId, contentMode) {
+  if (!['map', 'image'].includes(contentMode)) throw new Error('Invalid map content mode');
+  const rows = await rpc('leader_set_map_content_mode', { p_map_id: mapId, p_content_mode: contentMode });
+  if (!Array.isArray(rows) || rows.length !== 1 || !['map', 'image'].includes(rows[0].content_mode)) {
+    throw new Error('Invalid map content mode response');
+  }
+  return rows[0].content_mode;
+}
 export async function setActiveMap(mapId) {
   const rows = await rpc('leader_set_active_map', { p_map_id: mapId });
   if (!Array.isArray(rows) || rows.length !== 1 || rows[0].active_map_id !== mapId) throw new Error('Invalid map response');

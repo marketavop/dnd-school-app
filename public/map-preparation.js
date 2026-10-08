@@ -1,11 +1,12 @@
 import { getCurrentUser } from './login.js';
-import { loadMaps, setMapCellSize, mapImageUrl } from './leader-map-api.js';
+import { loadMaps, setMapCellSize, setMapContentMode, mapImageUrl } from './leader-map-api.js';
 import { renderGrid } from './grid.js';
 import { resolveMapImage } from './map-image.js';
 
 const panel = document.querySelector('#map-preparation');
 const list = document.querySelector('#leader-maps');
 const input = document.querySelector('#prep-cell-size');
+const modeInput = document.querySelector('#prep-content-mode');
 const error = document.querySelector('#prep-error');
 const status = document.querySelector('#prep-status');
 const save = document.querySelector('#prep-save');
@@ -26,7 +27,7 @@ const valid = value => Number.isFinite(value) && value >= MIN && value <= MAX;
 function draw() {
   if (!selected || !image.complete || !image.naturalWidth || !valid(previewSize)) return;
   image.hidden = false;
-  grid.style.display = '';
+  grid.style.display = selected.content_mode === 'image' ? 'none' : '';
   space.style.width = `${image.naturalWidth}px`;
   space.style.height = `${image.naturalHeight}px`;
   renderGrid(document, grid, image.naturalWidth, image.naturalHeight, previewSize);
@@ -53,7 +54,7 @@ export async function openMapPreparation(mapId) {
   const request = ++generation;
   selected = null;
   saving = false;
-  input.disabled = save.disabled = true;
+  input.disabled = modeInput.disabled = save.disabled = true;
   input.value = '';
   error.textContent = '';
   input.setAttribute('aria-invalid', 'false');
@@ -71,9 +72,11 @@ export async function openMapPreparation(mapId) {
     const row = rows.find(item => item.map_id === mapId);
     if (!row || !valid(row.cell_size)) throw new Error('Missing or invalid map config');
     selected = row;
+    selected.content_mode = ['map', 'image'].includes(row.content_mode) ? row.content_mode : 'map';
+    modeInput.value = selected.content_mode;
     previewSize = row.cell_size;
     input.value = previewSize;
-    input.disabled = save.disabled = false;
+    input.disabled = modeInput.disabled = save.disabled = false;
     document.querySelector('#prep-name').textContent = row.name;
     image.alt = row.name;
     image.src = await resolveMapImage(row.image_path, row.map_id);
@@ -99,17 +102,27 @@ input.addEventListener('input', () => {
   draw();
 });
 
+modeInput.addEventListener('change', () => {
+  if (!selected || saving) return;
+  selected.content_mode = ['map', 'image'].includes(modeInput.value) ? modeInput.value : 'map';
+  draw();
+  status.textContent = '';
+});
+
 save.addEventListener('click', async () => {
   if (!selected || saving || error.textContent || !valid(input.valueAsNumber)) return;
   const request = generation;
   const mapId = selected.map_id;
   saving = true;
-  input.disabled = save.disabled = true;
+  input.disabled = modeInput.disabled = save.disabled = true;
   status.textContent = 'Ukládám…';
   try {
     const value = await setMapCellSize(mapId, input.valueAsNumber);
+    const contentMode = await setMapContentMode(mapId, selected.content_mode);
     if (request !== generation) return;
     selected.cell_size = previewSize = value;
+    selected.content_mode = contentMode;
+    modeInput.value = contentMode;
     input.value = value;
     draw();
     status.textContent = 'Velikost pole uložena.';
@@ -119,7 +132,7 @@ save.addEventListener('click', async () => {
   } finally {
     if (request === generation) {
       saving = false;
-      input.disabled = save.disabled = false;
+      input.disabled = modeInput.disabled = save.disabled = false;
     }
   }
 });

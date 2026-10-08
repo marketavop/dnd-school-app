@@ -23,8 +23,8 @@ const characterId = 'd16ac8a0-ba74-40e7-8402-c75cfe3a4ab6';
 const rows = {
   game_state: { active_map_id: 'test-map' },
   map_config: {
-    'test-map': { map_id: 'test-map', cell_size: 100 },
-    'mapa-akademie': { map_id: 'mapa-akademie', cell_size: 150 },
+    'test-map': { map_id: 'test-map', cell_size: 100, content_mode: 'map' },
+    'mapa-akademie': { map_id: 'mapa-akademie', cell_size: 150, content_mode: 'map' },
   },
   token_positions: { 'test-map': { character_id: characterId, map_id: 'test-map', x: 375, y: 375 } },
 };
@@ -234,10 +234,11 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
     elements['map-select'].value = mapId;
     await elements['map-select'].handlers.change();
     await settle();
-  }, async input(value) {
+  }, async input(value, mode) {
     // A saved preparation change arrives via the existing realtime channel.
     const mapId = elements['map-select'].value;
     rows.map_config[mapId].cell_size = value;
+    if (mode !== undefined) rows.map_config[mapId].content_mode = mode;
     emit('map_config', rows.map_config[mapId]);
     await settle();
   } };
@@ -245,7 +246,7 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
 
 (async () => {
   leaderMaps.push({ map_id: uploadedMapId, name: 'Uploaded map', image_path: `maps/${uploadedMapId}/map.webp` });
-  rows.map_config[uploadedMapId] = { map_id: uploadedMapId, cell_size: 100 };
+  rows.map_config[uploadedMapId] = { map_id: uploadedMapId, cell_size: 100, content_mode: 'map' };
   const regression = await client();
   const initialMapSource = regression.elements.map.src;
   const initialTokenElement = regression.tokenStates.get(characterId).element;
@@ -340,6 +341,14 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
   assert.equal(size(a), 120);
   assert.equal(rows.map_config['test-map'].cell_size, 80);
   assert.equal(rows.map_config['mapa-akademie'].cell_size, 120);
+  await b.input(120, 'image');
+  assert.equal(a.elements.grid.style.display, 'none');
+  assert.equal(a.elements.token.hidden, true);
+  assert.equal(a.elements['add-token'].disabled, true);
+  await b.input(120, 'map');
+  assert.equal(a.elements.grid.style.display, '');
+  assert.equal(a.elements.token.hidden, false);
+  assert.deepEqual(center(a), ['200px', '200px']);
   for (const c of [await client(), await client()]) {
     assert.equal(c.elements['map-select'].value, 'mapa-akademie');
     assert.equal(size(c), 120);
