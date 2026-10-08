@@ -9,12 +9,18 @@
 <body>
   <main class="app-shell">
     <form id="login-form" method="post" hidden>
+      <img class="academy-emblem login-emblem" src="./assets/images/academy-emblem.webp" alt="Erb Academia Magna Illistrass">
+      <p class="login-kicker">ACADEMIA MAGNA ILLISTRASS</p>
       <h1>Přihlášení</h1>
       <label>Uživatelské jméno<input id="username" name="username" autocomplete="username" maxlength="100" required></label>
       <label>Heslo<input id="password" name="password" type="password" autocomplete="current-password" required></label>
       <button id="login-submit" type="submit">Přihlásit</button>
       <p id="login-status" role="status" aria-live="polite"></p>
     </form>
+    <header class="academy-header">
+      <img class="academy-emblem" src="./assets/images/academy-emblem.webp" alt="Erb Academia Magna Illistrass">
+      <p class="academy-header-name">ACADEMIA MAGNA ILLISTRASS</p>
+    </header>
     <section id="home-content" hidden>
       <h1>Moje postava</h1>
       <p id="signed-in-status" role="status" hidden></p>
