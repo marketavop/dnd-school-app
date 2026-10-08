@@ -5,7 +5,6 @@ const source = fs.readFileSync('public/app.js', 'utf8').replace(/^import .*;\r?\
   .replace(/\r\n/g, '\n').split('\ntry {\n  const { SUPABASE_URL')[0];
 let rows = [];
 let definitions = [];
-let confirmResult = true;
 const calls = [];
 let delay = null;
 function client(role, portraitControl = {}) {
@@ -21,7 +20,7 @@ function client(role, portraitControl = {}) {
     getBoundingClientRect() { return { left: 100, top: 80 }; } });
   const button = el();
   const elements = {};
-  const document = { baseURI: 'https://app.test/', querySelector(s) { return elements[s] ||= el(); }, createElement: el };
+  const document = { baseURI: 'https://app.test/', querySelector(s) { assert.ok(!['#npc-controls', '#npc-form', '#npc-name', '#npc-list', '#npc-status'].includes(s), 'Removed global DOM requested: ' + s); return elements[s] ||= el(); }, createElement: el };
   const ctx = vm.createContext({ document, URL, console, renderGrid() {}, ResizeObserver: class { observe() {} },
     portraitImageUrl: async (id, options) => {
       portraitCalls.push({ action: 'read', id, ...options });
@@ -30,8 +29,7 @@ function client(role, portraitControl = {}) {
       return portraitControl.url === undefined ? 'https://storage.test/signed-npc' : portraitControl.url;
     },
     uploadPortrait: (id, file, options) => writePortrait('upload', id, file, options),
-    removePortrait: (id, options) => writePortrait('remove', id, null, options),
-    window: { confirm: () => confirmResult, parent: {
+    window: { parent: {
       getGameIdentity: () => ({ role, character_id: 'player-character' }),
       loadNpcDefinitions: async () => {
         assert.equal(role, 'leader'); definitionReads++;
@@ -51,9 +49,9 @@ function client(role, portraitControl = {}) {
         if (action === 'visibility') row.visible = args.p_visible;
         if (action === 'remove') rows = rows.filter(r => r !== row);
         if (action === 'create') definitions.push({ id: 'definition', name: args.p_name, image_url: args.p_image_url });
-        if (action === 'delete') { definitions = definitions.filter(n => n.id !== args.p_npc_id); rows = rows.filter(r => r.npc_id !== args.p_npc_id); }
+        assert.notEqual(action, 'delete', 'Game must never delete global definitions');
         if (action === 'add') rows.push({ id: args.p_map_id === 'test-map' ? 'new' : 'other', npc_id: args.p_npc_id,
-          map_id: args.p_map_id, x: args.p_x, y: args.p_y, visible: true });
+          map_id: args.p_map_id, x: args.p_x, y: args.p_y, visible: false });
       },
     } } });
   vm.runInContext(source, ctx);
@@ -73,19 +71,14 @@ function client(role, portraitControl = {}) {
 }
 (async () => {
   const leader = client('leader'), player = client('player');
-  const form = leader.elements['#npc-form'];
-  leader.elements['#npc-name'] = { value: 'Goblin' };
-  await form.handlers.submit({ preventDefault() {} });
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].p_image_url, null);
-  assert.ok(!fs.readFileSync('public/game.html', 'utf8').includes('id="npc-image"'));
-  assert.ok(!source.includes("querySelector('#npc-image')"));
-  assert.equal(rows.length, 0);
-  assert.equal(definitions.length, 1);
-  await leader.run("changeNpcDefinition(npcDefinitions[0], 'add')");
-  assert.equal(calls[1].p_x % 100, 50);
-  assert.equal(calls[1].p_y % 100, 50);
-  await leader.run("saveNpc(npcs.get('new'), 'visibility')");
+  definitions = [{ id: 'definition', name: 'Goblin', image_url: null }];
+  await leader.refresh();
+  for (const id of ['npc-controls', 'npc-form', 'npc-name', 'npc-list', 'npc-status']) {
+    assert.ok(!fs.readFileSync('public/game.html', 'utf8').includes('id="' + id + '"'));
+  }
+  await leader.run("addNpcToMap(npcDefinitions[0])");
+  assert.equal(calls[0].p_x % 100, 50);
+  assert.equal(calls[0].p_y % 100, 50);
   await player.refresh();
   assert.equal(player.run('npcs.size'), 0);
   assert.equal(leader.run('npcs.size'), 1);
@@ -115,8 +108,7 @@ function client(role, portraitControl = {}) {
   assert.equal(calls.length, beforePlayer);
   leader.run("clearNpcs(); activeMapId = 'mapa-akademie'; mapVersion++;");
   await leader.refresh(); assert.equal(leader.run('npcs.size'), 0);
-  await leader.run("changeNpcDefinition(npcDefinitions[0], 'add')");
-  await leader.run("saveNpc(npcs.get('other'), 'visibility')");
+  await leader.run("addNpcToMap(npcDefinitions[0])");
   assert.equal(rows.length, 2);
   assert.equal(rows[0].npc_id, rows[1].npc_id);
   assert.notEqual(rows[0].visible, rows[1].visible);
@@ -162,106 +154,18 @@ function client(role, portraitControl = {}) {
   leader.ctx.window.parent.mutateNpc = originalMutation;
   assert.equal(removeRequests, 1);
   assert.equal(jsonCalls, 0);
-  assert.equal(leader.elements['#npc-status'].textContent, '');
+  assert.equal(leader.elements['#scene-npcs-status'].textContent, '');
   assert.equal(leader.run('npcs.size'), 0);
   assert.deepEqual(definitions, definitionsBeforeRemove);
   assert.deepEqual(rows, otherMapBeforeRemove);
   await player.refresh(); assert.equal(player.run('npcs.size'), 0);
   assert.equal(definitions.length, 1);
   assert.equal(rows.length, 1);
-  await leader.run("changeNpcDefinition(npcDefinitions[0], 'add')");
+  await leader.run("addNpcToMap(npcDefinitions[0])");
   assert.equal(rows.length, 2);
-  const deleteButton = leader.elements['#npc-list'].children[0].children.at(-1);
-  const beforeDelete = calls.length;
-  confirmResult = false; await deleteButton.handlers.click();
-  assert.equal(calls.length, beforeDelete);
-  confirmResult = true; await deleteButton.handlers.click();
-  assert.equal(definitions.length, 0); assert.equal(rows.length, 0);
-  await player.refresh(); assert.equal(player.run('npcs.size'), 0);
-  definitions = [{ id: 'definition', name: 'Goblin', image_url: null }];
+  // Global definition editing is tested on the homepage; game only reads portraits.
+  definitions = [{ id: 'definition', name: 'Goblin', image_url: 'npcs/definition/portrait.png' }];
   rows = [{ id: 'placement', npc_id: 'definition', map_id: 'test-map', x: 50, y: 50, visible: true }];
-  const control = {};
-  const images = client('leader', control);
-  const labels = () => images.elements['#npc-list'].children[0].children.map(el => el.textContent);
-  const findButton = label => images.elements['#npc-list'].children[0].children.find(el => el.textContent === label);
-  const input = () => images.elements['#npc-list'].children[0].children.find(el => el.type === 'file');
-  await images.refresh();
-  const originalToken = images.run("npcs.get('placement').element");
-  assert.equal(originalToken.textContent, 'G');
-  assert.equal(images.portraitCalls.length, 0, 'NULL reference does not request an image');
-  assert.ok(labels().includes('Nahrát obrázek'));
-  assert.ok(!labels().includes('Odstranit obrázek'));
-  assert.match(input().accept, /\.jpeg/);
-  findButton('Nahrát obrázek').handlers.click();
-  assert.equal(input().clicked, true);
-  let finishWrite;
-  control.writeWait = new Promise(resolve => { finishWrite = resolve; });
-  const selected = input(); selected.files = [{ name: 'goblin.png' }];
-  const upload = selected.handlers.change();
-  await images.run("changeNpcPortrait('definition', {name:'duplicate.png'})");
-  assert.equal(images.portraitCalls.length, 1);
-  assert.equal(findButton('Nahrát obrázek').disabled, true);
-  finishWrite(); await upload; control.writeWait = null;
-  assert.equal(images.portraitCalls[0].id, 'definition');
-  assert.equal(images.portraitCalls[0].entityType, 'npc');
-  assert.ok(labels().includes('Změnit obrázek'));
-  assert.ok(labels().includes('Odstranit obrázek'));
-  assert.equal(originalToken.children.length, 0, 'upload must not refresh an existing token');
-  const firstPath = definitions[0].image_url;
-  control.cleanup = true;
-  input().files = [{ name: 'replacement.webp' }];
-  await input().handlers.change();
-  assert.notEqual(definitions[0].image_url, firstPath);
-  assert.match(images.elements['#npc-status'].textContent, /úklid/);
-  assert.equal(images.elements['#npc-status'].attributes.class, '');
-  assert.equal(images.run("npcs.get('placement').element"), originalToken);
-  assert.equal(originalToken.children.length, 0);
-  await findButton('Odstranit obrázek').handlers.click();
-  assert.equal(definitions[0].image_url, null);
-  assert.ok(labels().includes('Nahrát obrázek'));
-  assert.equal(images.portraitCalls.at(-1).action, 'remove');
-  assert.equal(images.portraitCalls.at(-1).id, 'definition');
-  assert.equal(calls.some(c => c.p_image_url !== undefined && c.p_image_url !== null), false);
-  control.writeError = { status: 403 };
-  await images.run("changeNpcPortrait('definition', {name:'denied.png'})");
-  assert.equal(definitions[0].image_url, null);
-  assert.ok(labels().includes('Nahrát obrázek'));
-  assert.match(images.elements['#npc-status'].textContent, /nepodařilo/);
-  control.writeError = { code: 'FILE_TOO_LARGE', message: 'Obrázek je příliš velký. Maximum je 5 MiB.' };
-  await images.run("changeNpcPortrait('definition', {name:'oversized.png'})");
-  assert.equal(images.elements['#npc-status'].textContent, control.writeError.message);
-  assert.equal(images.elements['#npc-status'].attributes.class, 'portrait-error');
-  assert.equal(findButton('Nahrát obrázek').disabled, false);
-  assert.equal(images.run("npcBusy.has('definition')"), false);
-  for (const error of [{ status: 409 }, { outcome_unknown: true }]) {
-    control.writeError = error;
-    definitions[0].image_url = 'npcs/definition/concurrent.png';
-    let finishDefinitions;
-    control.definitionWait = new Promise(resolve => { finishDefinitions = resolve; });
-    const reads = images.definitionReads;
-    const recovery = images.run("changeNpcPortrait('definition')");
-    assert.equal(images.elements['#npc-status'].attributes.class, '', 'new attempt clears the old error style');
-    await new Promise(setImmediate);
-    assert.equal(images.definitionReads, reads + 1);
-    const attempts = images.portraitCalls.length;
-    await images.run("changeNpcPortrait('definition')");
-    assert.equal(images.portraitCalls.length, attempts);
-    finishDefinitions(); await recovery; control.definitionWait = null;
-    assert.ok(labels().includes('Změnit obrázek'));
-    assert.equal(findButton('Změnit obrázek').disabled, false);
-    assert.match(images.elements['#npc-status'].textContent, /nebyl potvrzen/);
-  }
-  control.definitionError = true;
-  await images.run("changeNpcPortrait('definition')");
-  assert.equal(findButton('Změnit obrázek').disabled, true);
-  assert.match(images.elements['#npc-status'].textContent, /obnovte stránku/);
-  assert.equal(images.elements['#npc-status'].attributes.class, 'portrait-error');
-  images.run("setNpcStatus('Vytvářím NPC…')");
-  assert.equal(images.elements['#npc-status'].attributes.class, '', 'ordinary NPC status clears portrait error styling');
-  const attempts = images.portraitCalls.length;
-  await images.run("changeNpcPortrait('definition')");
-  assert.equal(images.portraitCalls.length, attempts);
-
   // A freshly loaded game signs the definition image for the placement's map.
   const viewer = client('player');
   await viewer.refresh();
@@ -270,9 +174,6 @@ function client(role, portraitControl = {}) {
   assert.deepEqual(viewer.portraitCalls, [{ action: 'read', id: 'definition', entityType: 'npc', mapId: 'test-map' }]);
   assert.equal(shown.children[0].src, 'https://storage.test/signed-npc');
   assert.notEqual(shown.children[0].src, definitions[0].image_url);
-  assert.equal(viewer.elements['#npc-controls'].hidden, true);
-  assert.equal(viewer.elements['#npc-list'].children.length, 0);
-  await viewer.run("changeNpcPortrait('definition', {name:'forbidden.png'})");
   assert.equal(viewer.portraitCalls.length, 1);
   shown.children[0].handlers.error();
   assert.equal(shown.children[0].removed, true);
@@ -313,7 +214,7 @@ function client(role, portraitControl = {}) {
   await scene.refresh();
   assert.equal(sceneRows().length, 1);
   assert.match(sceneRows()[0].children[0].textContent, /Secret — skryté hráčům/);
-  assert.equal(scene.elements['#npc-list'].children.length, 3, 'global definitions remain available');
+  assert.equal(scene.run('npcDefinitions.length'), 3, 'definitions remain available to the picker');
   const scenePlayer = client('player'); await scenePlayer.refresh();
   assert.equal(scenePlayer.elements['#scene-npcs'].hidden, true);
   assert.equal(scenePlayer.elements['#scene-npcs-list'].children.length, 0);
@@ -461,5 +362,5 @@ function client(role, portraitControl = {}) {
   assert.equal(quick.elements['#scene-npc-save'].disabled, true);
   releaseCreate(); await duplicateGuard; createWait = null;
   assert.equal(rows.at(-1).visible, false);
-  console.log('PASS: NPC create/placements, portrait upload/replace/remove, busy/recovery, signed token/fallback and stale image guards');
+  console.log('PASS: Scene without global DOM, placements, quick creation/upload/retry, hidden data, camera, signed portraits and stale responses');
 })().catch(error => { console.error(error); process.exitCode = 1; });

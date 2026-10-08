@@ -3,7 +3,7 @@
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const source = (readFileSync('public/grid.js', 'utf8').replace('export ', '') + readFileSync('public/app.js', 'utf8').replace("import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';", '').replace("import { renderGrid } from './grid.js';", '').replace("import { configureMapImageUrl, resolveMapImage } from './map-image.js';", 'const configureMapImageUrl = () => {}; const resolveMapImage = async path => path;'))
+const source = (readFileSync('public/grid.js', 'utf8').replace('export ', '') + readFileSync('public/app.js', 'utf8').replace("import { portraitImageUrl, uploadPortrait } from './portrait-api.js';", '').replace("import { renderGrid } from './grid.js';", '').replace("import { configureMapImageUrl, resolveMapImage } from './map-image.js';", 'const configureMapImageUrl = () => {}; const resolveMapImage = async path => path;'))
   .replace("await import('./config.local.js')", 'testConfig')
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'testSdk');
 const otherId = '10000000-0000-0000-0000-000000000002';
@@ -53,7 +53,7 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
   const portraitCalls = [];
   const elements = {};
   elements['map-select-label'] = {};
-  for (const id of ['npc-controls', 'npc-status', 'npc-list', 'npc-form', 'scene-npcs', 'scene-npcs-list', 'scene-npcs-empty', 'scene-npcs-status', 'scene-npc-picker', 'scene-npc-add', 'scene-npc-options', 'scene-npc-picker-empty', 'scene-npc-cancel', 'scene-npc-form', 'scene-npc-name', 'scene-npc-image', 'scene-npc-save', 'scene-npc-create', 'scene-npc-close', 'scene-npc-create-status']) {
+  for (const id of ['scene-npcs', 'scene-npcs-list', 'scene-npcs-empty', 'scene-npcs-status', 'scene-npc-picker', 'scene-npc-add', 'scene-npc-options', 'scene-npc-picker-empty', 'scene-npc-cancel', 'scene-npc-form', 'scene-npc-name', 'scene-npc-image', 'scene-npc-save', 'scene-npc-create', 'scene-npc-close', 'scene-npc-create-status']) {
     elements[id] = { handlers: {}, setAttribute() {}, append() {}, replaceChildren() {}, addEventListener(k, fn) { this.handlers[k] = fn; } };
   }
   for (const id of ['scene-players', 'scene-players-list', 'map', 'map-space', 'grid', 'map-status', 'token', 'status', 'connection', 'position', 'cell-size', 'cell-size-error', 'cell-size-status', 'map-select', 'active-map-status', 'add-token', 'add-token-message', 'remove-token', 'remove-token-message']) {
@@ -550,7 +550,7 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
   assert.doesNotMatch(notices, /\bhidden\b/);
   assert.match(css, /\.map-notices > :not\(\[data-message-type="error"\]\)\s*\{\s*display: none;/);
   assert.match(css, /\.map-notices:not\(:has\(\[data-message-type="error"\]\)\)\s*\{\s*display: none;/);
-  assert.match(css, /#npc-status\s*\{\s*min-height:\s*20px;/);
+  assert.doesNotMatch(css, /#npc-status\s*\{/);
   assert.match(sharedCss, /#scene-players-list \[role="status"\]\s*\{\s*min-height:\s*20px;/);
   assert.doesNotMatch(css, /[^{}]*#(?:connection|cell-size-status)[^{}]*\{[^}]*display:\s*none/);
   // BUG-07: independent player identities, foreign-first RPC ordering and reload.

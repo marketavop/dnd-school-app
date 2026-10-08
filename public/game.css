@@ -24,11 +24,8 @@ button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: d
 #game-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .game-workspace { display: flex; flex: 1; min-height: 0; }
 .map-area { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
-/* Keep growing leader rosters from consuming the map's available height. */
-.game-page[data-game-role="leader"] #npc-controls { min-height: 0; max-height: 15%; overflow-y: auto; }
 .map-area > button { flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #add-token-message:empty, #remove-token-message:empty { display: none; }
-#npc-status { min-height: 20px; }
 #map-viewport { flex: 1; min-height: 0; height: auto; outline: none; }
 .map-notices { padding: 3px 12px; font-size: 11px; color: #68685f; display: flex; flex-wrap: wrap; flex-shrink: 0; gap: 12px; }
 .map-notices:not(:has([data-message-type="error"])) { display: none; }

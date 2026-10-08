@@ -26,8 +26,8 @@ const server = http.createServer((req, res) => {
         document.documentElement.dataset.gameRole = role;
         document.querySelector('#game-content').hidden = false;
         document.querySelector('#navigation-status').textContent = '';
-        for (const id of ['map-select-label','map-select','scene-players','npc-controls']) document.getElementById(id).hidden = role !== 'leader';
-        for (const id of ['scene-players-list','npc-list']) {
+        for (const id of ['map-select-label','map-select','scene-players']) document.getElementById(id).hidden = role !== 'leader';
+        for (const id of ['scene-players-list']) {
           for (let i=0; i<count; i++) {
             const li = document.createElement('li');
             const button = document.createElement('button'); button.textContent = 'Odebrat';
