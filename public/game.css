@@ -25,7 +25,7 @@ button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: d
 .game-workspace { display: flex; flex: 1; min-height: 0; }
 .map-area { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 /* Keep growing leader rosters from consuming the map's available height. */
-.game-page[data-game-role="leader"] :is(#scene-players, #npc-controls) { min-height: 0; max-height: 15%; overflow-y: auto; }
+.game-page[data-game-role="leader"] #npc-controls { min-height: 0; max-height: 15%; overflow-y: auto; }
 .map-area > button { flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #add-token-message:empty, #remove-token-message:empty { display: none; }
 #npc-status { min-height: 20px; }
@@ -37,6 +37,11 @@ button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: d
 [data-message-type="error"], .error { color: #b63832; }
 #character-panel, #dice-panel, #scene-panel { flex: 0 0 clamp(250px, 28vw, 330px); min-width: 0; min-height: 0; overflow-y: auto; border-left: 1px solid #b7a579; background: #fffdf8; }
 #scene-panel > div { margin: 16px; overflow-wrap: anywhere; }
+#scene-npcs-list { list-style: none; padding: 0; margin: 0; }
+#scene-npcs-list li { padding: 12px 0; border-bottom: 1px solid #d5cdbd; }
+#scene-npcs-list li > span { display: block; margin-bottom: 6px; }
+#scene-npcs-list button { margin: 4px 4px 0 0; max-width: 100%; }
+#scene-npcs-status:empty { display: none; }
 .panel-tabs { display: flex; background: #f8f4e9; border-bottom: 1px solid #b7a579; padding: 8px 12px 0; gap: 4px; }
 .panel-tabs button { flex: 1; min-width: 0; padding: 6px 4px; font-size: 13px; background: #f2eee5; border-color: #d5cdbd; border-bottom: 3px solid transparent; border-radius: 3px 3px 0 0; }
 .panel-tabs [aria-selected="true"] { border-bottom-color: #a68a4d; color: #263442; background: #fffdf8; font-weight: 600; }

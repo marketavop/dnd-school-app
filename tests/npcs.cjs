@@ -303,5 +303,40 @@ function client(role, portraitControl = {}) {
   await afterRemove.refresh();
   assert.equal(afterRemove.portraitCalls.length, 0);
   assert.equal(afterRemove.run("npcs.get('placement').element.textContent"), 'G');
+  // Scene uses map placements, including hidden ones, without another data source.
+  definitions = [{ id: 'a', name: 'Secret', image_url: null }, { id: 'b', name: 'Other map', image_url: null },
+    { id: 'unused', name: 'Unplaced', image_url: null }];
+  rows = [{ id: 'pa', npc_id: 'a', map_id: 'test-map', x: 50, y: 50, visible: false },
+    { id: 'pb', npc_id: 'b', map_id: 'mapa-akademie', x: 50, y: 50, visible: true }];
+  const scene = client('leader');
+  const sceneRows = () => scene.elements['#scene-npcs-list'].children;
+  await scene.refresh();
+  assert.equal(sceneRows().length, 1);
+  assert.match(sceneRows()[0].children[0].textContent, /Secret — skryté hráčům/);
+  assert.equal(scene.elements['#npc-list'].children.length, 3, 'global definitions remain available');
+  const scenePlayer = client('player'); await scenePlayer.refresh();
+  assert.equal(scenePlayer.elements['#scene-npcs'].hidden, true);
+  assert.equal(scenePlayer.elements['#scene-npcs-list'].children.length, 0);
+  await sceneRows()[0].children[1].handlers.click();
+  assert.equal(calls.at(-1).action, 'visibility');
+  assert.equal(calls.at(-1).p_placement_id, 'pa');
+  assert.equal(calls.at(-1).p_visible, true);
+  assert.match(sceneRows()[0].children[0].textContent, /viditelné/);
+  // The realtime notification invokes this same refresh even when Scene is closed.
+  scene.elements['#scene-panel'] = { hidden: true };
+  rows[0].visible = false;
+  await scene.refresh();
+  assert.match(sceneRows()[0].children[0].textContent, /skryté hráčům/);
+  await sceneRows()[0].children[2].handlers.click();
+  assert.equal(calls.at(-1).action, 'remove');
+  assert.equal(calls.at(-1).p_placement_id, 'pa');
+  assert.equal(definitions.length, 3);
+  assert.equal(rows.length, 1);
+  assert.equal(sceneRows().length, 0);
+  assert.equal(scene.elements['#scene-npcs-empty'].hidden, false);
+  scene.run("clearNpcs(); activeMapId = 'mapa-akademie'; mapVersion++;");
+  await scene.refresh();
+  assert.equal(sceneRows().length, 1);
+  assert.match(sceneRows()[0].children[0].textContent, /Other map — viditelné/);
   console.log('PASS: NPC create/placements, portrait upload/replace/remove, busy/recovery, signed token/fallback and stale image guards');
 })().catch(error => { console.error(error); process.exitCode = 1; });

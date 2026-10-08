@@ -33,10 +33,6 @@
   <p id="add-token-message" role="status"></p>
   <button id="remove-token" type="button" aria-describedby="remove-token-message" hidden>Odebrat postavu z mapy</button>
   <p id="remove-token-message" role="status"></p>
-  <section id="scene-players" hidden>
-    <h2>Hráči ve scéně</h2>
-    <ul id="scene-players-list"></ul>
-  </section>
   <button id="fit-map" type="button">Přizpůsobit mapu</button>
   <section id="npc-controls" hidden>
     <h2>NPC</h2>
@@ -60,7 +56,16 @@
       <aside id="scene-panel" aria-labelledby="scene-heading" hidden>
         <div>
           <h2 id="scene-heading">Scéna</h2>
-          <p>Obsah scény zde bude doplněn později.</p>
+          <section id="scene-players" hidden>
+            <h3>Hráčské postavy</h3>
+            <ul id="scene-players-list"></ul>
+          </section>
+          <section id="scene-npcs" hidden>
+            <h3>NPC na mapě</h3>
+            <p id="scene-npcs-empty" class="muted">Načítám NPC…</p>
+            <ul id="scene-npcs-list"></ul>
+            <p id="scene-npcs-status" role="status"></p>
+          </section>
         </div>
       </aside>
       <aside id="character-panel" aria-label="Studijní panel" hidden>

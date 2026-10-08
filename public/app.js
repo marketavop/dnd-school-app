@@ -98,9 +98,15 @@ const npcPortraitUncertain = new Set();
 let npcRequest = 0;
 let npcAdding = false;
 const npcStatus = document.querySelector('#npc-status');
+const sceneNpcList = document.querySelector('#scene-npcs-list');
+const sceneNpcEmpty = document.querySelector('#scene-npcs-empty');
+const sceneNpcStatus = document.querySelector('#scene-npcs-status');
+document.querySelector('#scene-npcs').hidden = !leaderMode;
 function setNpcStatus(text, portraitError = false) {
   npcStatus.textContent = text;
   npcStatus.setAttribute('class', portraitError ? 'portrait-error' : '');
+  sceneNpcStatus.textContent = leaderMode ? text : '';
+  sceneNpcStatus.setAttribute('class', portraitError ? 'portrait-error' : '');
 }
 const npcList = document.querySelector('#npc-list');
 const npcForm = document.querySelector('#npc-form');
@@ -243,6 +249,9 @@ function clearNpcs() {
   npcs.clear();
   npcDefinitions = [];
   npcList.replaceChildren();
+  sceneNpcList.replaceChildren();
+  sceneNpcEmpty.hidden = false;
+  sceneNpcEmpty.textContent = 'Načítám NPC…';
 }
 
 async function loadNpcPortrait(state, mapId) {
@@ -284,6 +293,7 @@ async function refreshNpcs() {
         name: row.name || 'NPC' }, true);
       state.saved = { x: row.x, y: row.y };
       state.npcId = row.npc_id;
+      state.name = row.name || 'NPC';
       // Existing tokens keep their image until the game/token is recreated (MVP).
       if (isNew && row.image_url != null) void loadNpcPortrait(state, row.map_id);
       state.visible = row.visible;
@@ -296,13 +306,37 @@ async function refreshNpcs() {
     console.error('Načtení NPC selhalo:', error);
     if (version === mapVersion && request === npcRequest) {
       clearNpcs();
+      sceneNpcEmpty.hidden = true;
       setNpcStatus('NPC se nepodařilo načíst. Zkus obnovit stránku.');
     }
   }
 }
 
+function drawSceneNpcs() {
+  if (!leaderMode) return;
+  sceneNpcList.replaceChildren();
+  sceneNpcEmpty.hidden = npcs.size > 0;
+  sceneNpcEmpty.textContent = 'Na této mapě nejsou žádná NPC.';
+  for (const state of npcs.values()) {
+    const item = document.createElement('li');
+    const label = document.createElement('span');
+    label.textContent = `${state.name} — ${state.visible ? 'viditelné' : 'skryté hráčům'}`;
+    item.append(label);
+    for (const [text, action] of [[state.visible ? 'Skrýt' : 'Odhalit', 'visibility'], ['Odebrat z mapy', 'remove']]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = text;
+      button.disabled = state.busy || npcBusy.has(state.npcId);
+      button.addEventListener('click', () => saveNpc(state, action));
+      item.append(button);
+    }
+    sceneNpcList.append(item);
+  }
+}
+
 function drawNpcList() {
   if (!leaderMode) return;
+  drawSceneNpcs();
   npcList.replaceChildren();
   for (const definition of npcDefinitions) {
     const state = [...npcs.values()].find(item => item.npcId === definition.id);
@@ -317,9 +351,7 @@ function drawNpcList() {
         || (portrait && npcPortraitUncertain.has(definition.id));
       element.addEventListener('click', action); item.append(element);
     };
-    button(state ? 'Odebrat z mapy' : 'Přidat na mapu', () => state
-      ? saveNpc(state, 'remove') : changeNpcDefinition(definition, 'add'));
-    if (state) button(state.visible ? 'Skrýt' : 'Odhalit', () => saveNpc(state, 'visibility'));
+    if (!state) button('Přidat na mapu', () => changeNpcDefinition(definition, 'add'));
     const file = document.createElement('input');
     file.type = 'file'; file.hidden = true;
     file.accept = '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';

@@ -53,7 +53,7 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
   const portraitCalls = [];
   const elements = {};
   elements['map-select-label'] = {};
-  for (const id of ['npc-controls', 'npc-status', 'npc-list', 'npc-form']) {
+  for (const id of ['npc-controls', 'npc-status', 'npc-list', 'npc-form', 'scene-npcs', 'scene-npcs-list', 'scene-npcs-empty', 'scene-npcs-status']) {
     elements[id] = { handlers: {}, setAttribute() {}, append() {}, replaceChildren() {}, addEventListener(k, fn) { this.handlers[k] = fn; } };
   }
   for (const id of ['scene-players', 'scene-players-list', 'map', 'map-space', 'grid', 'map-status', 'token', 'status', 'connection', 'position', 'cell-size', 'cell-size-error', 'cell-size-status', 'map-select', 'active-map-status', 'add-token', 'add-token-message', 'remove-token', 'remove-token-message']) {
