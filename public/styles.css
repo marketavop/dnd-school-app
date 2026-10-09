@@ -163,7 +163,8 @@
 :where(.home-page):not(:has(#login-form:not([hidden]))) .academy-header-name {
   position: absolute;
   z-index: 3;
-  top: 65%;
+  /* The ribbon's light writing area sits above the full image's midpoint. */
+  top: 63%;
   left: 13%;
   width: 74%;
   height: 20%;
