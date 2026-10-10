@@ -60,6 +60,18 @@
       </div>
       <p id="portrait-status" role="status" aria-live="polite"></p>
       </div>
+      <details id="story-background" class="story-background">
+        <summary>Příběhové pozadí</summary>
+        <div class="story-background-content">
+          <div id="character-story-background" class="story-background-display"></div>
+          <textarea id="edit-story-background" rows="10" aria-label="Příběhové pozadí" aria-describedby="story-background-hint story-background-count error-story-background" hidden></textarea>
+          <p id="story-background-count" class="hint" hidden></p>
+          <p id="story-background-hint" class="hint" hidden>Nejvýše 5 000 znaků. Změny se ukládají při opuštění pole.</p>
+          <span id="error-story-background" class="field-error" role="status"></span>
+          <p id="story-background-status" role="status" aria-live="polite"></p>
+          <button id="story-background-toggle" type="button" aria-pressed="false" aria-controls="edit-story-background">✎ Upravit pozadí</button>
+        </div>
+      </details>
       </div>
       <p id="save-status" role="status" aria-live="polite"></p>
     </section>
