@@ -707,6 +707,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   }
   for (const [slot, draft, saved] of [
     ['ac', '15', 15], ['ac_note', 'kožená zbroj + obratnost', 'kožená zbroj + obratnost'],
+    ['ac_note', 'Kožená zbroj + obratnost\nDlouhá poznámka: ' + 'ochranné kouzlo '.repeat(20), 'Kožená zbroj + obratnost\nDlouhá poznámka: ' + 'ochranné kouzlo '.repeat(20)],
     ['ac', '16', 16], ['ac', '100', 100], ['ac', '0', 0], ['ac', '', null], ['ac_note', '', null],
   ]) {
     await change(slot, draft);
@@ -1068,7 +1069,11 @@ async function page(query, row = base, error = null, leader = false, authorized 
   const portraitPage = await page(`?character_id=${id}`, portraitRow, null, false, true, pc);
   const pe = portraitPage.elements;
   assert.equal(portraitPage.portraitCalls.length, 0);
-  assert.equal(pe['portrait-controls'].hidden, false);
+  assert.equal(pe['portrait-controls'].hidden, true, 'portrait controls start hidden in viewing mode');
+  pe['edit-toggle'].handlers.click();
+  assert.equal(pe['portrait-controls'].hidden, false, 'the existing pencil shows portrait controls');
+  assert.equal(pe['portrait-upload'].textContent, 'Nahrát obrázek');
+  assert.equal(pe['portrait-remove'].hidden, true);
   pe['portrait-file'].files = [{ name: 'photo.png' }];
   let finishPortrait;
   pc.wait = new Promise(resolve => { finishPortrait = resolve; });
@@ -1076,7 +1081,13 @@ async function page(query, row = base, error = null, leader = false, authorized 
   await pe['portrait-file'].handlers.change();
   assert.equal(portraitPage.portraitCalls.length, 1);
   assert.equal(pe['portrait-upload'].disabled, true);
+  pe['edit-toggle'].handlers.click();
+  assert.equal(pe['portrait-controls'].hidden, true, 'closing the editor hides a pending upload');
   finishPortrait(); await uploading; pc.wait = null;
+  assert.equal(pe['portrait-controls'].hidden, true, 'upload completion does not reopen controls');
+  pe['edit-toggle'].handlers.click();
+  assert.equal(pe['portrait-controls'].hidden, false);
+  assert.equal(pe['portrait-remove'].hidden, false);
   assert.deepEqual(portraitPage.portraitCalls.map(c => c[0]), ['upload', 'read']);
   assert.equal(pe.portrait.src, 'https://example.test/signed-image');
   assert.equal(pe['portrait-upload'].textContent, 'Změnit obrázek');
@@ -1103,6 +1114,11 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(pe['portrait-placeholder'].hidden, false);
   assert.equal(pe['portrait-remove'].hidden, true);
   assert.equal(portraitPage.writes.length, 0);
+  pe['edit-toggle'].handlers.click();
+  assert.equal(pe['portrait-controls'].hidden, true, 'closing hides controls without a portrait too');
+  pe['edit-toggle'].handlers.click();
+  assert.equal(pe['portrait-controls'].hidden, false);
+  assert.equal(pe['portrait-upload'].textContent, 'Nahrát obrázek');
   for (const writeError of [{ status: 409 }, { outcome_unknown: true }]) {
     pc.writeError = writeError;
     portraitRow.portrait_path = 'characters/concurrent.png';

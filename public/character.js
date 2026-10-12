@@ -44,7 +44,6 @@ async function setupPortrait(character, reload) {
     message.textContent = text;
     message.setAttribute('class', error ? 'portrait-error' : '');
   };
-  const controls = document.querySelector('#portrait-controls');
   const upload = document.querySelector('#portrait-upload');
   const remove = document.querySelector('#portrait-remove');
   const file = document.querySelector('#portrait-file');
@@ -80,7 +79,6 @@ async function setupPortrait(character, reload) {
   catch { report('Portrét se nepodařilo načíst. Zkuste obnovit stránku.', true); }
   buttons();
   if (readOnly || getCurrentUser()?.role !== 'player') return;
-  controls.hidden = false;
   const change = async (action, selectedFile) => {
     if (busy || uncertain) return;
     busy = true; buttons();
@@ -708,6 +706,7 @@ function enableEditing(db, character) {
     return;
   }
   function renderEditing() {
+    document.querySelector('#portrait-controls').hidden = !editing || getCurrentUser()?.role !== 'player';
     for (const field of fields) {
       if (!editing && field.key !== 'background') field.clearValidation();
       const editable = editing || failures.has(field.key);

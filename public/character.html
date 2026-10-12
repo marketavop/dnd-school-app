@@ -34,30 +34,34 @@
       <div class="card-content">
       <div id="identity-page" class="card-page">
       <div class="identity">
+        <div class="portrait-area">
         <div class="portrait">
           <svg id="portrait-placeholder" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" role="img" aria-label="Portrét není k dispozici"><circle cx="32" cy="22" r="10"/><path d="M12 54c0-13 9-19 20-19s20 6 20 19"/></svg>
           <img id="portrait" alt="Portrét postavy" referrerpolicy="no-referrer" hidden>
+        </div>
+        <div id="portrait-controls" hidden>
+          <button id="portrait-upload" type="button">Nahrát obrázek</button>
+          <button id="portrait-remove" type="button" hidden>Odstranit obrázek</button>
+          <input id="portrait-file" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
+        </div>
         </div>
         <dl>
           <div class="name"><dt><label for="edit-name">Jméno</label></dt><dd><span id="character-name"></span><input id="edit-name" type="text" required aria-describedby="error-name" hidden><span id="error-name" class="field-error" role="status"></span></dd></div>
           <div><dt><label for="edit-race">Rasa</label></dt><dd><span id="character-race"></span><select id="edit-race" aria-describedby="error-race" hidden></select><span id="error-race" class="field-error" role="status"></span></dd></div>
           <div><dt><label for="edit-class">Povolání</label></dt><dd><span id="character-class"></span><select id="edit-class" aria-describedby="error-class" hidden></select><span id="error-class" class="field-error" role="status"></span></dd></div>
           <div><dt><label for="edit-background">Zázemí</label></dt><dd><span id="character-background"></span><input id="edit-background" type="text" placeholder="např. Folk Hero" aria-describedby="error-background" hidden><span id="error-background" class="field-error" role="status"></span></dd></div>
+        </dl>
+      </div>
+      <dl class="character-resources">
           <div><dt><label for="edit-level">Level</label></dt><dd><span id="character-level"></span><input id="edit-level" type="number" min="1" max="20" step="1" aria-describedby="error-level" hidden><span id="error-level" class="field-error" role="status"></span></dd></div>
           <div><dt><label for="edit-xp">XP</label></dt><dd><span id="character-xp"></span><input id="edit-xp" type="number" min="0" step="1" aria-describedby="error-xp" hidden><span id="error-xp" class="field-error" role="status"></span><span id="xp-next" class="hint"></span></dd></div>
-          <div><dt><label for="edit-ac">AC</label></dt><dd><span id="character-ac"></span><input id="edit-ac" type="number" min="0" step="1" aria-describedby="error-ac" hidden><span id="error-ac" class="field-error" role="status"></span><label for="edit-ac_note" class="hint">Poznámka k AC</label><span id="character-ac_note" class="hint"></span><input id="edit-ac_note" type="text" placeholder="např. kožená zbroj + obratnost" aria-describedby="error-ac_note" hidden><span id="error-ac_note" class="field-error" role="status"></span></dd></div>
-          <div class="hp-block"><dt>HP</dt><dd>
+          <div class="hp-block"><dt><span class="hp-heart" aria-hidden="true">♥</span> HP</dt><dd>
             <div class="hp-values"><span id="character-current_hp"></span><input id="edit-current_hp" aria-label="Aktuální HP" type="number" min="0" step="1" aria-describedby="error-current_hp" hidden><span>/</span><span id="character-max_hp"></span><input id="edit-max_hp" aria-label="Maximální HP" type="number" min="0" step="1" aria-describedby="error-max_hp" hidden></div>
             <span id="error-current_hp" class="field-error" role="status"></span><span id="error-max_hp" class="field-error" role="status"></span>
             <div class="hp-adjust"><button id="hp-minus" type="button" aria-label="Odečíst HP" aria-describedby="hp-hint">−</button><input id="hp-delta" type="number" min="1" step="1" value="1" aria-label="Počet HP k přidání nebo odečtení" aria-describedby="hp-hint hp-error"><button id="hp-plus" type="button" aria-label="Přidat HP" aria-describedby="hp-hint">+</button></div><span id="hp-hint" class="hint"></span><span id="hp-error" class="field-error" role="status"></span>
           </dd></div>
+          <div><dt><label for="edit-ac">AC</label></dt><dd><span id="character-ac"></span><input id="edit-ac" type="number" min="0" step="1" aria-describedby="error-ac" hidden><span id="error-ac" class="field-error" role="status"></span><label for="edit-ac_note" class="hint">Poznámka k AC</label><span id="character-ac_note" class="hint"></span><textarea id="edit-ac_note" rows="3" placeholder="např. kožená zbroj + obratnost" aria-describedby="error-ac_note" hidden></textarea><span id="error-ac_note" class="field-error" role="status"></span></dd></div>
         </dl>
-      </div>
-      <div id="portrait-controls" hidden>
-        <button id="portrait-upload" type="button">Nahrát obrázek</button>
-        <button id="portrait-remove" type="button" hidden>Odstranit obrázek</button>
-        <input id="portrait-file" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
-      </div>
       <p id="portrait-status" role="status" aria-live="polite"></p>
       </div>
       <details id="story-background" class="story-background">
