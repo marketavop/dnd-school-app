@@ -1249,7 +1249,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.match(styles, /\.markdown-content h2/);
   assert.match(styles, /#character-inventory\s*\{[^}]*white-space: pre-wrap/);
   assert.match(styles, /#edit-inventory\s*\{[^}]*min-height: 240px/);
-  assert.ok(html.includes('<label for="edit-background">Zázemí</label>'));
+  assert.ok(html.includes('<label for="edit-background">Zázemí <span class="term-english">(Background)</span></label>'));
   assert.match(html, /<input id="edit-background"[^>]*aria-describedby="error-background"[^>]*hidden/);
   assert.ok(!html.includes('<h1>Deník postavy</h1>'));
   console.log('PASS: character page loading, UUID, portraits, edit toggle, exact choices, blur saves/reload, NULL, validation, unchanged values, failed/pending saves');
