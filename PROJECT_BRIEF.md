@@ -1,10 +1,20 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.10
+**Verze:** 1.1.11
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.11
+
+- vizuální podoba záložky **Průkaz** ve `character.html` byla produktově schválena; další redesign je uzavřen, povoleny jsou konkrétní opravy čitelnosti, responzivity a funkčních chyb,
+- pro všechny tři záložky **Průkaz / Inventář / Sešit** je schválen společný vizuální jazyk: světlé okolí stránky, pergamenová čtecí plocha a tmavomodrý podklad se starozlatým rámem; Inventář a Sešit si zachovávají své odlišné vnitřní uspořádání,
+- pro titulky byl zvolen **Cormorant Garamond**; dekorace mají podporovat charakter královské fantasy akademie, nikoli překrývat obsah,
+- názvy základních D&D mechanik na průkazu se uvádějí česky s anglickými termíny podle D&D 5e (2014), aby se děti učily běžnou terminologii,
+- atributové karty používají rozpoznávací ikony, kruhové hodnoty a dvojjazyčné popisky modifikátoru a záchranného hodu; popisky jsou nad čísly a obě skupiny odděluje jemná zlatá linka,
+- otevřená drobná UX kontrola: ověřit dostatek místa pro dvojjazyčné popisky bez osamocených dvojteček a bez přetečení; případné rozšíření desktopového kontejneru je podmíněno vizuální akceptací,
+- před uzavřením `feature/character-visual-style` je nutná poslední vizuální, funkční a Git kontrola; samotný commit ani merge nejsou tímto dokumentem potvrzené.
 
 ### Změny ve verzi 1.1.10
 
@@ -323,6 +333,12 @@ Záložky patří **dovnitř Studentského průkazu**, nejsou hlavní navigací
 aplikace. Stejné uspořádání je dostupné hráči i v read-only náhledu
 Vedoucího (PJ); v tomto náhledu zůstávají všechna pole pouze pro čtení.
 
+Záložky sdílejí schválený světlý okolní podklad a tmavomodrý rám
+se starozlatým lemováním, vycházející z Průkazu. **Inventář** zůstává
+jednoduchým soupisem na světlé čtecí ploše; **Sešit** zůstává osobním
+pracovním zápisníkem s vlastním vnitřním uspořádáním. Vizuální sjednocení
+nesmí změnit Markdown, autosave, editaci ani read-only oprávnění.
+
 Přepínání probíhá na jedné stránce bez routeru a bez nových databázových
 požadavků. Nesmí způsobit ztrátu rozepsaného textu.
 
@@ -436,6 +452,33 @@ zbytečně propisovat do read-only stavu.
 Studentský průkaz má být vizuálně hlavním objektem horní části deníku a
 jeho struktura má počítat s budoucím jednoduchým listováním.
 
+### Schválené vizuální uspořádání záložky Průkaz
+
+Záložka **Průkaz** má schválený vizuální návrh a bez konkrétního UX nebo
+funkčního problému se znovu nepředělává. Světlé okolí stránky kontrastuje
+s tmavomodrou deskou průkazu se zlatým lemováním. Vnitřní obsah zůstává na
+světlém pergamenu a dobře čitelný. Nadpisy užívají Cormorant Garamond,
+doplňkové ornamenty a jemný astrologický motiv jsou neinteraktivní a nesmějí
+překrývat údaje. Portrét zůstává kruhový, s dekorativním zlatým okrajem.
+Level má jednoduchou světlou kruhovou **CSS pečeť** se zlatým lemováním;
+nepoužívá se složitý tmavomodrý grafický medailon. Nadpisy Level, XP,
+HP a AC i pečeť Levelu jsou na desktopu vystředěny ve svých sloupcích;
+ostatní hodnoty a ovládání zůstávají přirozeně čitelné.
+
+### Dvojjazyčná D&D terminologie
+
+V rámci výuky děti vidí na průkazu primárně český název a vedle něj
+odpovídající anglický termín běžný v D&D 5e (2014). Platí zejména pro:
+**Rasa (Race)**, **Povolání (Class)**, **Zázemí (Background)**,
+**Úroveň (Level)**, **XP (Experience Points)**, **HP (Hit Points)**
+a **AC (Armor Class)**. U vlastností zůstávají české názvy spolu
+s angličtinou a standardní zkratkou: Strength/STR, Dexterity/DEX,
+Constitution/CON, Intelligence/INT, Wisdom/WIS a Charisma/CHA.
+Ve vlastnostech jsou také **Modifikátor (Modifier)** a
+**Záchrana (Saving Throw)**. Anglický termín je výukovým doplňkem,
+nikoli jazykovým přepínačem; nesmí zhoršit čitelnost, dostupnost ani
+responzivitu. Konkrétní zobrazení dlouhých názvů se upraví podle prostoru.
+
 V MVP neevidujeme:
 
 -   alignment,
@@ -528,6 +571,14 @@ vertikálního scrollu.
 
 Proficiency u záchranného hodu je v read-only kartě označena malou plnou
 tečkou `●`. Tečka je pouze informační, není klikací ani editovatelná.
+
+V schváleném dvojjazyčném prezentačním uspořádání mají **Modifikátor**
+i **Záchrana** vlastní popisek nad hodnotou, mezi skupinami je jemná
+vodorovná zlatá linka. Kruh s hodnotou vlastnosti zůstává vlevo a
+opticky vyvážený vůči textové části. Nesmí vznikat osamocená dvojtečka,
+překryv nebo drobné nečitelné popisky; případná úprava šířky má být
+přiměřená a na mobilu bez horizontálního scrollování. Finální oprava
+zalamování zatím čeká na vizuální potvrzení.
 
 ------------------------------------------------------------------------
 
@@ -1424,8 +1475,11 @@ plánovacím rámcem.
 Režim Mapa / Obrázek prošel automatickými testy a osmi akceptačními scénáři
 se skutečným Supabase a dvěma klienty. První vizuální etapa je dokončená:
 login a homepage hráče i Vedoucího prošly vizuální a funkční akceptací.
-Další plánovanou prací je vizuální sjednocení Studentského průkazu a herní
-obrazovky podle §39. Ostatní otevřené úkoly MVP a jejich priority se nemění.
+Vizuální návrh záložky Průkaz byl následně schválen; pro Inventář a Sešit
+byl schválen shodný styl vnějšího rámu. Otevřená zůstává závěrečná vizuální
+kontrola dvojjazyčných popisků a regresní ověření před uzavřením větve.
+Herní obrazovka podle §39 čeká na samostatnou fázi. Ostatní otevřené
+úkoly MVP a jejich priority se nemění.
 
 ### Dny 1--3 --- Technický spike
 
@@ -1668,10 +1722,11 @@ Styl se zavádí postupně:
 
 1.  Login a homepage hráče i Vedoucího (`index.html`) jsou vizuálně
     dokončené a prošly vizuální a funkční akceptací.
-2.  Vizuální sjednocení Studentského průkazu (`character.html`) je další
-    plánovaná práce.
-3.  Vizuální sjednocení okolního UI herní obrazovky (`game.html`) je další
-    plánovaná práce.
+2.  Vizuální podoba záložky Průkaz v `character.html` byla produktově
+    schválena; Inventář a Sešit se sjednocují se stejným rámem. Zbývá
+    dokončit konkrétní kontrolu dvojjazyčných popisků a regresi před merge.
+3.  Vizuální sjednocení okolního UI herní obrazovky (`game.html`) zůstává
+    další plánovanou prací.
 
 Zachováváme existující navigaci a dvě klikací karty hráče a čtyři klikací
 karty Vedoucího podle §5. Vizuální sjednocení nepřidává nové funkce ani
@@ -1710,7 +1765,11 @@ nemění priority otevřených funkčních a bezpečnostních úkolů MVP.
 Přesné hex hodnoty nejsou produktové rozhodnutí. Mohou se iterativně
 upravovat podle reálného vzhledu a čitelnosti.
 
-Referencí pro další vizuální sjednocení jsou schválený login a homepage.
+Referencí pro další vizuální sjednocení jsou schválený login, homepage
+a aktuální vizuálně schválená záložka Průkaz. V `character.html` se používá
+světlé okolí stránky, tmavomodrý rám obsahu, světlý pergamen, tlumené
+zlato a Cormorant Garamond pro výraznější titulky. Výrazné ornamenty
+používáme účelně; nevytváříme dekorace na úkor čitelnosti a ovládání.
 
 ------------------------------------------------------------------------
 

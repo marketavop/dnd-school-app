@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync('public/characters.js', 'utf8').replaceAll('export ', '');
 const row = { id: 'character-a', user_id: 'player-a', name: 'Test', level: 1,
-  background: 'Učenec', inventory: '- Kniha\n- Lano', notes: '# Výuka\nPoznámky' };
+  background: 'Učenec', story_background: 'Příběh postavy', inventory: '- Kniha\n- Lano', notes: '# Výuka\nPoznámky' };
 function api(token = 'player-token') {
   const calls = [];
   const db = { rpc(name, args) { calls.push({ name, args }); return Promise.resolve({ data: [{ ...row, ...args.p_patch }], error: null }); } };
@@ -31,7 +31,7 @@ function api(token = 'player-token') {
     assert.equal(client.calls.at(-1).args.p_patch[field], value);
   }
   // Transport contract only; normalization, types and limits are tested in SQL.
-  for (const field of ['background', 'inventory', 'notes']) {
+  for (const field of ['background', 'story_background', 'inventory', 'notes']) {
     for (const value of ['Text\n  s mezerami', '', null]) {
       const updated = await client.update(field, value);
       const call = client.calls.at(-1);

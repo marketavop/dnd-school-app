@@ -44,7 +44,6 @@ async function setupPortrait(character, reload) {
     message.textContent = text;
     message.setAttribute('class', error ? 'portrait-error' : '');
   };
-  const controls = document.querySelector('#portrait-controls');
   const upload = document.querySelector('#portrait-upload');
   const remove = document.querySelector('#portrait-remove');
   const file = document.querySelector('#portrait-file');
@@ -80,7 +79,6 @@ async function setupPortrait(character, reload) {
   catch { report('Portrét se nepodařilo načíst. Zkuste obnovit stránku.', true); }
   buttons();
   if (readOnly || getCurrentUser()?.role !== 'player') return;
-  controls.hidden = false;
   const change = async (action, selectedFile) => {
     if (busy || uncertain) return;
     busy = true; buttons();
@@ -374,6 +372,108 @@ function setupNotes(db, character) {
   });
 }
 
+function setupStoryBackground(db, character) {
+  const section = document.querySelector('#story-background');
+  const display = document.querySelector('#character-story-background');
+  const input = document.querySelector('#edit-story-background');
+  const toggle = document.querySelector('#story-background-toggle');
+  const message = document.querySelector('#story-background-status');
+  const error = document.querySelector('#error-story-background');
+  const hint = document.querySelector('#story-background-hint');
+  const counter = document.querySelector('#story-background-count');
+  let editing = false, busy = false, failed = false;
+  let savedTimer = null;
+  function updateCounter() {
+    const count = [...input.value].length;
+    counter.textContent = count.toLocaleString('cs-CZ') + ' / 5 000';
+    counter.dataset.error = String(count > 5000);
+  }
+  function clearSavedTimer() {
+    clearTimeout(savedTimer);
+    savedTimer = null;
+  }
+  function render() {
+    display.textContent = character.story_background || 'Příběhové pozadí zatím není vyplněné.';
+    display.dataset.empty = String(!character.story_background);
+    display.hidden = editing || failed;
+    input.hidden = !(editing || failed);
+    hint.hidden = counter.hidden = input.hidden;
+    updateCounter();
+    input.disabled = busy || readOnly;
+    toggle.hidden = readOnly;
+    toggle.disabled = readOnly;
+    toggle.textContent = editing ? 'Ukončit editaci' : '✎ Upravit pozadí';
+    toggle.setAttribute('aria-pressed', String(editing));
+    message.textContent = readOnly ? 'Pouze pro čtení' : message.textContent;
+  }
+  input.value = character.story_background ?? '';
+  render();
+  section.hidden = false;
+  if (readOnly) return;
+  function validate() {
+    return [...input.value].length <= 5000;
+  }
+  input.addEventListener('input', () => {
+    updateCounter();
+    if (validate()) {
+      error.textContent = '';
+      input.setAttribute('aria-invalid', 'false');
+    } else {
+      error.textContent = 'Příběhové pozadí může mít nejvýše 5 000 znaků.';
+      input.setAttribute('aria-invalid', 'true');
+    }
+  });
+  async function save() {
+    if (busy || (!editing && !failed)) return;
+    if (!validate()) {
+      clearSavedTimer();
+      failed = true;
+      error.textContent = 'Příběhové pozadí může mít nejvýše 5 000 znaků.';
+      input.setAttribute('aria-invalid', 'true');
+      message.textContent = 'Nepodařilo se uložit';
+      message.dataset.error = 'true';
+      render();
+      return;
+    }
+    const value = input.value === '' ? null : input.value;
+    if (value === character.story_background && !failed) return;
+    clearSavedTimer();
+    busy = true;
+    error.textContent = '';
+    input.setAttribute('aria-invalid', 'false');
+    message.textContent = 'Ukládám…';
+    message.dataset.error = 'false';
+    render();
+    try {
+      const updated = await updateCharacterField(db, character.id, 'story_background', value, playerSessionToken);
+      character.story_background = updated.story_background;
+      input.value = character.story_background ?? '';
+      failed = false;
+      message.textContent = 'Uloženo';
+      savedTimer = setTimeout(() => {
+        message.textContent = '';
+        savedTimer = null;
+      }, 2000);
+    } catch {
+      failed = true;
+      error.textContent = 'Nepodařilo se uložit. Pro opakování klikni do pole a znovu jej opusť.';
+      message.textContent = 'Nepodařilo se uložit';
+      message.dataset.error = 'true';
+    } finally {
+      busy = false;
+      render();
+    }
+  }
+  input.addEventListener('blur', () => save());
+  toggle.addEventListener('click', async () => {
+    const saving = editing ? save() : null;
+    editing = !editing;
+    render();
+    if (editing) input.focus();
+    await saving;
+  });
+}
+
 function enableEditing(db, character) {
   const toggle = document.querySelector('#edit-toggle');
   const saveStatus = document.querySelector('#save-status');
@@ -606,6 +706,7 @@ function enableEditing(db, character) {
     return;
   }
   function renderEditing() {
+    document.querySelector('#portrait-controls').hidden = !editing || getCurrentUser()?.role !== 'player';
     for (const field of fields) {
       if (!editing && field.key !== 'background') field.clearValidation();
       const editable = editing || failures.has(field.key);
@@ -669,6 +770,7 @@ if (!ids.length) {
     enableEditing(db, character);
     setupInventory(db, character);
     setupNotes(db, character);
+    setupStoryBackground(db, character);
     setupTabs();
     card.hidden = false;
     document.querySelector('#abilities').hidden = false;

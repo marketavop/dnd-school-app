@@ -14,12 +14,13 @@ const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'u
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
 const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-const base = { id, name: 'Eliška', background: null, inventory: null, notes: null, race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
+const base = { id, name: 'Eliška', background: null, story_background: null, inventory: null, notes: null, race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
 async function page(query, row = base, error = null, leader = false, authorized = false, portraitControl = {}) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
     'student-pages', 'tab-card', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-inventory', 'panel-notes',
+    'story-background', 'story-background-toggle', 'character-story-background', 'edit-story-background', 'story-background-status', 'error-story-background', 'story-background-hint', 'story-background-count',
     'inventory-hint', 'inventory-count', 'inventory-help', 'notes-hint', 'notes-count', 'notes-help',
     'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
     'inventory', 'inventory-toggle', 'character-inventory', 'edit-inventory', 'inventory-status', 'error-inventory',
@@ -94,7 +95,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     let patch;
     return {
       update(value) { patch = value; writes.push({ ...value }); return this; },
-      select(fields) { assert.equal(fields.split(',').length, 21); return this; },
+      select(fields) { assert.equal(fields.split(',').length, 22); return this; },
       eq(key, value) { assert.equal(key, 'id'); assert.equal(value.toLowerCase(), id); return this; },
       async single() {
         if (patch) {
@@ -706,6 +707,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   }
   for (const [slot, draft, saved] of [
     ['ac', '15', 15], ['ac_note', 'kožená zbroj + obratnost', 'kožená zbroj + obratnost'],
+    ['ac_note', 'Kožená zbroj + obratnost\nDlouhá poznámka: ' + 'ochranné kouzlo '.repeat(20), 'Kožená zbroj + obratnost\nDlouhá poznámka: ' + 'ochranné kouzlo '.repeat(20)],
     ['ac', '16', 16], ['ac', '100', 100], ['ac', '0', 0], ['ac', '', null], ['ac_note', '', null],
   ]) {
     await change(slot, draft);
@@ -1067,7 +1069,11 @@ async function page(query, row = base, error = null, leader = false, authorized 
   const portraitPage = await page(`?character_id=${id}`, portraitRow, null, false, true, pc);
   const pe = portraitPage.elements;
   assert.equal(portraitPage.portraitCalls.length, 0);
-  assert.equal(pe['portrait-controls'].hidden, false);
+  assert.equal(pe['portrait-controls'].hidden, true, 'portrait controls start hidden in viewing mode');
+  pe['edit-toggle'].handlers.click();
+  assert.equal(pe['portrait-controls'].hidden, false, 'the existing pencil shows portrait controls');
+  assert.equal(pe['portrait-upload'].textContent, 'Nahrát obrázek');
+  assert.equal(pe['portrait-remove'].hidden, true);
   pe['portrait-file'].files = [{ name: 'photo.png' }];
   let finishPortrait;
   pc.wait = new Promise(resolve => { finishPortrait = resolve; });
@@ -1075,7 +1081,13 @@ async function page(query, row = base, error = null, leader = false, authorized 
   await pe['portrait-file'].handlers.change();
   assert.equal(portraitPage.portraitCalls.length, 1);
   assert.equal(pe['portrait-upload'].disabled, true);
+  pe['edit-toggle'].handlers.click();
+  assert.equal(pe['portrait-controls'].hidden, true, 'closing the editor hides a pending upload');
   finishPortrait(); await uploading; pc.wait = null;
+  assert.equal(pe['portrait-controls'].hidden, true, 'upload completion does not reopen controls');
+  pe['edit-toggle'].handlers.click();
+  assert.equal(pe['portrait-controls'].hidden, false);
+  assert.equal(pe['portrait-remove'].hidden, false);
   assert.deepEqual(portraitPage.portraitCalls.map(c => c[0]), ['upload', 'read']);
   assert.equal(pe.portrait.src, 'https://example.test/signed-image');
   assert.equal(pe['portrait-upload'].textContent, 'Změnit obrázek');
@@ -1102,6 +1114,11 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(pe['portrait-placeholder'].hidden, false);
   assert.equal(pe['portrait-remove'].hidden, true);
   assert.equal(portraitPage.writes.length, 0);
+  pe['edit-toggle'].handlers.click();
+  assert.equal(pe['portrait-controls'].hidden, true, 'closing hides controls without a portrait too');
+  pe['edit-toggle'].handlers.click();
+  assert.equal(pe['portrait-controls'].hidden, false);
+  assert.equal(pe['portrait-upload'].textContent, 'Nahrát obrázek');
   for (const writeError of [{ status: 409 }, { outcome_unknown: true }]) {
     pc.writeError = writeError;
     portraitRow.portrait_path = 'characters/concurrent.png';
@@ -1138,7 +1155,79 @@ async function page(query, row = base, error = null, leader = false, authorized 
   }
   assert.equal(leaderPortrait.elements['edit-toggle'].hidden, true);
   assert.equal(leaderPortrait.elements['edit-name'].disabled, true);
+
+  // Story background: independent plain text, autosave, persistence and role isolation.
+  const storyRow = { ...base, background: 'Soldier', notes: 'Notebook' };
+  const storyPage = await page(`?character_id=${id}`, storyRow, null, false, true);
+  const story = storyPage.elements;
+  assert.equal(story['story-background'].hidden, false);
+  assert.equal(story['edit-story-background'].hidden, true);
+  await story['story-background-toggle'].handlers.click();
+  assert.equal(story['edit-story-background'].hidden, false);
+  const saveStory = async value => {
+    story['edit-story-background'].value = value;
+    story['edit-story-background'].handlers.input();
+    await story['edit-story-background'].handlers.blur();
+  };
+  for (const value of ['<b>Plain text</b>\n  Spaces', '😀'.repeat(5000), '']) {
+    await saveStory(value);
+    assert.deepEqual(storyPage.rpcCalls.at(-1).args.p_patch, { story_background: value || null });
+    assert.equal(storyRow.story_background, value || null);
+    assert.equal(storyRow.background, 'Soldier');
+    assert.equal(storyRow.notes, 'Notebook');
+    const reload = await page(`?character_id=${id}`, storyRow, null, false, true);
+    assert.equal(reload.elements['character-story-background'].textContent,
+      value || 'Příběhové pozadí zatím není vyplněné.');
+  }
+  const beforeInvalid = storyPage.rpcCalls.length;
+  await saveStory('😀'.repeat(5001));
+  assert.equal(storyPage.rpcCalls.length, beforeInvalid);
+  assert.equal(story['edit-story-background'].attributes['aria-invalid'], 'true');
+  await story['story-background-toggle'].handlers.click();
+  assert.equal(story['edit-story-background'].hidden, false, 'invalid draft remains visible');
+  assert.equal(storyRow.story_background, null);
+  storyPage.control.error = new Error('Offline');
+  await saveStory('Retry draft');
+  assert.equal(storyRow.story_background, null);
+  assert.equal(story['edit-story-background'].value, 'Retry draft');
+  assert.equal(story['edit-story-background'].hidden, false);
+  storyPage.control.error = null;
+  await story['edit-story-background'].handlers.blur();
+  assert.equal(storyRow.story_background, 'Retry draft');
+  assert.equal(story['edit-story-background'].hidden, true);
+  await story['story-background-toggle'].handlers.click();
+  let finishStory;
+  storyPage.control.wait = new Promise(resolve => { finishStory = resolve; });
+  const pendingStory = saveStory('Pending text');
+  assert.equal(story['edit-story-background'].disabled, true);
+  const pendingCount = storyPage.rpcCalls.length;
+  await story['edit-story-background'].handlers.blur();
+  assert.equal(storyPage.rpcCalls.length, pendingCount, 'no duplicate pending save');
+  finishStory();
+  await pendingStory;
+  storyPage.control.wait = null;
+  const savedCount = storyPage.rpcCalls.length;
+  await saveStory('Pending text');
+  assert.equal(storyPage.rpcCalls.length, savedCount, 'unchanged text is not saved again');
+  await story['edit-toggle'].handlers.click();
+  story['edit-background'].value = 'Sage';
+  story['edit-background'].handlers.input();
+  await story['edit-background'].handlers.blur();
+  assert.equal(storyRow.background, 'Sage');
+  assert.equal(storyRow.story_background, 'Pending text');
+  const storyLeader = await page(`?mode=leader&character_id=${id}`, storyRow, null, true);
+  assert.equal(storyLeader.elements['character-story-background'].textContent, 'Pending text');
+  assert.equal(storyLeader.elements['story-background-toggle'].hidden, true);
+  assert.equal(storyLeader.elements['edit-story-background'].disabled, true);
+  assert.deepEqual(storyLeader.elements['story-background-toggle'].handlers, {});
+  assert.deepEqual(storyLeader.elements['edit-story-background'].handlers, {});
+  assert.equal(storyLeader.writes.length, 0);
+  assert.equal(storyLeader.rpcCalls.length, 0);
+
   const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
+  assert.match(html, /<details id="story-background"/);
+  assert.ok(html.indexOf('id="story-background"') > html.indexOf('id="panel-card"'));
+  assert.ok(html.indexOf('id="story-background"') < html.indexOf('id="panel-inventory"'));
   assert.equal((html.match(/role="tab"/g) || []).length, 3);
   assert.equal((html.match(/role="tabpanel"/g) || []).length, 3);
   assert.ok(html.indexOf('id="panel-card"') < html.indexOf('id="student-card"'));
@@ -1160,7 +1249,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.match(styles, /\.markdown-content h2/);
   assert.match(styles, /#character-inventory\s*\{[^}]*white-space: pre-wrap/);
   assert.match(styles, /#edit-inventory\s*\{[^}]*min-height: 240px/);
-  assert.ok(html.includes('<label for="edit-background">Zázemí</label>'));
+  assert.ok(html.includes('<label for="edit-background">Zázemí <span class="term-english">(Background)</span></label>'));
   assert.match(html, /<input id="edit-background"[^>]*aria-describedby="error-background"[^>]*hidden/);
   assert.ok(!html.includes('<h1>Deník postavy</h1>'));
   console.log('PASS: character page loading, UUID, portraits, edit toggle, exact choices, blur saves/reload, NULL, validation, unchanged values, failed/pending saves');
