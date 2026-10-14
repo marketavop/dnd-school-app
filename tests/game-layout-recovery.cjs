@@ -8,6 +8,7 @@ const characterId = '12345678-1234-4321-9876-123456789abc';
 const peerId = 'abcdefab-1234-4321-9876-abcdefabcdef';
 let saved = { x: 350, y: 350 };
 const writes = [];
+const overview = { ac: 16, level: 5, dex: 14, inventory: '# Výbava\n- **Meč**\n- *Lano*\n- [x] Pochodeň\n- [ ] Jídlo\n<script>window.inventoryExecuted=true</script>\n<img src=x onerror="window.inventoryExecuted=true">\n' + 'DlouhýInventář'.repeat(100) };
 const server = http.createServer((req, res) => {
   const file = path.join(__dirname, '../public', new URL(req.url, 'http://local').pathname);
   try {
@@ -20,6 +21,7 @@ const server = http.createServer((req, res) => {
   const browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || 'msedge' });
   try {
     const context = await browser.newContext();
+    await context.exposeFunction('fixtureOverview', id => id === characterId ? overview : { ac: null, level: null, dex: 8 });
     await context.exposeFunction('fixtureTokens', () => [{ character_id: characterId, name: 'Test', ...saved }]);
     await context.exposeFunction('fixtureMove', (action, id, mapId, point) => {
       assert.equal(action, 'move');
@@ -42,14 +44,18 @@ const server = http.createServer((req, res) => {
     ` }));
     await context.route('**/config.local.js', route => route.fulfill({ contentType: 'application/javascript', body: `export const SUPABASE_URL='https://example.test'; export const SUPABASE_PUBLISHABLE_KEY='sb_publishable_test';` }));
     await context.route('https://cdn.jsdelivr.net/**', route => route.fulfill({ contentType: 'application/javascript', body: `
-      export function createClient() { return {
+      export function createClient() { let currentHp = 10; return {
         channel(name) { const bus = new BroadcastChannel(name), handlers = {};
           bus.onmessage = e => handlers[e.data.event]?.({payload:e.data.payload});
           const c = { on(type, filter, fn) {handlers[filter.event]=fn; return c}, subscribe(fn) {setTimeout(()=>fn?.('SUBSCRIBED'),0); return c}, async send(message) {bus.postMessage(message); return 'ok'}, close() {bus.close()} }; return c; },
         removeChannel(c) {c.close()},
         async rpc(name, args) {
-          if (name !== 'player_character' || args.p_session_token !== 'fixture-session') throw new Error('Unexpected RPC');
-          return {data:[{id:args.p_character_id, name:args.p_character_id === '${peerId}' ? 'Test Postava 2' : 'Test Postava', current_hp:10, max_hp:10, str:14, dex:12, con:10, int:16, wis:10, cha:8}]};
+          if (!['player_character', 'player_update_character'].includes(name) || args.p_session_token !== 'fixture-session') throw new Error('Unexpected RPC');
+          if (name === 'player_update_character') {
+            if (Object.keys(args.p_patch).join() !== 'current_hp') throw new Error('Only HP may be edited');
+            currentHp = args.p_patch.current_hp;
+          }
+          return {data:[{id:args.p_character_id, name:args.p_character_id === '${peerId}' ? 'Test Postava 2' : 'Test Postava', current_hp:currentHp, max_hp:10, str:14, dex:12, con:10, int:16, wis:10, cha:8, ...await window.fixtureOverview(args.p_character_id)}]};
         },
         from(table) { return { select() {return this}, eq() {return this}, async single() {return {data:
           table === 'game_state' ? {active_map_id:'test-map'} :
@@ -79,7 +85,7 @@ const server = http.createServer((req, res) => {
         const token = document.querySelector('.token');
         const scale = m.width / document.querySelector('#map').naturalWidth;
         return {
-          width:v.width, height:v.height,
+          width:v.width, height:v.height, toolbarHeight:rect('.map-toolbar').height,
           fits: m.left >= v.left-1 && m.right <= v.right+1 && m.top >= v.top-1 && m.bottom <= v.bottom+1,
           fills: Math.abs(v.width-a.width)<1 && Math.abs(v.bottom-w.bottom)<1,
           full: Math.abs(a.width-w.width)<1,
@@ -99,16 +105,45 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.getByRole('button', {name:'Odebrat postavu z mapy', exact:true}).isVisible(), true);
     assert.equal(await page.getByRole('button', {name:'Přizpůsobit mapu', exact:true}).isVisible(), true);
     await page.waitForFunction(() => document.querySelector('#game-character-name').textContent === 'Test Postava');
+    assert.equal(await page.locator('#compact-ac').textContent(), '16');
+    assert.equal(await page.locator('#compact-level').textContent(), '5');
+    assert.equal(await page.locator('#compact-initiative').textContent(), '+2');
+    overview.ac = 18;
+    overview.level = 6;
+    overview.dex = 10;
+    await page.reload();
+    await ready();
+    await page.waitForFunction(() => document.querySelector('#compact-ac').textContent === '18');
+    assert.equal(await page.locator('#compact-level').textContent(), '6');
+    assert.equal(await page.locator('#compact-initiative').textContent(), '0');
     assert.equal(await page.locator('footer, .dice-bar').count(), 0);
-    assert.equal(await page.locator('[role="tab"]').count(), 2);
+    assert.equal(await page.locator('[role="tab"]').count(), 3);
     await page.locator('#game-character-name').click();
+    await page.getByRole('tab', {name:'Inventář', exact:true}).click();
+    assert.equal(await page.locator('#game-inventory h2').textContent(), 'Výbava');
+    assert.equal(await page.locator('#game-inventory strong').textContent(), 'Meč');
+    assert.equal(await page.locator('#game-inventory em').textContent(), 'Lano');
+    assert.deepEqual(await page.locator('#game-inventory .markdown-checkbox').allTextContents(), ['☑', '☐']);
+    assert.equal(await page.locator('#game-inventory input, #game-inventory script, #game-inventory img, #inventory-panel textarea').count(), 0);
+    assert.equal(await page.evaluate(() => window.inventoryExecuted), undefined);
+    assert.equal(await page.locator('#inventory-edit-link').getAttribute('href'), `./character.html?character_id=${characterId}&tab=inventory`);
+    assert.equal(await page.locator('#inventory-edit-link').getAttribute('target'), '_top');
+    await page.getByRole('tab', {name:'Inventář', exact:true}).press('Home');
+    assert.equal(await page.locator('#overview-panel').isVisible(), true);
+    await page.locator('#compact-hp-delta').fill('2');
+    await page.locator('#compact-hp-minus').click();
+    await page.waitForFunction(() => document.querySelector('#compact-current-hp').textContent === '8');
+    await page.locator('#compact-hp-plus').click();
+    await page.waitForFunction(() => document.querySelector('#compact-current-hp').textContent === '10');
+    assert.equal(await page.locator('#compact-ac').textContent(), '18');
+    assert.equal(await page.locator('#compact-level').textContent(), '6');
     await page.getByRole('tab', {name:'Vlastnosti'}).click();
-    assert.deepEqual(await page.locator('.ability-table thead th').allTextContents(), ['Vlastnost', 'Hodnota', 'Mod.', 'Záchrana']);
+    assert.deepEqual(await page.locator('.ability-table thead th').allTextContents(), ['Vlastnost', 'Score', 'Mod.', 'Save']);
     await page.locator('#dice-toggle').click();
     await page.locator('#game-character-name').click();
     assert.equal(await page.getByRole('tab', {name:'Vlastnosti'}).getAttribute('aria-selected'), 'true');
     await page.locator('#game-character-name').click();
-    for (const size of [{width:1280,height:800}, {width:768,height:600}, {width:375,height:667}]) {
+    for (const size of [{width:1440,height:900}, {width:1280,height:800}, {width:768,height:600}, {width:375,height:667}, {width:320,height:667}]) {
       await page.setViewportSize(size);
       const closed = await geometry();
       assert.ok(closed.full && closed.fits && closed.fills && closed.centered && !closed.overflow);
@@ -116,9 +151,61 @@ const server = http.createServer((req, res) => {
       for (const toggle of ['#game-character-name', '#dice-toggle']) {
         await page.locator(toggle).click();
         const open = await geometry();
-        assert.ok(open.width < closed.width && open.height === closed.height, JSON.stringify({size, toggle, closed, open}));
+        // Wrapped map actions use more height when a mobile side panel narrows the map.
+        assert.ok(open.width < closed.width && Math.abs((open.height + open.toolbarHeight) - (closed.height + closed.toolbarHeight)) < 1, JSON.stringify({size, toggle, closed, open}));
         assert.ok(open.adjacent && open.fits && open.fills && open.centered && !open.overflow);
         assert.deepEqual(open.coordinates, saved);
+        if (toggle === '#game-character-name') {
+          await page.getByRole('tab', {name:'Přehled', exact:true}).click();
+          assert.deepEqual(await page.locator('#overview-panel dt').allTextContents(), ['AC', 'Level', 'Iniciativa']);
+          const overviewLayout = await page.evaluate(() => {
+            const rect = selector => document.querySelector(selector).getBoundingClientRect();
+            const panel = document.querySelector('#character-panel');
+            const p = panel.getBoundingClientRect();
+            const hp = rect('.hp-values'), controls = rect('.hp-adjust');
+            const ac = document.querySelector('#compact-ac').parentElement.getBoundingClientRect();
+            const level = document.querySelector('#compact-level').parentElement.getBoundingClientRect();
+            const initiative = document.querySelector('#compact-initiative').parentElement.getBoundingClientRect();
+            const fontSize = selector => parseFloat(getComputedStyle(document.querySelector(selector)).fontSize);
+            return {
+              ordered: hp.bottom <= controls.top && controls.bottom <= ac.top && ac.bottom <= initiative.top,
+              equalCards: Math.abs(ac.width-level.width)<1 && Math.abs(ac.height-level.height)<1 && ac.top===level.top && ac.right<=level.left,
+              prominentHp: ['#compact-ac', '#compact-level', '#compact-initiative'].every(selector => fontSize('#compact-current-hp') > fontSize(selector)),
+              unchangedWidth: Math.abs(p.width - (innerWidth<=600 ? Math.min(250, innerWidth*.6) : Math.max(250, Math.min(330, innerWidth*.28))) - 1)<1,
+              noOverflow: panel.scrollWidth===panel.clientWidth && document.documentElement.scrollWidth<=innerWidth,
+              touchControls: [...document.querySelectorAll('.hp-adjust button, .hp-adjust input')].every(element => {
+                const r = element.getBoundingClientRect();
+                return r.width>=44 && r.height>=44 && r.left>=p.left && r.right<=p.right;
+              }),
+            };
+          });
+          assert.deepEqual(overviewLayout, {ordered:true, equalCards:true, prominentHp:true, unchangedWidth:true, noOverflow:true, touchControls:true}, JSON.stringify(size));
+          await page.getByRole('tab', {name:'Vlastnosti', exact:true}).click();
+          assert.equal(await page.locator('#overview-panel').isVisible(), false);
+          assert.equal(await page.locator('#abilities-panel').isVisible(), true);
+          const abilities = await page.locator('.ability-table').evaluate(table => {
+            const panel = table.closest('aside');
+            return { rows: table.tBodies[0].rows.length, icons: table.querySelectorAll('tbody th[scope="row"] svg[aria-hidden="true"]').length,
+              columns: table.querySelectorAll('thead th[scope="col"]').length,
+              compactHeaders: [...table.tHead.rows[0].cells].slice(1).every((header, index) => {
+                const range = document.createRange();
+                range.selectNodeContents(header);
+                const text = range.getBoundingClientRect(), cell = header.getBoundingClientRect();
+                return range.getClientRects().length===1 && text.left>=cell.left && text.right<=cell.right &&
+                  [...table.tBodies[0].rows].every(row => {
+                    const value = row.cells[index+1].getBoundingClientRect();
+                    return Math.abs((cell.left+cell.right)-(value.left+value.right))<1;
+                  });
+              }),
+              fits: panel.scrollWidth===panel.clientWidth && document.documentElement.scrollWidth<=innerWidth };
+          });
+          assert.deepEqual(abilities, {rows:6, icons:6, columns:4, compactHeaders:true, fits:true});
+          await page.getByRole('tab', {name:'Inventář', exact:true}).click();
+          assert.equal(await page.locator('#inventory-panel').isVisible(), true);
+          assert.ok(await page.locator('#character-panel').evaluate(panel => panel.scrollWidth===panel.clientWidth && document.documentElement.scrollWidth<=innerWidth && getComputedStyle(panel).overflowY==='auto'));
+          await page.locator('#inventory-edit-link').scrollIntoViewIfNeeded();
+          await page.getByRole('tab', {name:'Vlastnosti', exact:true}).click();
+        }
       }
       await page.locator('#dice-toggle').click();
       assert.equal((await geometry()).width, closed.width);
@@ -144,6 +231,12 @@ const server = http.createServer((req, res) => {
     await peer.goto(url + '&fixture=peer');
     await peer.waitForFunction(() => !document.querySelector('[data-die="20"]').disabled);
     assert.equal(await peer.locator('#game-character-name').textContent(), 'Test Postava 2');
+    assert.equal(await peer.locator('#compact-ac').textContent(), '—');
+    assert.equal(await peer.locator('#compact-level').textContent(), '—');
+    assert.equal(await peer.locator('#game-inventory').textContent(), 'Inventář je zatím prázdný.');
+    assert.equal(await peer.locator('#inventory-edit-link').getAttribute('href'), `./character.html?character_id=${peerId}&tab=inventory`);
+    assert.equal(await peer.locator('#compact-initiative').textContent(), '-1');
+    assert.equal(await page.locator('#compact-initiative').textContent(), '0');
     assert.deepEqual(await page.locator('[data-die]').evaluateAll(nodes => nodes.map(n => Number(n.dataset.die))), [4,6,8,10,12,20,100]);
     for (const sides of [4,6,8,10,12,20,100,4,6,8,12]) {
       await page.locator(`[data-die="${sides}"]`).click();
@@ -161,8 +254,16 @@ const server = http.createServer((req, res) => {
     assert.deepEqual(await page.locator('#roll-log li').allTextContents(), await peer.locator('#roll-log li').allTextContents());
     assert.equal((await page.locator('#roll-log li').allTextContents())[0], latest);
     await peer.close();
+    overview.ac = 0;
+    overview.level = null;
+    overview.dex = null;
+    overview.inventory = '- Uložená změna z deníku';
     await page.reload();
     await ready();
+    await page.waitForFunction(() => document.querySelector('#compact-ac').textContent === '0');
+    assert.equal(await page.locator('#compact-level').textContent(), '—');
+    assert.equal(await page.locator('#compact-initiative').textContent(), '—');
+    assert.equal(await page.locator('#game-inventory li').textContent(), 'Uložená změna z deníku');
     assert.deepEqual((await geometry()).coordinates, saved);
     assert.equal(writes.length, 1);
     assert.deepEqual(errors, []);

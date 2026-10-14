@@ -73,11 +73,21 @@ const MAPS = [
 const mapSelect = document.querySelector('#map-select');
 let leaderMaps = [];
 const activeMapStatus = document.querySelector('#active-map-status');
-for (const entry of MAPS) {
-  const option = document.createElement('option');
-  option.value = entry.id;
-  option.textContent = entry.name;
-  mapSelect.append(option);
+const contentModeLabel = mode => mode === 'image' ? 'Obrázek' : 'Mapa';
+let activeMapName = '';
+
+function updateMapTypeLabel(mapId, mode) {
+  if (leaderMode) {
+    const entry = leaderMaps.find(item => item.map_id === mapId);
+    if (entry) {
+      entry.content_mode = mode;
+      const option = Array.from(mapSelect.children).find(item => item.value === mapId);
+      if (option) option.textContent = `${entry.name} — ${contentModeLabel(mode)}`;
+    }
+  }
+  if (mapId === activeMapId && activeMapName) {
+    activeMapStatus.textContent = `Aktivní mapa: ${activeMapName} · ${contentModeLabel(mode)}`;
+  }
 }
 mapSelect.value = '';
 const CELL_SIZE = 100; // Přirozené pixely mapy; 1 čtvercové pole = 5 ft.
@@ -573,6 +583,7 @@ async function activateMap(mapId, refresh = false) {
   setNpcStatus('');
   if (mapId !== activeMapId) resetCamera();
   activeMapId = mapId;
+  activeMapName = '';
   configReady = false;
   mapReady = false;
   savedCellSize = null;
@@ -618,6 +629,7 @@ async function activateMap(mapId, refresh = false) {
     return;
   }
   activeMapStatus.textContent = `Aktivní mapa: ${entry.name}`;
+  activeMapName = entry.name;
   mapStatus.textContent = `Načítám mapu ${entry.name}…`;
   map.alt = entry.name;
   map.src = entry.src;
@@ -711,6 +723,7 @@ async function loadMapConfig(mapId = activeMapId, version = mapVersion) {
       contentMode = data.content_mode === 'image' ? 'image' : 'map';
     }
     applyCellSize(savedCellSize);
+    updateMapTypeLabel(mapId, contentMode);
     applyContentMode();
     configReady = true;
     showMessage('info', 'Velikost pole načtena z DB.', cellSizeStatus);
@@ -722,6 +735,9 @@ async function loadMapConfig(mapId = activeMapId, version = mapVersion) {
 }
 
 function receiveMapConfig(payload) {
+  if (payload.new.map_id !== activeMapId && leaderMode) {
+    updateMapTypeLabel(payload.new.map_id, payload.new.content_mode);
+  }
   if (payload.new.map_id !== activeMapId) return;
   const value = payload.new.cell_size;
   if (!validCellSize(value)) {
@@ -732,6 +748,7 @@ function receiveMapConfig(payload) {
   configRevision += 1;
   savedCellSize = value;
   contentMode = payload.new.content_mode === 'image' ? 'image' : 'map';
+  updateMapTypeLabel(activeMapId, contentMode);
   applyCellSize(value);
   applyContentMode();
   showMessage('info', 'Velikost pole přijata přes realtime.', cellSizeStatus);
@@ -961,7 +978,7 @@ try {
     for (const entry of leaderMaps) {
       const option = document.createElement('option');
       option.value = entry.map_id;
-      option.textContent = entry.name;
+      option.textContent = `${entry.name} — ${contentModeLabel(entry.content_mode)}`;
       mapSelect.append(option);
     }
     mapSelect.hidden = false;

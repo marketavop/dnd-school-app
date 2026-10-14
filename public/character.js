@@ -36,6 +36,25 @@ function label(code, labels, fallback) {
   return code == null ? null : labels.get(code) ?? fallback;
 }
 
+function setupDiceRoller() {
+  const dialog = document.querySelector('#dice-dialog');
+  const result = document.querySelector('#dice-result');
+  const reroll = document.querySelector('#dice-reroll');
+  let lastSides = null;
+  const roll = sides => {
+    lastSides = sides;
+    result.textContent = `Výsledek hodu d${sides}: ${Math.floor(Math.random() * sides) + 1}`;
+    reroll.textContent = `Hodit d${sides} znovu`;
+    reroll.disabled = false;
+  };
+  document.querySelector('#dice-toggle').addEventListener('click', () => dialog.showModal());
+  document.querySelector('#dice-close').addEventListener('click', () => dialog.close());
+  for (const sides of [4, 6, 8, 10, 12, 20]) {
+    document.querySelector(`#dice-d${sides}`).addEventListener('click', () => roll(sides));
+  }
+  reroll.addEventListener('click', () => { if (lastSides) roll(lastSides); });
+}
+
 async function setupPortrait(character, reload) {
   const portrait = document.querySelector('#portrait');
   const placeholder = document.querySelector('#portrait-placeholder');
@@ -142,7 +161,7 @@ function setupTabs() {
       tabs[index].focus();
     });
   });
-  select(0);
+  select(new URLSearchParams(window.location.search).get('tab') === 'inventory' ? 1 : 0);
   document.querySelector('#student-pages').hidden = false;
 }
 
@@ -767,11 +786,30 @@ if (!ids.length) {
     showValue('#character-level', character.level);
     showValue('#character-ac', character.ac);
     showValue('#character-ac_note', character.ac_note);
+    setupDiceRoller();
     enableEditing(db, character);
     setupInventory(db, character);
     setupNotes(db, character);
     setupStoryBackground(db, character);
     setupTabs();
+    if (!readOnly) {
+      const gameLink = document.querySelector('#game-link');
+      gameLink.hidden = false;
+      gameLink.addEventListener('click', event => {
+        document.activeElement?.blur();
+        const unsavedText = [['inventory', 'edit-inventory'], ['notes', 'edit-notes'], ['story_background', 'edit-story-background']]
+          .some(([field, id]) => document.querySelector('#' + id).value !== (character[field] ?? ''));
+        const saving = ['save-status', 'inventory-status', 'notes-status', 'story-background-status']
+          .some(id => {
+            const message = document.querySelector('#' + id);
+            return message.textContent === 'Ukládám…' || message.dataset.error === 'true';
+          });
+        if (unsavedText || saving) {
+          event.preventDefault();
+          document.querySelector('#game-navigation-status').textContent = 'Nejdřív dokonči uložení změn v deníku. Potom znovu zvol Vstoupit do hry.';
+        } else document.querySelector('#game-navigation-status').textContent = '';
+      });
+    }
     card.hidden = false;
     document.querySelector('#abilities').hidden = false;
     status.textContent = '';

@@ -8,7 +8,13 @@
 </head>
 <body>
   <main>
-    <a id="home-link" href="./index.html">← Domů</a>
+    <nav class="character-nav" aria-label="Navigace deníku">
+      <a id="home-link" href="./index.html">← Domů</a>
+      <div id="character-nav-actions">
+        <a id="game-link" aria-disabled="true" hidden>Vstoupit do hry</a>
+      </div>
+    </nav>
+    <p id="game-navigation-status" role="status"></p>
     <p id="load-status" role="status" aria-live="polite">Načítám postavu…</p>
     <div id="student-pages" aria-label="Studentský průkaz" hidden>
       <div class="card-tabs" role="tablist" aria-label="Stránky Studentského průkazu">
@@ -25,12 +31,25 @@
         <button id="supplementary-info" type="button" disabled aria-label="Doplňující info – připravujeme" title="Doplňující info – připravujeme">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg>
         </button>
+        <button id="dice-toggle" class="dice-trigger" type="button" aria-label="Hodit kostkou" title="Hodit kostkou" aria-haspopup="dialog" aria-controls="dice-dialog">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.5 7.8 7.5 4.4 7.5-4.4M12 12.2V21"/><circle cx="8" cy="9" r=".7" fill="currentColor"/><circle cx="16" cy="15" r=".7" fill="currentColor"/></svg>
+        </button>
         <button id="edit-toggle" class="edit" type="button" aria-label="Upravit průkaz" title="Upravit průkaz" aria-pressed="false">
           <svg id="edit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m15 5 4 4M4 20l5-1L20 8a2.8 2.8 0 0 0-4-4L5 15z"/></svg>
           <svg id="close-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" hidden><path d="m6 6 12 12M6 18 18 6"/></svg>
         </button>
         </div>
       </header>
+      <dialog id="dice-dialog" class="dice-dialog" aria-labelledby="dice-title">
+        <div class="dice-dialog-header"><h2 id="dice-title">Hod kostkou</h2><button id="dice-close" type="button" aria-label="Zavřít hod kostkou">×</button></div>
+        <p class="dice-dialog-prompt">Vyber kostku:</p>
+        <div class="dice-options" aria-label="Typ kostky">
+          <button id="dice-d4" type="button">d4</button><button id="dice-d6" type="button">d6</button><button id="dice-d8" type="button">d8</button>
+          <button id="dice-d10" type="button">d10</button><button id="dice-d12" type="button">d12</button><button id="dice-d20" type="button">d20</button>
+        </div>
+        <p id="dice-result" class="dice-result" role="status" aria-live="polite">Vyber kostku pro hod.</p>
+        <button id="dice-reroll" class="dice-reroll" type="button" disabled>Hodit znovu</button>
+      </dialog>
       <div class="card-content">
       <div id="identity-page" class="card-page">
       <div class="identity">

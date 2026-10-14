@@ -1,10 +1,18 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.11
+**Verze:** 1.1.12
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.12
+
+- pro mapy byl produktově upřesněn návrh **Pravítka** s prioritou **Později**; nejde o rozšíření MVP,
+- pravítko umožní hráči i Vedoucímu libovolně měřit vzdálenost mezi dvěma poli čtvercové mřížky, kde **1 pole = 5 ft**,
+- začátek a konec měření se přichytávají ke středům polí; diagonální kroky se počítají stejně jako přímé podle jednoduchého pravidla D&D 5e (2014),
+- během tažení se zobrazuje čára a vzdálenost ve ft; po uvolnění tlačítka myši obojí okamžitě zmizí a zapnutý režim pravítka zůstává aktivní,
+- měření bude čistě lokální, bez persistence, realtime synchronizace, automatické kontroly dosahu nebo omezování pohybu tokenů.
 
 ### Změny ve verzi 1.1.11
 
@@ -1066,6 +1074,33 @@ V MVP nemáme:
 
 ------------------------------------------------------------------------
 
+### Pravítko — Později (schválené chování, neimplementovat v MVP)
+
+Jednoduchá pomůcka pro **libovolné měření vzdáleností** na mapě pro hráče i
+Vedoucího. Slouží například k orientačnímu měření pohybu, dosahu útoků nebo
+kouzel; aplikace sama nerozhoduje, zda je akce podle pravidel možná.
+
+- Pravítko je dostupné pouze v režimu obsahu `map`, kde existuje čtvercová mřížka.
+- **1 pole = 5 ft** bez ohledu na rozměry pole v pixelech.
+- Uživatel zapne nástroj Pravítko, stiskne tlačítko myši na mapě a táhne ke
+  koncovému poli. Oba konce se přichytávají ke **středům polí**.
+- Během tažení se zobrazuje jednoduchá čára a vzdálenost ve ft, vždy v
+  násobcích 5 ft (bez desetinného měření).
+- Platí jednoduché diagonální počítání D&D 5e (2014): diagonální posun o
+  jedno pole stojí 5 ft stejně jako vodorovný či svislý. Pro rozdíl indexů
+  polí `dx`, `dy` tedy vzdálenost činí `max(abs(dx), abs(dy)) × 5 ft`.
+- Po uvolnění tlačítka myši **čára i údaj okamžitě zmizí**. Režim pravítka
+  zůstává zapnutý pro další měření, dokud jej uživatel nevypne.
+- Měření je lokální: **bez databáze, ukládání a realtime synchronizace**.
+  Nesmí přesouvat tokeny, validovat rychlost nebo dosah ani měnit sdílený stav.
+- Při pozdější implementaci využít existující mřížku a převody souřadnic
+  kompatibilní s lokálním zoomem/panem; nevytvářet druhý systém souřadnic.
+
+Mimo tento návrh zůstávají trasy s více body, geometrické měření v pixelech,
+konfigurovatelné jednotky, sdílené kresby a automatická pravidlová validace.
+
+------------------------------------------------------------------------
+
 ## 24. Knihovna map a aktivní scéna
 
 Vedoucí má seznam připravených map.
@@ -1601,6 +1636,7 @@ Aktuálně sem patří například:
 -   temporary HP,
 -   pinch zoom a fullscreen mapy,
 -   různé velikosti NPC tokenů,
+-   **Pravítko pro měření vzdálenosti po polích** podle schváleného návrhu v §23,
 -   další pohodlné funkce potvrzené reálnou potřebou.
 
 Tyto položky nejsou podmínkou první session. Odklad se týká chybějícího UI

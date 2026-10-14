@@ -34,6 +34,10 @@ async function showMaps(event) {
       name.className = 'map-card-name';
       name.textContent = row.name;
       summary.append(name);
+      const type = document.createElement('span');
+      type.className = 'map-card-type';
+      type.textContent = row.content_mode === 'image' ? 'Obrázek' : 'Mapa';
+      summary.append(type);
       if (row.is_active) {
         const active = document.createElement('span');
         active.className = 'map-card-status';

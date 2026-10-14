@@ -9,6 +9,7 @@
 </head>
 <body>
   <header class="top-bar">
+    <img class="game-emblem" src="./assets/images/academy-emblem.webp" width="40" height="40" alt="Erb akademie" draggable="false">
     <a id="home-link" href="./index.html">← Domů</a>
     <label for="map-select" id="map-select-label" hidden>Aktivní mapa</label>
     <select id="map-select" aria-describedby="active-map-status" hidden disabled></select>
@@ -29,11 +30,13 @@
           <span id="map-status" role="status">Načítám mapu…</span>
           <span id="cell-size-status" role="status"></span>
         </div>
-  <button id="add-token" type="button" aria-describedby="add-token-message" hidden>Přidat postavu na mapu</button>
-  <p id="add-token-message" role="status"></p>
-  <button id="remove-token" type="button" aria-describedby="remove-token-message" hidden>Odebrat postavu z mapy</button>
-  <p id="remove-token-message" role="status"></p>
-  <button id="fit-map" type="button">Přizpůsobit mapu</button>
+        <div class="map-toolbar">
+          <button id="add-token" type="button" aria-describedby="add-token-message" hidden>Přidat postavu na mapu</button>
+          <button id="remove-token" type="button" aria-describedby="remove-token-message" hidden>Odebrat postavu z mapy</button>
+          <button id="fit-map" type="button">Přizpůsobit mapu</button>
+          <p id="add-token-message" role="status"></p>
+          <p id="remove-token-message" role="status"></p>
+        </div>
   <div id="map-viewport" aria-label="Herní mapa">
     <div id="map-space">
       <img id="map" alt="Aktivní mapa" draggable="false" hidden>
@@ -78,6 +81,7 @@
         <div class="panel-tabs" role="tablist" aria-label="Studijní panel">
           <button id="overview-tab" role="tab" aria-selected="true" aria-controls="overview-panel">Přehled</button>
           <button id="abilities-tab" role="tab" aria-selected="false" aria-controls="abilities-panel" tabindex="-1">Vlastnosti</button>
+          <button id="inventory-tab" role="tab" aria-selected="false" aria-controls="inventory-panel" tabindex="-1">Inventář</button>
         </div>
         <p id="diary-status" role="status">Načítám postavu…</p>
         <section id="overview-panel" role="tabpanel" aria-labelledby="overview-tab">
@@ -90,19 +94,28 @@
           </div>
           <p id="compact-hp-hint" class="muted"></p>
           <p id="compact-hp-error" role="status" class="error"></p>
+          <dl class="overview-stats">
+            <div><dt>AC</dt><dd id="compact-ac">—</dd></div>
+            <div><dt>Level</dt><dd id="compact-level">—</dd></div>
+            <div class="overview-initiative"><dt>Iniciativa</dt><dd id="compact-initiative">—</dd></div>
+          </dl>
         </section>
         <section id="abilities-panel" role="tabpanel" aria-labelledby="abilities-tab" hidden>
           <table class="ability-table" aria-label="Vlastnosti postavy">
-            <thead><tr><th scope="col">Vlastnost</th><th scope="col">Hodnota</th><th scope="col">Mod.</th><th scope="col">Záchrana</th></tr></thead>
+            <thead><tr><th scope="col">Vlastnost</th><th scope="col" title="Hodnota vlastnosti">Score</th><th scope="col">Mod.</th><th scope="col" title="Záchranný hod">Save</th></tr></thead>
             <tbody>
-              <tr><th scope="row">Síla <span>(STR)</span></th><td id="compact-str">—</td><td id="compact-modifier-str">—</td><td id="compact-save-str">—</td></tr>
-              <tr><th scope="row">Obratnost <span>(DEX)</span></th><td id="compact-dex">—</td><td id="compact-modifier-dex">—</td><td id="compact-save-dex">—</td></tr>
-              <tr><th scope="row">Odolnost <span>(CON)</span></th><td id="compact-con">—</td><td id="compact-modifier-con">—</td><td id="compact-save-con">—</td></tr>
-              <tr><th scope="row">Inteligence <span>(INT)</span></th><td id="compact-int">—</td><td id="compact-modifier-int">—</td><td id="compact-save-int">—</td></tr>
-              <tr><th scope="row">Moudrost <span>(WIS)</span></th><td id="compact-wis">—</td><td id="compact-modifier-wis">—</td><td id="compact-save-wis">—</td></tr>
-              <tr><th scope="row">Charisma <span>(CHA)</span></th><td id="compact-cha">—</td><td id="compact-modifier-cha">—</td><td id="compact-save-cha">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h3v8H5zM16 8h3v8h-3zM8 12h8M2 10v4M22 10v4"/></svg>Síla <span>(STR)</span></th><td id="compact-str">—</td><td id="compact-modifier-str">—</td><td id="compact-save-str">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18 19 5M11 5h8v8M3 7h5M3 11h3"/></svg>Obratnost <span>(DEX)</span></th><td id="compact-dex">—</td><td id="compact-modifier-dex">—</td><td id="compact-save-dex">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6zM12 7v10"/></svg>Odolnost <span>(CON)</span></th><td id="compact-con">—</td><td id="compact-modifier-con">—</td><td id="compact-save-con">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1zM12 6v14"/></svg>Inteligence <span>(INT)</span></th><td id="compact-int">—</td><td id="compact-modifier-int">—</td><td id="compact-save-int">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Moudrost <span>(WIS)</span></th><td id="compact-wis">—</td><td id="compact-modifier-wis">—</td><td id="compact-save-wis">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8l-6 3v-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM7 9h10M7 13h7"/></svg>Charisma <span>(CHA)</span></th><td id="compact-cha">—</td><td id="compact-modifier-cha">—</td><td id="compact-save-cha">—</td></tr>
             </tbody>
           </table>
+        </section>
+        <section id="inventory-panel" role="tabpanel" aria-labelledby="inventory-tab" hidden>
+          <div id="game-inventory">Načítám inventář…</div>
+          <a id="inventory-edit-link" target="_top" hidden>Upravit v deníku</a>
         </section>
       </aside>
       <aside id="dice-panel" aria-label="Kostky" hidden>
