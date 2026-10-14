@@ -58,8 +58,8 @@
 :where(.home-page) .leader-game-frame { width: 100%; height: 85vh; border: 0; }
 /* Only the open game replaces the ceremonial header with its own compact bar. */
 .home-page:has(#leader-game:not([hidden])) .academy-header { display: none; }
-.home-page:has(#leader-game:not([hidden])) body { margin-block: 0; }
-.home-page:has(#leader-game:not([hidden])) main { margin-block: 0; }
+.home-page:has(#leader-game:not([hidden])) body { margin: 0 clamp(8px, 1.4vw, 24px); }
+.home-page:has(#leader-game:not([hidden])) main { width: 100%; max-width: none; margin-block: 0; }
 .home-page:has(#leader-game:not([hidden])) #session-logout { margin-bottom: 0; }
 :where(.home-page) #prep-cell-size[aria-invalid="true"] { border: 2px solid #b42318; background: #fff0ef; }
 

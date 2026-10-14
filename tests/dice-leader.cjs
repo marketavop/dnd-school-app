@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync('public/game-panel.js', 'utf8').replace(/^import .*;\r?\n/gm, '').split('\nif (valid) {')[0];
 function check(user) {
-  const elements = Object.fromEntries(['game-character-name','character-panel','dice-toggle','dice-panel','overview-tab','abilities-tab'].map(id => [id, {
+  const elements = Object.fromEntries(['game-character-name','character-panel','dice-toggle','dice-panel','overview-tab','inventory-tab','scene-toggle','scene-panel'].map(id => [id, {
     hidden: true, disabled: false, handlers: {}, setAttribute() {}, addEventListener(type, fn) { this.handlers[type] = fn; },
   }]));
   const context = vm.createContext({ gameUser: user, document: { getElementById: id => elements[id], querySelector: s => elements[s.slice(1)] } });

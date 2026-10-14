@@ -80,11 +80,11 @@
       <aside id="character-panel" aria-label="Studijní panel" hidden>
         <div class="panel-tabs" role="tablist" aria-label="Studijní panel">
           <button id="overview-tab" role="tab" aria-selected="true" aria-controls="overview-panel">Přehled</button>
-          <button id="abilities-tab" role="tab" aria-selected="false" aria-controls="abilities-panel" tabindex="-1">Vlastnosti</button>
           <button id="inventory-tab" role="tab" aria-selected="false" aria-controls="inventory-panel" tabindex="-1">Inventář</button>
         </div>
         <p id="diary-status" role="status">Načítám postavu…</p>
         <section id="overview-panel" role="tabpanel" aria-labelledby="overview-tab">
+          <div class="overview-summary">
           <h2>Životy</h2>
           <p class="hp-values"><span id="compact-current-hp">—</span> / <span id="compact-max-hp">—</span> <small>HP</small></p>
           <div class="hp-adjust">
@@ -99,8 +99,7 @@
             <div><dt>Level</dt><dd id="compact-level">—</dd></div>
             <div class="overview-initiative"><dt>Iniciativa</dt><dd id="compact-initiative">—</dd></div>
           </dl>
-        </section>
-        <section id="abilities-panel" role="tabpanel" aria-labelledby="abilities-tab" hidden>
+          </div>
           <table class="ability-table" aria-label="Vlastnosti postavy">
             <thead><tr><th scope="col">Vlastnost</th><th scope="col" title="Hodnota vlastnosti">Score</th><th scope="col">Mod.</th><th scope="col" title="Záchranný hod">Save</th></tr></thead>
             <tbody>
