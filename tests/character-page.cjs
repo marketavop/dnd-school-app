@@ -19,13 +19,14 @@ const base = { id, name: 'Eliška', background: null, story_background: null, in
 
 async function page(query, row = base, error = null, leader = false, authorized = false, portraitControl = {}) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
-    'student-pages', 'tab-card', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-inventory', 'panel-notes',
+    'student-pages', 'tab-card', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-inventory', 'panel-notes', 'game-link', 'game-navigation-status',
     'story-background', 'story-background-toggle', 'character-story-background', 'edit-story-background', 'story-background-status', 'error-story-background', 'story-background-hint', 'story-background-count',
     'inventory-hint', 'inventory-count', 'inventory-help', 'notes-hint', 'notes-count', 'notes-help',
     'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
     'inventory', 'inventory-toggle', 'character-inventory', 'edit-inventory', 'inventory-status', 'error-inventory',
     'portrait-controls', 'portrait-upload', 'portrait-remove', 'portrait-file', 'portrait-status',
     'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
+    'dice-toggle', 'dice-dialog', 'dice-title', 'dice-close', 'dice-result', 'dice-reroll', ...[4, 6, 8, 10, 12, 20].map(sides => `dice-d${sides}`),
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
     'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['background', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
     textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'edit-background', 'close-icon', 'inventory-help', 'notes-help', 'inventory-count', 'notes-count'].includes(key), dataset: {}, handlers: {},
@@ -34,6 +35,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
     removeAttribute(key) { if (key === 'src') delete this.src; delete this.attributes[key]; },
     getAttribute(key) { return this[key] ?? null; },
     click() { this.clicked = true; },
+    showModal() { this.open = true; },
+    close() { this.open = false; },
     focus() { this.focused = true; },
     setAttribute(key, value) { this.attributes[key] = value; },
     addEventListener(event, handler) { this.handlers[event] = handler; },
@@ -160,6 +163,53 @@ async function page(query, row = base, error = null, leader = false, authorized 
 }
 
 (async () => {
+  {
+    const view = await page(`?character_id=${id}`, {...base}, null, false, true);
+    const els = view.elements;
+    const blocked = () => {
+      let prevented = false;
+      els['game-link'].handlers.click({preventDefault() { prevented = true; }});
+      return prevented;
+    };
+    for (const tab of ['card', 'inventory', 'notes']) {
+      els['tab-' + tab].handlers.click();
+      assert.equal(els['game-link'].hidden, false);
+      assert.equal(blocked(), false);
+    }
+    await els['inventory-toggle'].handlers.click();
+    els['edit-inventory'].value = 'Lano';
+    assert.equal(blocked(), true, 'unsaved draft must not be discarded');
+    await els['edit-inventory'].handlers.blur();
+    assert.equal(blocked(), false, 'saved inventory allows entering the game');
+    els['inventory-status'].textContent = 'Ukládám…';
+    assert.equal(blocked(), true, 'pending save must finish before navigation');
+    els['inventory-status'].textContent = '';
+    els['inventory-status'].dataset.error = 'true';
+    assert.equal(blocked(), true, 'failed save keeps the diary open');
+  }
+  for (const tab of ['inventory', 'unknown']) {
+    const view = await page(`?character_id=${id}&tab=${tab}`, {...base}, null, false, true);
+    assert.equal(view.elements['panel-inventory'].hidden, tab !== 'inventory');
+    assert.equal(view.elements['panel-card'].hidden, tab === 'inventory');
+  }
+  // Dice roller: opens independently, rolls each die, repeats the previous die, and closes.
+  {
+    const roller = await page(`?character_id=${id}`, { ...base }, null, false, true);
+    const els = roller.elements;
+    els['dice-toggle'].handlers.click();
+    assert.equal(els['dice-dialog'].open, true);
+    for (const sides of [4, 6, 8, 10, 12, 20]) {
+      els[`dice-d${sides}`].handlers.click();
+      assert.match(els['dice-result'].textContent, new RegExp(`^Výsledek hodu d${sides}: \\d+$`));
+      const value = Number(els['dice-result'].textContent.split(': ')[1]);
+      assert.ok(value >= 1 && value <= sides);
+      assert.equal(els['dice-reroll'].disabled, false);
+    }
+    els['dice-reroll'].handlers.click();
+    assert.match(els['dice-result'].textContent, /^Výsledek hodu d20: (?:[1-9]|1\d|20)$/);
+    els['dice-close'].handlers.click();
+    assert.equal(els['dice-dialog'].open, false);
+  }
   // NAV-01: one visible panel, roving focus, no reload or additional reads.
   for (const leader of [false, true]) {
     const view = await page(`?${leader ? 'mode=leader&' : ''}character_id=${id}`, { ...base }, null, leader, !leader);
