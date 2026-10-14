@@ -265,7 +265,7 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
       assert.deepEqual(JSON.parse(mapRequests[before].body), { p_map_id: mapId, p_session_token: 'test-session' });
       assert.equal(rows.game_state.active_map_id, mapId);
       assert.equal(regression.elements['map-select'].value, rows.game_state.active_map_id);
-      assert.equal(regression.elements['active-map-status'].textContent, `Aktivní mapa: ${leaderMaps.find(row => row.map_id === mapId).name}`);
+      assert.equal(regression.elements['active-map-status'].textContent, `Aktivní mapa: ${leaderMaps.find(row => row.map_id === mapId).name} · Mapa`);
     }
     assert.equal(regression.elements.map.src, `maps/${uploadedMapId}/map.webp`);
     failWrite = true;
@@ -282,6 +282,19 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
   leaderMaps.pop();
   const a = await client(), b = await client();
   const player = await client('player');
+  assert.equal(player.elements['map-select'].children.length, 0, 'Player receives no inactive map options');
+  rows.map_config['mapa-akademie'].content_mode = 'image';
+  emit('map_config', rows.map_config['mapa-akademie']);
+  await settle();
+  assert.equal(a.elements['map-select'].children[1].textContent, 'Mapa akademie — Obrázek');
+  assert.equal(player.elements['active-map-status'].textContent, 'Aktivní mapa: Test map · Mapa');
+  await a.switchMap('mapa-akademie');
+  for (const c of [a, b, player]) assert.equal(c.elements['active-map-status'].textContent, 'Aktivní mapa: Mapa akademie · Obrázek');
+  await a.switchMap('test-map');
+  for (const c of [a, b, player]) assert.equal(c.elements['active-map-status'].textContent, 'Aktivní mapa: Test map · Mapa');
+  rows.map_config['mapa-akademie'].content_mode = 'map';
+  emit('map_config', rows.map_config['mapa-akademie']);
+  await settle();
   await player.switchMap('mapa-akademie');
   assert.equal(rows.game_state.active_map_id, 'test-map', 'Player handler cannot change active map');
   const size = c => Number(c.elements['cell-size'].value);
@@ -342,10 +355,14 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
   assert.equal(rows.map_config['test-map'].cell_size, 80);
   assert.equal(rows.map_config['mapa-akademie'].cell_size, 120);
   await b.input(120, 'image');
+  for (const c of [a, b, player]) assert.equal(c.elements['active-map-status'].textContent, 'Aktivní mapa: Mapa akademie · Obrázek');
+  assert.equal(a.elements['map-select'].children[1].textContent, 'Mapa akademie — Obrázek');
   assert.equal(a.elements.grid.style.display, 'none');
   assert.equal(a.elements.token.hidden, true);
   assert.equal(a.elements['add-token'].disabled, true);
   await b.input(120, 'map');
+  for (const c of [a, b, player]) assert.equal(c.elements['active-map-status'].textContent, 'Aktivní mapa: Mapa akademie · Mapa');
+  assert.equal(a.elements['map-select'].children[1].textContent, 'Mapa akademie — Mapa');
   assert.equal(a.elements.grid.style.display, '');
   assert.equal(a.elements.token.hidden, false);
   assert.deepEqual(center(a), ['200px', '200px']);

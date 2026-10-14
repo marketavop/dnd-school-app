@@ -8,8 +8,8 @@ const source = (fs.readFileSync('public/leader-map-api.js', 'utf8').replaceAll('
   .replaceAll("await import('./config.local.js')", 'config')
   .replace(/^import .*;\r?\n/gm, '').replaceAll('export function', 'function');
 function page(role = 'leader', result = [
-  { map_id: 'test-map', name: '<Test map>', is_active: false },
-  { map_id: 'mapa-akademie', name: 'Mapa akademie', is_active: true },
+  { map_id: 'test-map', name: '<Test map>', content_mode: 'map', is_active: false },
+  { map_id: 'mapa-akademie', name: 'Mapa akademie', content_mode: 'image', is_active: true },
 ], settings = {}) {
   const element = () => ({ hidden: true, children: [], handlers: {}, dataset: {},
     addEventListener(type, fn) { this.handlers[type] = fn; },
@@ -59,6 +59,14 @@ function page(role = 'leader', result = [
   assert.deepEqual(p.els['maps-list'].children.map(x => x.children[0].children[0].textContent), ['<Test map>', 'Mapa akademie']);
   assert.equal(p.requests[0].url, 'https://example.supabase.co/rest/v1/rpc/leader_maps');
   assert.equal(p.requests[0].method, 'POST');
+  assert.deepEqual(p.els['maps-list'].children.map(x => x.children[0].children[1].textContent), ['Mapa', 'Obrázek']);
+  assert.equal(p.els['maps-list'].children[1].children[0].children[2].textContent, 'Aktivní');
+  const changedRows = [{ map_id: 'changed', name: 'Stejný název', content_mode: 'map', is_active: true }];
+  const changed = page('leader', changedRows);
+  await changed.open();
+  changedRows[0].content_mode = 'image';
+  await changed.open();
+  assert.equal(changed.els['maps-list'].children[0].children[0].children[1].textContent, 'Obrázek');
   assert.deepEqual(JSON.parse(p.requests[0].body), { p_session_token: 'test-session' });
   await p.els['maps-list'].children[0].children[1].children[0].click();
   assert.equal(p.requests[1].url, 'https://example.supabase.co/rest/v1/rpc/leader_set_active_map');
