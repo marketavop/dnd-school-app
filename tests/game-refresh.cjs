@@ -10,10 +10,10 @@ function page(role, href, waitForSession = Promise.resolve()) {
   const document = { querySelector(selector) {
     return elements[selector] ||= { hidden: true, handlers: {}, classList: { add() {} },
       addEventListener(type, fn) { this.handlers[type] = fn; } };
-  } };
+  }, getElementById(id) { return this.querySelector('#' + id); } };
   let user = null;
   let loginOptions;
-  const window = { location: { href }, history: {
+  const window = { addEventListener() {}, location: { href }, history: {
     replaceState(state, title, url) { window.location.href = url; },
   } };
   const context = vm.createContext({ window, document, URL,
@@ -28,11 +28,27 @@ function page(role, href, waitForSession = Promise.resolve()) {
     continueAfterLogin: () => false,
     showRoleHome() { document.querySelector(role === 'leader' ? '#leader-content' : '#home-content').hidden = false; },
     showLogout() {}, showSessionError() { throw new Error('Unexpected session error'); },
+    showAdminView() {},
   });
   const ready = vm.runInContext(`(async () => { ${hostSource}\n${loginSource} })()`, context);
   return { window, elements, ready, login: () => loginOptions.onSuccess() };
 }
 (async () => {
+  // Diary entry must restore the same host/iframe as clicking the homepage action.
+  const diaryLink = { removeAttribute() {} };
+  await vm.runInNewContext(`(async () => { ${navigationSource} })()`, {
+    URLSearchParams,
+    window: { location: { search: '?character_id=12345678-1234-4321-9876-123456789abc&tab=inventory' } },
+    document: { querySelector: selector => selector === '#game-link' ? diaryLink : selector === '#character-nav-actions' ? {} : null },
+  });
+  const diaryGame = page('player', new URL(diaryLink.href, 'https://example.test/character.html').href);
+  await diaryGame.ready;
+  assert.equal(diaryGame.elements['#leader-game-frame'].src, './game.html?mode=player');
+  assert.equal(diaryGame.elements['#leader-game'].hidden, false);
+  assert.equal(diaryGame.elements['#home-content'].hidden, true);
+  const diaryReload = page('player', diaryGame.window.location.href);
+  await diaryReload.ready;
+  assert.equal(diaryReload.elements['#leader-game-frame'].src, './game.html?mode=player');
   for (const role of ['player', 'leader']) {
     const original = 'https://example.test/index.html?character_id=character&extra=keep&mode=attacker#anchor';
     const first = page(role, original); await first.ready;

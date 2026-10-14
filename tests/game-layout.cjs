@@ -57,7 +57,7 @@ const server = http.createServer((req, res) => {
     const opened = await page.locator('#map-viewport').boundingBox();
     assert.ok(opened.width < closed.width);
     assert.equal(opened.height, closed.height);
-    assert.equal(await page.getByRole('tab').count(), 2);
+    assert.equal(await page.getByRole('tab').count(), 3);
     async function checkPanels(character, dice) {
       assert.equal(await page.locator('#character-panel').isVisible(), character);
       assert.equal(await page.locator('#dice-panel').isVisible(), dice);
@@ -80,8 +80,8 @@ const server = http.createServer((req, res) => {
     await checkPanels(false, false);
     await page.locator('#game-character-name').click();
     await page.getByRole('tab', { name: 'Vlastnosti' }).press('ArrowRight');
-    assert.equal(await page.getByRole('tab', { name: 'Přehled' }).getAttribute('aria-selected'), 'true');
-    await page.getByRole('tab', { name: 'Přehled' }).press('ArrowLeft');
+    assert.equal(await page.getByRole('tab', { name: 'Inventář' }).getAttribute('aria-selected'), 'true');
+    await page.getByRole('tab', { name: 'Inventář' }).press('ArrowLeft');
     assert.equal(await page.getByRole('tab', { name: 'Vlastnosti' }).getAttribute('aria-selected'), 'true');
     await page.locator('#dice-toggle').click();
     await page.waitForFunction(() => !document.querySelector('[data-die="20"]').disabled);

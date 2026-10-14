@@ -8,6 +8,9 @@ for (const [id, path] of [['diary-link', 'character.html'], ['game-link', 'game.
   const link = document.querySelector(`#${id}`);
   if (link && valid) {
     link.href = `./${path}${query}`;
+    if (id === 'game-link' && document.querySelector('#character-nav-actions')) {
+      link.href = `./index.html${query}&view=game`;
+    }
     link.removeAttribute('aria-disabled');
   }
 }

@@ -6,7 +6,7 @@ const source = readFileSync('public/navigation.js', 'utf8').replace("await impor
   .replace("await import('./game-session.js')", 'bridge').replaceAll('export ', '');
 async function render(path, search, role = null) {
   const ids = path === 'index.html' ? ['diary-link', 'game-link', 'navigation-status']
-    : path === 'game.html' ? ['home-link', 'navigation-status', 'game-content'] : ['home-link'];
+    : path === 'game.html' ? ['home-link', 'navigation-status', 'game-content'] : ['home-link', 'game-link', 'character-nav-actions'];
   const elements = Object.fromEntries(ids.map(id => [id, { hidden: id === 'game-content', textContent: '',
     removeAttribute() {} }]));
   let starts = 0;
@@ -30,9 +30,12 @@ async function render(path, search, role = null) {
       assert.equal(home.elements[link].href, `./${path}${query}`);
       const destination = await render(path, query);
       assert.equal(destination.elements['home-link'].href, `./index.html${query}`);
+      if (path === 'character.html') assert.equal(destination.elements['game-link'].href, `./index.html${query}&view=game`);
       assert.equal(destination.starts, 0, 'A character_id URL alone is not a game session');
     }
   }
+  const fromInventory = await render('character.html', '?character_id=12345678-1234-4321-9876-123456789abc&tab=inventory');
+  assert.equal(fromInventory.elements['game-link'].href, './index.html?character_id=12345678-1234-4321-9876-123456789abc&view=game');
   for (const query of ['', '?character_id=', '?character_id=bad', '?character_id=12345678-1234-4321-9876-123456789abc&character_id=bad']) {
     const home = await render('index.html', query);
     assert.equal(home.elements['diary-link'].href, undefined);

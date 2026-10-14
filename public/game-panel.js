@@ -1,6 +1,7 @@
 import { loadCharacter, updateCharacterField } from './characters.js';
 import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { gameUser } from './navigation.js';
+import { renderBasicMarkdown } from './markdown.js';
 
 const $ = id => document.getElementById(id);
 const toggle = $('game-character-name');
@@ -13,7 +14,7 @@ const leader = gameUser?.role === 'leader' && Boolean(gameUser?.session_token);
 const ids = gameUser?.role === 'player' ? [gameUser.character_id] : [];
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
 const diceAvailable = ['player', 'leader'].includes(gameUser?.role) && Boolean(gameUser?.session_token);
-const tabs = [$('overview-tab'), $('abilities-tab')];
+const tabs = [$('overview-tab'), $('abilities-tab'), $('inventory-tab')];
 function selectTab(index) {
   tabs.forEach((tab, i) => {
     tab.setAttribute('aria-selected', String(i === index));
@@ -65,9 +66,16 @@ if (valid) {
     });
     const character = await loadCharacter(db, ids[0].toLowerCase(), gameUser.session_token);
     $('game-character-name').textContent = character.name ?? 'Postava';
+    $('compact-ac').textContent = character.ac ?? '—';
+    $('compact-level').textContent = character.level ?? '—';
+    if (character.inventory?.trim()) renderBasicMarkdown($('game-inventory'), character.inventory);
+    else $('game-inventory').textContent = 'Inventář je zatím prázdný.';
+    $('inventory-edit-link').href = `./character.html?character_id=${encodeURIComponent(character.id)}&tab=inventory`;
+    $('inventory-edit-link').hidden = false;
     const signed = value => value == null ? '—' : value > 0 ? `+${value}` : String(value);
     for (const key of ['str', 'dex', 'con', 'int', 'wis', 'cha']) {
       const { modifier, save } = abilityValues(character, key);
+      if (key === 'dex') $('compact-initiative').textContent = signed(modifier);
       $(`compact-${key}`).textContent = character[key] ?? '—';
       $(`compact-modifier-${key}`).textContent = signed(modifier);
       $(`compact-save-${key}`).textContent = signed(save);
