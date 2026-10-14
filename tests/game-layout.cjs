@@ -57,7 +57,7 @@ const server = http.createServer((req, res) => {
     const opened = await page.locator('#map-viewport').boundingBox();
     assert.ok(opened.width < closed.width);
     assert.equal(opened.height, closed.height);
-    assert.equal(await page.getByRole('tab').count(), 3);
+    assert.equal(await page.getByRole('tab').count(), 2);
     async function checkPanels(character, dice) {
       assert.equal(await page.locator('#character-panel').isVisible(), character);
       assert.equal(await page.locator('#dice-panel').isVisible(), dice);
@@ -65,7 +65,7 @@ const server = http.createServer((req, res) => {
       assert.equal(await page.locator('#dice-toggle').getAttribute('aria-expanded'), String(dice));
       assert.ok(await page.locator('.game-workspace > aside:visible').count() <= 1);
     }
-    await page.getByRole('tab', { name: 'Vlastnosti' }).click();
+    await page.getByRole('tab', { name: 'Přehled' }).click();
     await page.locator('#dice-toggle').click();
     await checkPanels(false, true);
     assert.equal((await page.locator('#map-viewport').boundingBox()).width, opened.width);
@@ -75,14 +75,14 @@ const server = http.createServer((req, res) => {
     await checkPanels(false, true);
     await page.locator('#game-character-name').click();
     await checkPanels(true, false);
-    assert.equal(await page.getByRole('tab', { name: 'Vlastnosti' }).getAttribute('aria-selected'), 'true');
+    assert.equal(await page.getByRole('tab', { name: 'Přehled' }).getAttribute('aria-selected'), 'true');
     await page.locator('#game-character-name').click();
     await checkPanels(false, false);
     await page.locator('#game-character-name').click();
-    await page.getByRole('tab', { name: 'Vlastnosti' }).press('ArrowRight');
+    await page.getByRole('tab', { name: 'Přehled' }).press('ArrowRight');
     assert.equal(await page.getByRole('tab', { name: 'Inventář' }).getAttribute('aria-selected'), 'true');
     await page.getByRole('tab', { name: 'Inventář' }).press('ArrowLeft');
-    assert.equal(await page.getByRole('tab', { name: 'Vlastnosti' }).getAttribute('aria-selected'), 'true');
+    assert.equal(await page.getByRole('tab', { name: 'Přehled' }).getAttribute('aria-selected'), 'true');
     await page.locator('#dice-toggle').click();
     await page.waitForFunction(() => !document.querySelector('[data-die="20"]').disabled);
     const peer = await context.newPage();
@@ -110,7 +110,7 @@ const server = http.createServer((req, res) => {
     await peer.close();
     if (process.env.GAME_SCREENSHOT) await page.screenshot({ path: process.env.GAME_SCREENSHOT });
     await page.locator('#game-character-name').click();
-    await page.getByRole('tab', { name: 'Vlastnosti' }).click();
+    await page.getByRole('tab', { name: 'Přehled' }).click();
     assert.equal(await page.locator('#compact-modifier-str').textContent(), '-1');
     assert.equal(await page.locator('#compact-save-int').textContent(), '+6');
     assert.equal(await page.locator('#compact-cha').textContent(), '—');

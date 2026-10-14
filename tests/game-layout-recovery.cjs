@@ -20,7 +20,7 @@ const server = http.createServer((req, res) => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || 'msedge' });
   try {
-    const context = await browser.newContext();
+    const context = await browser.newContext({ hasTouch: true });
     await context.exposeFunction('fixtureOverview', id => id === characterId ? overview : { ac: null, level: null, dex: 8 });
     await context.exposeFunction('fixtureTokens', () => [{ character_id: characterId, name: 'Test', ...saved }]);
     await context.exposeFunction('fixtureMove', (action, id, mapId, point) => {
@@ -90,6 +90,7 @@ const server = http.createServer((req, res) => {
           fills: Math.abs(v.width-a.width)<1 && Math.abs(v.bottom-w.bottom)<1,
           full: Math.abs(a.width-w.width)<1,
           adjacent: panels.length <= 1 && panels.every(p => v.right <= p.getBoundingClientRect().left+1),
+          overlay: panels.length===1 && ['character-panel','dice-panel'].includes(panels[0].id) && panels[0].getBoundingClientRect().right<=w.right+1 && panels[0].getBoundingClientRect().left>=w.left && panels[0].getBoundingClientRect().bottom<=w.bottom+1,
           coordinates: {x:parseFloat(token.style.left), y:parseFloat(token.style.top)},
           centered: Math.abs((t.left+t.width/2-m.left)/scale-parseFloat(token.style.left))<0.1 && Math.abs((t.top+t.height/2-m.top)/scale-parseFloat(token.style.top))<0.1,
           overflow: document.body.scrollWidth > innerWidth || document.body.scrollHeight > innerHeight,
@@ -117,7 +118,9 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('#compact-level').textContent(), '6');
     assert.equal(await page.locator('#compact-initiative').textContent(), '0');
     assert.equal(await page.locator('footer, .dice-bar').count(), 0);
-    assert.equal(await page.locator('[role="tab"]').count(), 3);
+    assert.equal(await page.locator('[role="tab"]').count(), 2);
+    assert.deepEqual(await page.getByRole('tab', {includeHidden:true}).allTextContents(), ['Přehled', 'Inventář']);
+    assert.equal(await page.locator('#overview-tab').getAttribute('aria-selected'), 'true');
     await page.locator('#game-character-name').click();
     await page.getByRole('tab', {name:'Inventář', exact:true}).click();
     assert.equal(await page.locator('#game-inventory h2').textContent(), 'Výbava');
@@ -137,13 +140,13 @@ const server = http.createServer((req, res) => {
     await page.waitForFunction(() => document.querySelector('#compact-current-hp').textContent === '10');
     assert.equal(await page.locator('#compact-ac').textContent(), '18');
     assert.equal(await page.locator('#compact-level').textContent(), '6');
-    await page.getByRole('tab', {name:'Vlastnosti'}).click();
+    await page.getByRole('tab', {name:'Přehled'}).click();
     assert.deepEqual(await page.locator('.ability-table thead th').allTextContents(), ['Vlastnost', 'Score', 'Mod.', 'Save']);
     await page.locator('#dice-toggle').click();
     await page.locator('#game-character-name').click();
-    assert.equal(await page.getByRole('tab', {name:'Vlastnosti'}).getAttribute('aria-selected'), 'true');
+    assert.equal(await page.getByRole('tab', {name:'Přehled'}).getAttribute('aria-selected'), 'true');
     await page.locator('#game-character-name').click();
-    for (const size of [{width:1440,height:900}, {width:1280,height:800}, {width:768,height:600}, {width:375,height:667}, {width:320,height:667}]) {
+    for (const size of [{width:1920,height:1080}, {width:1440,height:900}, {width:412,height:924}, {width:924,height:412}, {width:768,height:1024}, {width:1024,height:768}, {width:375,height:667}, {width:320,height:667}]) {
       await page.setViewportSize(size);
       const closed = await geometry();
       assert.ok(closed.full && closed.fits && closed.fills && closed.centered && !closed.overflow);
@@ -152,8 +155,9 @@ const server = http.createServer((req, res) => {
         await page.locator(toggle).click();
         const open = await geometry();
         // Wrapped map actions use more height when a mobile side panel narrows the map.
-        assert.ok(open.width < closed.width && Math.abs((open.height + open.toolbarHeight) - (closed.height + closed.toolbarHeight)) < 1, JSON.stringify({size, toggle, closed, open}));
-        assert.ok(open.adjacent && open.fits && open.fills && open.centered && !open.overflow);
+        const overlay = true;
+        assert.ok((overlay ? open.width===closed.width && open.height===closed.height : open.width < closed.width && Math.abs((open.height + open.toolbarHeight) - (closed.height + closed.toolbarHeight)) < 1), JSON.stringify({size, toggle, closed, open}));
+        assert.ok((overlay ? open.overlay : open.adjacent) && open.fits && open.fills && open.centered && !open.overflow);
         assert.deepEqual(open.coordinates, saved);
         if (toggle === '#game-character-name') {
           await page.getByRole('tab', {name:'Přehled', exact:true}).click();
@@ -171,7 +175,7 @@ const server = http.createServer((req, res) => {
               ordered: hp.bottom <= controls.top && controls.bottom <= ac.top && ac.bottom <= initiative.top,
               equalCards: Math.abs(ac.width-level.width)<1 && Math.abs(ac.height-level.height)<1 && ac.top===level.top && ac.right<=level.left,
               prominentHp: ['#compact-ac', '#compact-level', '#compact-initiative'].every(selector => fontSize('#compact-current-hp') > fontSize(selector)),
-              unchangedWidth: Math.abs(p.width - (innerWidth<=600 ? Math.min(250, innerWidth*.6) : Math.max(250, Math.min(330, innerWidth*.28))) - 1)<1,
+              expectedWidth: Math.abs(p.width - Math.min(380, innerWidth-24))<1,
               noOverflow: panel.scrollWidth===panel.clientWidth && document.documentElement.scrollWidth<=innerWidth,
               touchControls: [...document.querySelectorAll('.hp-adjust button, .hp-adjust input')].every(element => {
                 const r = element.getBoundingClientRect();
@@ -179,10 +183,11 @@ const server = http.createServer((req, res) => {
               }),
             };
           });
-          assert.deepEqual(overviewLayout, {ordered:true, equalCards:true, prominentHp:true, unchangedWidth:true, noOverflow:true, touchControls:true}, JSON.stringify(size));
-          await page.getByRole('tab', {name:'Vlastnosti', exact:true}).click();
-          assert.equal(await page.locator('#overview-panel').isVisible(), false);
-          assert.equal(await page.locator('#abilities-panel').isVisible(), true);
+          assert.deepEqual(overviewLayout, {ordered:true, equalCards:true, prominentHp:true, expectedWidth:true, noOverflow:true, touchControls:true}, JSON.stringify(size));
+          await page.getByRole('tab', {name:'Přehled', exact:true}).click();
+          assert.equal(await page.locator('#overview-panel').isVisible(), true);
+          assert.equal(await page.locator('#overview-panel > .ability-table').count(), 1);
+          assert.ok(await page.locator('#overview-panel').evaluate(panel => panel.querySelector('.overview-stats').getBoundingClientRect().bottom <= panel.querySelector('.ability-table').getBoundingClientRect().top));
           const abilities = await page.locator('.ability-table').evaluate(table => {
             const panel = table.closest('aside');
             return { rows: table.tBodies[0].rows.length, icons: table.querySelectorAll('tbody th[scope="row"] svg[aria-hidden="true"]').length,
@@ -204,13 +209,62 @@ const server = http.createServer((req, res) => {
           assert.equal(await page.locator('#inventory-panel').isVisible(), true);
           assert.ok(await page.locator('#character-panel').evaluate(panel => panel.scrollWidth===panel.clientWidth && document.documentElement.scrollWidth<=innerWidth && getComputedStyle(panel).overflowY==='auto'));
           await page.locator('#inventory-edit-link').scrollIntoViewIfNeeded();
-          await page.getByRole('tab', {name:'Vlastnosti', exact:true}).click();
+          await page.getByRole('tab', {name:'Přehled', exact:true}).click();
         }
       }
       await page.locator('#dice-toggle').click();
       assert.equal((await geometry()).width, closed.width);
+      {
+        const camera = () => page.locator('#map-space').evaluate(node => ({transform:node.style.transform, left:node.style.left, top:node.style.top}));
+        const viewport = await page.locator('#map-viewport').boundingBox();
+        const initial = await camera();
+        await page.mouse.move(viewport.x+12, viewport.y+20);
+        await page.mouse.wheel(0, -180);
+        await page.waitForFunction(initial => document.querySelector('#map-space').style.transform!==initial.transform, initial);
+        await page.mouse.down();
+        await page.mouse.move(viewport.x+42, viewport.y+40, {steps:3});
+        await page.mouse.up();
+        const moved = await camera();
+        assert.notEqual(moved.transform, initial.transform);
+        const toggle = await page.locator('#game-character-name').boundingBox();
+        await page.touchscreen.tap(toggle.x+toggle.width/2, toggle.y+toggle.height/2);
+        assert.equal(await page.locator('#character-panel').isVisible(), true);
+        await geometry();
+        assert.deepEqual(await camera(), moved, 'Opening the overlay preserves zoom and pan');
+        await page.locator('#dice-toggle').click();
+        await geometry();
+        assert.equal(await page.locator('#character-panel').isVisible(), false);
+        assert.equal(await page.locator('#dice-panel').isVisible(), true);
+        assert.deepEqual(await camera(), moved, 'Switching to dice preserves zoom and pan');
+        await page.locator('#game-character-name').click();
+        assert.equal(await page.locator('#dice-panel').isVisible(), false);
+        await page.touchscreen.tap(toggle.x+toggle.width/2, toggle.y+toggle.height/2);
+        assert.equal(await page.locator('#character-panel').isVisible(), false);
+        await geometry();
+        assert.deepEqual(await camera(), moved, 'Closing the overlay preserves zoom and pan');
+        await page.mouse.move(viewport.x+12, viewport.y+20);
+        await page.mouse.down();
+        await page.mouse.move(viewport.x+32, viewport.y+30, {steps:3});
+        await page.mouse.up();
+        assert.notEqual((await camera()).left, moved.left, 'Map panning still works after closing');
+        await page.locator('#fit-map').click();
+      }
     }
     assert.equal(writes.length, 0, 'Panel toggles and refits must never write token coordinates');
+    await page.locator('#game-character-name').click();
+    for (const size of [{width:1920,height:1080}, {width:412,height:924}, {width:924,height:412}, {width:768,height:1024}, {width:1024,height:768}, {width:1440,height:900}]) {
+      await page.setViewportSize(size);
+      const opened = await geometry();
+      assert.ok(opened.full && opened.overlay && !opened.overflow);
+      const camera = await page.locator('#map-space').getAttribute('style');
+      await page.locator('#game-character-name').click();
+      const closed = await geometry();
+      assert.equal(closed.width, opened.width);
+      assert.equal(closed.height, opened.height);
+      assert.equal(await page.locator('#map-space').getAttribute('style'), camera);
+      await page.locator('#game-character-name').click();
+    }
+    await page.locator('#game-character-name').click();
     await page.setViewportSize({width:1280,height:800});
     await page.locator('#game-character-name').click();
     await geometry();

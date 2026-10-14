@@ -65,7 +65,7 @@ button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: d
 #character-panel section, #diary-status { margin: 16px; }
 #diary-status:empty, .error:empty, #compact-hp-hint:empty { display: none; }
 h2 { color: #314f63; font: 600 20px Georgia, serif; margin: 0 0 12px; }
-#overview-panel { padding: 10px 8px; border: 1px solid #b7a579; border-radius: 4px; color: #26384f; background: #f7f0df; overflow-wrap: anywhere; }
+#overview-panel .overview-summary { padding: 10px 8px; border: 1px solid #b7a579; border-radius: 4px; color: #26384f; background: #f7f0df; overflow-wrap: anywhere; }
 #overview-panel h2 { margin: 0; color: #314f63; font: 600 25px/1.1 "Character Cormorant Garamond", Georgia, serif; }
 #overview-panel .hp-values { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; font-weight: 700; font-size: 32px; line-height: 1.2; margin: 8px 0 12px; font-variant-numeric: tabular-nums; }
 #overview-panel .hp-values small { font-size: 12px; font-weight: 400; color: #595e5e; }
@@ -123,3 +123,11 @@ input[aria-invalid="true"] { border-color: #b63832; }
   .panel-tabs button { padding: 6px; }
   #last-roll { font-size: 15px; }
 }
+
+#overview-panel > .ability-table { margin-top: 16px; }
+@media (min-width: 768px) {
+  #character-panel, #dice-panel, #scene-panel { flex-basis: clamp(320px, 28vw, 380px); }
+  .ability-table th:first-child { width: 43%; }
+}
+.game-workspace { position: relative; }
+.game-page[data-game-role="player"] #character-panel, #dice-panel { position: absolute; inset-block: 0; right: 0; z-index: 2; box-sizing: border-box; width: min(380px, calc(100% - 24px)); max-height: 100%; overscroll-behavior: contain; }

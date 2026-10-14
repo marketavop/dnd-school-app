@@ -14,7 +14,7 @@ const leader = gameUser?.role === 'leader' && Boolean(gameUser?.session_token);
 const ids = gameUser?.role === 'player' ? [gameUser.character_id] : [];
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
 const diceAvailable = ['player', 'leader'].includes(gameUser?.role) && Boolean(gameUser?.session_token);
-const tabs = [$('overview-tab'), $('abilities-tab'), $('inventory-tab')];
+const tabs = [$('overview-tab'), $('inventory-tab')];
 function selectTab(index) {
   tabs.forEach((tab, i) => {
     tab.setAttribute('aria-selected', String(i === index));

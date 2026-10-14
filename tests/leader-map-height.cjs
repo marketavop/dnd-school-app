@@ -78,6 +78,42 @@ const server = http.createServer((req, res) => {
       }
       await setup('leader',count); await check('leader reload');
     }
+    await setup('leader',0);
+    const controller = fs.readFileSync(path.join(root, 'game-panel.js'), 'utf8').replace(/^import .*;\r?\n/gm, '').split('\nif (valid) {')[0];
+    await page.evaluate(source => {
+      new Function('gameUser', source)({role:'leader', session_token:'fixture-session'});
+    }, controller);
+    for (const size of [{width:412,height:924},{width:924,height:412},{width:768,height:1024},{width:1024,height:768},{width:1440,height:900},{width:1920,height:1080}]) {
+      await page.setViewportSize(size);
+      for (const id of ['scene-panel', 'dice-panel']) {
+        // Finish the existing Scene/viewport resize before comparing dice state.
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        const closed = await page.locator('#map-viewport').boundingBox();
+        const camera = await page.locator('#map-space').getAttribute('style');
+        await page.locator(id==='scene-panel' ? '#scene-toggle' : '#dice-toggle').click();
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        const opened = await page.locator('#map-viewport').boundingBox();
+        const panel = await page.locator('#'+id).boundingBox();
+        if (id==='scene-panel') {
+          assert.ok(opened.width<closed.width && opened.x+opened.width<=panel.x+1, 'Scene must remain beside the map');
+          assert.equal(await page.locator('#'+id).evaluate(panel => getComputedStyle(panel).position), 'static');
+        } else {
+          assert.equal(opened.width, closed.width);
+          assert.equal(opened.height, closed.height);
+          assert.equal(await page.locator('#map-space').getAttribute('style'), camera);
+          assert.ok(panel.x>=closed.x && panel.x+panel.width<=closed.x+closed.width+1);
+        }
+        await page.locator(id==='scene-panel' ? '#scene-toggle' : '#dice-toggle').click();
+      }
+      await page.locator('#scene-toggle').click();
+      await page.locator('#dice-toggle').click();
+      assert.equal(await page.locator('#scene-panel').isVisible(), false);
+      assert.equal(await page.locator('#dice-panel').isVisible(), true);
+      await page.locator('#scene-toggle').click();
+      assert.equal(await page.locator('#dice-panel').isVisible(), false);
+      assert.equal(await page.locator('#scene-panel').isVisible(), true);
+      await page.locator('#scene-toggle').click();
+    }
     await setup('player',0); await check('player');
     console.log('PASS: leader map height, resize, reload, aspect ratio, grid/token alignment, player layout');
   } finally { await browser.close(); }
