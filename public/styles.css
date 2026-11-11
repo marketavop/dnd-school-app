@@ -1,3 +1,28 @@
+/* Study guide is isolated from the card layout and its editors. */
+:where(.character-page) .study-guide { box-sizing: border-box; width: min(900px, calc(100% - 48px)); height: min(720px, calc(100% - 48px)); max-width: none; max-height: none; padding: 0; border: 2px solid var(--gold); border-radius: 6px; color: var(--text); background: linear-gradient(135deg, var(--surface), var(--paper)); box-shadow: 0 12px 36px rgb(15 27 47 / 32%); overflow: hidden; overflow-wrap: anywhere; }
+:where(.character-page) .study-guide[open] { display: flex; flex-direction: column; }
+:where(.character-page) .study-guide::backdrop { background: rgb(15 27 47 / 48%); }
+:where(.character-page) .study-guide-header { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--gold); }
+:where(.character-page) .study-guide h2 { min-width: 0; margin: 0; color: var(--accent); font: 700 28px/1.2 var(--font-academy-display); }
+:where(.character-page) .study-guide h3 { color: var(--accent); font: 700 26px/1.25 var(--font-academy-display); }
+:where(.character-page) .study-guide h4 { color: var(--accent); font-size: 18px; }
+:where(.character-page) .study-guide-content { min-height: 0; padding: 24px; overflow-y: auto; overscroll-behavior: contain; font: 16px/1.7 var(--font-practical); }
+:where(.character-page) .study-guide button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--gold); border-radius: 3px; background: var(--paper); color: var(--accent); font: inherit; cursor: pointer; white-space: normal; }
+:where(.character-page) .study-guide button:hover { background: #e9d8b5; }
+:where(.character-page) .study-guide :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+:where(.character-page) #study-guide-close { flex: none; width: 44px; padding: 0; font-size: 26px; }
+:where(.character-page) .study-guide-topics { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
+:where(.character-page) .study-guide article { max-width: 70ch; }
+:where(.character-page) .study-guide article ul { padding-left: 1.4em; }
+:where(.character-page) .study-guide article li + li { margin-top: 8px; }
+:where(.character-page) .study-guide-topics button { display: flex; justify-content: space-between; gap: 16px; width: 100%; text-align: left; }
+:where(.character-page) .study-guide-category { color: var(--muted); font-size: 14px; }
+@media (max-width: 600px) {
+  :where(.character-page) .study-guide { inset: 0; margin: 0; width: 100%; height: 100%; height: 100dvh; border: 0; border-radius: 0; }
+  :where(.character-page) .study-guide-header { padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); }
+  :where(.character-page) .study-guide-content { padding: 16px max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+}
+
 /* Shared home/game typography and page background */
 :where(.home-page, .game-page) body { margin: 32px; font: 16px/1.5 system-ui, sans-serif; color: #26384f; background: #f2eee5; }
 

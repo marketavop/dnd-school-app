@@ -27,8 +27,7 @@
       <header class="card-header">
         <div class="card-heading"><p class="card-kicker">Academia Magna Illistrass</p><h1 id="card-title">Studentský průkaz</h1></div>
         <div class="card-actions">
-        <!-- Hook for the future shared supplementary information panel. -->
-        <button id="supplementary-info" type="button" disabled aria-label="Doplňující info – připravujeme" title="Doplňující info – připravujeme">
+        <button id="supplementary-info" type="button" aria-label="Studijní příručka" title="Studijní příručka" aria-haspopup="dialog" aria-controls="study-guide">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg>
         </button>
         <button id="dice-toggle" class="dice-trigger" type="button" aria-label="Hodit kostkou" title="Hodit kostkou" aria-haspopup="dialog" aria-controls="dice-dialog">
@@ -184,9 +183,194 @@
     </section>
       </div>
     </div>
+    <dialog id="study-guide" class="study-guide" aria-labelledby="study-guide-title">
+      <header class="study-guide-header">
+        <h2 id="study-guide-title">Studijní příručka</h2>
+        <button id="study-guide-close" type="button" aria-label="Zavřít studijní příručku" autofocus>×</button>
+      </header>
+      <div class="study-guide-content">
+        <section id="study-guide-overview" aria-labelledby="study-guide-topics">
+          <h3 id="study-guide-topics">Přehled témat</h3>
+          <h4>Rasy · D&amp;D 5e (2014)</h4>
+          <p>Bonusy si do Studentského průkazu zapisuješ sám. Otevření tématu údaje postavy nemění.</p>
+          <ul class="study-guide-topics">
+            <li><button id="study-guide-human" type="button" data-study-guide-topic="human" aria-controls="study-guide-race-human">Člověk <span aria-hidden="true">→</span></button></li>
+            <li><button id="study-guide-elf" type="button" data-study-guide-topic="elf" aria-controls="study-guide-race-elf">Elf <span aria-hidden="true">→</span></button></li>
+            <li><button id="study-guide-halfling" type="button" data-study-guide-topic="halfling" aria-controls="study-guide-race-halfling">Hobit <span aria-hidden="true">→</span></button></li>
+            <li><button id="study-guide-dwarf" type="button" data-study-guide-topic="dwarf" aria-controls="study-guide-race-dwarf">Trpaslík <span aria-hidden="true">→</span></button></li>
+            <li><button id="study-guide-gnome" type="button" data-study-guide-topic="gnome" aria-controls="study-guide-race-gnome">Gnóm <span aria-hidden="true">→</span></button></li>
+            <li><button id="study-guide-half-elf" type="button" data-study-guide-topic="half-elf" aria-controls="study-guide-race-half-elf">Půlelf <span aria-hidden="true">→</span></button></li>
+            <li><button id="study-guide-half-orc" type="button" data-study-guide-topic="half-orc" aria-controls="study-guide-race-half-orc">Půlork <span aria-hidden="true">→</span></button></li>
+            <li><button id="study-guide-tiefling" type="button" data-study-guide-topic="tiefling" aria-controls="study-guide-race-tiefling">Tiefling <span aria-hidden="true">→</span></button></li>
+          </ul>
+        </section>
+        <section id="study-guide-detail" aria-label="Detail rasy" hidden>
+          <button id="study-guide-back" type="button">← Zpět na přehled ras</button>
+          <p class="study-guide-category">Rasy · D&amp;D 5e (2014)</p>
+          <article id="study-guide-race-human" aria-labelledby="study-guide-human-title" hidden>
+            <h3 id="study-guide-human-title" tabindex="-1">Člověk (Human)</h3>
+            <h4>Kdo je člověk?</h4>
+            <p>Lidé jsou rozmanití, vynalézaví a přizpůsobiví. Mohou se stát téměř jakýmkoliv dobrodruhem – od silného válečníka po mocného kouzelníka.</p>
+            <h4>V čem vyniká?</h4>
+            <p><strong>Všestrannost.</strong> Lidé se dokážou dobře uplatnit v různých povoláních, protože mají bonus ke všem šesti vlastnostem.</p>
+            <h4>Rasové vlastnosti</h4>
+            <ul>
+            <li><strong>Vlastnosti:</strong> +1 k Síle, Obratnosti, Odolnosti, Inteligenci, Moudrosti i Charismatu.</li>
+            <li><strong>Velikost:</strong> Střední.</li>
+            <li><strong>Rychlost:</strong> 6 sáhů (30 stop).</li>
+            <li><strong>Jazyky:</strong> Obecná řeč a jeden další jazyk podle výběru.</li>
+            </ul>
+            <h4>Příklad</h4>
+            <p>Pokud máš Sílu 12, díky rasovému bonusu člověka ji zvýšíš na <strong>13</strong>.</p>
+            <p>Bonusy si do Studentského průkazu zapisuješ sám.</p>
+          </article>
+          <article id="study-guide-race-elf" aria-labelledby="study-guide-elf-title" hidden>
+            <h3 id="study-guide-elf-title" tabindex="-1">Elf (Elf)</h3>
+            <h4>Kdo je elf?</h4>
+            <p>Elfové jsou štíhlé bytosti se špičatýma ušima, které mohou žít stovky let. Často mají blízko k přírodě, umění a magii.</p>
+            <h4>V čem vyniká?</h4>
+            <p><strong>Mrštnost a bystré smysly.</strong> Elfové jsou obratní, pozorní a dobře vidí i ve tmě.</p>
+            <h4>Rasové vlastnosti</h4>
+            <ul>
+            <li><strong>Vlastnosti:</strong> Obratnost +2.</li>
+            <li><strong>Velikost:</strong> Střední.</li>
+            <li><strong>Rychlost:</strong> 6 sáhů (30 stop).</li>
+            <li><strong>Jazyky:</strong> Obecná řeč a elfština.</li>
+            <li><strong>Vidění ve tmě:</strong> V šeru vidíš jako za jasného světla a ve tmě jako v šeru, až na 12 sáhů (60 stop). Ve tmě nerozeznáváš barvy, jen odstíny šedi.</li>
+            <li><strong>Bystré smysly:</strong> Jsi zdatný ve Vnímání.</li>
+            <li><strong>Vílí původ:</strong> Máš výhodu k záchranám proti zmámení a magie tě nemůže uspat.</li>
+            <li><strong>Trans:</strong> Nepotřebuješ spát. Denně medituješ 4 hodiny v polovědomém stavu; získáš tím stejný prospěch jako člověk z 8 hodin spánku.</li>
+            </ul>
+            <h4>Příklad</h4>
+            <p>V temné chodbě dokážeš díky elfímu zraku rozeznat překážku, kterou člověk bez světla nemusí vidět.</p>
+            <p>Další vlastnosti závisí na druhu elfa. Ty ti upřesní Vypravěč.</p>
+          </article>
+          <article id="study-guide-race-halfling" aria-labelledby="study-guide-halfling-title" hidden>
+            <h3 id="study-guide-halfling-title" tabindex="-1">Hobit (Halfling)</h3>
+            <h4>Kdo je hobit?</h4>
+            <p>Hobiti jsou malí, často veselí a přátelští dobrodruzi. Mají rádi pohodlí a dobré jídlo, ale dokážou překvapit svou odvahou.</p>
+            <h4>V čem vyniká?</h4>
+            <p><strong>Štěstí a hbitost.</strong> Hobiti jsou obratní, stateční a někdy se jim podaří uniknout i pořádné smůle.</p>
+            <h4>Rasové vlastnosti</h4>
+            <ul>
+            <li><strong>Vlastnosti:</strong> Obratnost +2.</li>
+            <li><strong>Velikost:</strong> Malá.</li>
+            <li><strong>Rychlost:</strong> 5 sáhů (25 stop).</li>
+            <li><strong>Jazyky:</strong> Obecná řeč a hobitština.</li>
+            <li><strong>Štěstí:</strong> Když ti při útoku, ověření vlastnosti nebo záchraně padne na k20 jednička, můžeš hod zopakovat. Nový výsledek musíš použít.</li>
+            <li><strong>Smělost:</strong> Máš výhodu k záchranám proti vystrašení.</li>
+            <li><strong>Hobití hbitost:</strong> Dokážeš procházet prostorem tvorů s větší kategorií velikosti, než je tvoje.</li>
+            </ul>
+            <h4>Příklad</h4>
+            <p>Házíš k20 na překonání překážky a padne ti 1. Díky hobitímu štěstí můžeš hodit znovu!</p>
+            <p>Další vlastnosti závisí na druhu hobita. Ty ti upřesní Vypravěč.</p>
+          </article>
+          <article id="study-guide-race-dwarf" aria-labelledby="study-guide-dwarf-title" hidden>
+            <h3 id="study-guide-dwarf-title" tabindex="-1">Trpaslík (Dwarf)</h3>
+            <h4>Kdo je trpaslík?</h4>
+            <p>Trpaslíci jsou menší, statní a houževnatí. Prosluli jako zruční kováři, horníci a bojovníci. Často si váží tradic a řemesel.</p>
+            <h4>V čem vyniká?</h4>
+            <p><strong>Odolnost a vytrvalost.</strong> Trpaslíci snesou hodně námahy a dobře odolávají jedům.</p>
+            <h4>Rasové vlastnosti</h4>
+            <ul>
+            <li><strong>Vlastnosti:</strong> Odolnost +2.</li>
+            <li><strong>Velikost:</strong> Střední.</li>
+            <li><strong>Rychlost:</strong> 5 sáhů (25 stop). Těžká zbroj ti rychlost nesnižuje.</li>
+            <li><strong>Jazyky:</strong> Obecná řeč a trpasličtina.</li>
+            <li><strong>Vidění ve tmě:</strong> V šeru vidíš jako za jasného světla a ve tmě jako v šeru, až na 12 sáhů (60 stop). Ve tmě nerozeznáváš barvy, jen odstíny šedi.</li>
+            <li><strong>Trpasličí nezlomnost:</strong> Máš výhodu k záchranám proti jedu a odolnost vůči jedovému zranění.</li>
+            <li><strong>Výcvik:</strong> Jsi zdatný s válečnou sekerou, sekerkou, lehkým kladivem a válečným kladivem. Zvolíš si také zdatnost s kovářským nářadím, pivovarnickými surovinami nebo zednickým nářadím.</li>
+            <li><strong>Znalost kamene:</strong> Při ověření Inteligence (Historie) týkajícím se původu kamenické práce se považuješ za zdatného v Historii a přičteš dvojnásobek zdatnostního bonusu místo běžného bonusu.</li>
+            </ul>
+            <h4>Příklad</h4>
+            <p>Když utrpíš jedové zranění, tvoje trpasličí odolnost ho sníží na polovinu (zaokrouhleno dolů).</p>
+            <p>Další vlastnosti závisí na druhu trpaslíka. Ty ti upřesní Vypravěč.</p>
+          </article>
+          <article id="study-guide-race-gnome" aria-labelledby="study-guide-gnome-title" hidden>
+            <h3 id="study-guide-gnome-title" tabindex="-1">Gnóm (Gnome)</h3>
+            <h4>Kdo je gnóm?</h4>
+            <p>Gnómové jsou drobní, zvídaví a vynalézaví. Rádi objevují nové věci, řeší záhady a zkoumají, jak funguje svět kolem nich.</p>
+            <h4>V čem vyniká?</h4>
+            <p><strong>Chytrost a odolnost vůči magii.</strong> Gnómové mají bystrou mysl a dokážou lépe vzdorovat magickým účinkům.</p>
+            <h4>Rasové vlastnosti</h4>
+            <ul>
+            <li><strong>Vlastnosti:</strong> Inteligence +2.</li>
+            <li><strong>Velikost:</strong> Malá.</li>
+            <li><strong>Rychlost:</strong> 5 sáhů (25 stop).</li>
+            <li><strong>Jazyky:</strong> Obecná řeč a gnómština.</li>
+            <li><strong>Vidění ve tmě:</strong> V šeru vidíš jako za jasného světla a ve tmě jako v šeru, až na 12 sáhů (60 stop). Ve tmě nerozeznáváš barvy, jen odstíny šedi.</li>
+            <li><strong>Gnómská prohnanost:</strong> Máš výhodu k záchranným hodům na Inteligenci, Moudrost a Charisma proti magii.</li>
+            </ul>
+            <h4>Příklad</h4>
+            <p>Nepřítel se tě pokusí ovlivnit kouzlem, proti kterému házíš záchranu na Moudrost. Díky gnómské prohnanosti si hodíš dvěma k20 a použiješ vyšší výsledek.</p>
+            <p>Další vlastnosti závisí na druhu gnóma. Ty ti upřesní Vypravěč.</p>
+          </article>
+          <article id="study-guide-race-half-elf" aria-labelledby="study-guide-half-elf-title" hidden>
+            <h3 id="study-guide-half-elf-title" tabindex="-1">Půlelf (Half-Elf)</h3>
+            <h4>Kdo je půlelf?</h4>
+            <p>Půlelfové mají lidské i elfí předky. Často v sobě spojují lidskou přizpůsobivost s elfími smysly a dlouhověkostí.</p>
+            <h4>V čem vyniká?</h4>
+            <p><strong>Komunikace a všestrannost.</strong> Půlelfové dokážou dobře jednat s ostatními a mají různorodé schopnosti.</p>
+            <h4>Rasové vlastnosti</h4>
+            <ul>
+            <li><strong>Vlastnosti:</strong> Charisma +2 a dvě další různé vlastnosti (jiné než Charisma) podle tvého výběru +1.</li>
+            <li><strong>Velikost:</strong> Střední.</li>
+            <li><strong>Rychlost:</strong> 6 sáhů (30 stop).</li>
+            <li><strong>Jazyky:</strong> Obecná řeč, elfština a jeden další jazyk.</li>
+            <li><strong>Vidění ve tmě:</strong> V šeru vidíš jako za jasného světla a ve tmě jako v šeru, až na 12 sáhů (60 stop). Ve tmě nerozeznáváš barvy, jen odstíny šedi.</li>
+            <li><strong>Vílí původ:</strong> Máš výhodu k záchranám proti zmámení a magie tě nemůže uspat.</li>
+            <li><strong>Všestrannost:</strong> Získáš zdatnost ve dvou dovednostech podle svého výběru.</li>
+            </ul>
+            <h4>Příklad</h4>
+            <p>Máš Charisma 13. Díky půlelfímu bonusu +2 se zvýší na <strong>15</strong>. Navíc můžeš zvýšit ještě dvě jiné vlastnosti o +1.</p>
+          </article>
+          <article id="study-guide-race-half-orc" aria-labelledby="study-guide-half-orc-title" hidden>
+            <h3 id="study-guide-half-orc-title" tabindex="-1">Půlork (Half-Orc)</h3>
+            <h4>Kdo je půlork?</h4>
+            <p>Půlorkové mají lidské i orčí předky. Často jsou vysocí, silní a mají výrazné rysy obličeje, například vyčnívající zuby.</p>
+            <h4>V čem vyniká?</h4>
+            <p><strong>Síla a houževnatost.</strong> Půlorkové vydrží i velmi těžké zásahy a dokážou zasadit mimořádně silné rány.</p>
+            <h4>Rasové vlastnosti</h4>
+            <ul>
+            <li><strong>Vlastnosti:</strong> Síla +2, Odolnost +1.</li>
+            <li><strong>Velikost:</strong> Střední.</li>
+            <li><strong>Rychlost:</strong> 6 sáhů (30 stop).</li>
+            <li><strong>Jazyky:</strong> Obecná řeč a orkština.</li>
+            <li><strong>Vidění ve tmě:</strong> V šeru vidíš jako za jasného světla a ve tmě jako v šeru, až na 12 sáhů (60 stop). Ve tmě nerozeznáváš barvy, jen odstíny šedi.</li>
+            <li><strong>Hrozivý:</strong> Jsi zdatný v Zastrašování.</li>
+            <li><strong>Zarytá houževnatost:</strong> Když ti životy klesnou na 0, ale nejsi okamžitě mrtvý, zůstane ti místo toho 1 život. Schopnost můžeš znovu použít po důkladném odpočinku.</li>
+            <li><strong>Divoké útoky:</strong> Při kritickém zásahu zbraní na blízko přidáš jednu další kostku zranění dané zbraně.</li>
+            </ul>
+            <h4>Příklad</h4>
+            <p>Nepřítel tě zasáhne a tvoje životy by klesly na 0. Pokud nejsi okamžitě mrtvý a schopnost máš k dispozici, můžeš díky Zaryté houževnatosti zůstat na <strong>1 životě</strong> a pokračovat v boji.</p>
+          </article>
+          <article id="study-guide-race-tiefling" aria-labelledby="study-guide-tiefling-title" hidden>
+            <h3 id="study-guide-tiefling-title" tabindex="-1">Tiefling (Tiefling)</h3>
+            <h4>Kdo je tiefling?</h4>
+            <p>Tieflingové mají mezi svými dávnými předky bytosti spojené s pekelnými silami. Často mají rohy, ocas a neobvyklou barvu očí nebo kůže. Jejich původ ale neurčuje, jestli budou dobří, nebo zlí.</p>
+            <h4>V čem vyniká?</h4>
+            <p><strong>Magie a odolnost vůči ohni.</strong> Tieflingové mají vrozené magické schopnosti a oheň jim ubližuje méně než ostatním.</p>
+            <h4>Rasové vlastnosti</h4>
+            <ul>
+            <li><strong>Vlastnosti:</strong> Charisma +2, Inteligence +1.</li>
+            <li><strong>Velikost:</strong> Střední.</li>
+            <li><strong>Rychlost:</strong> 6 sáhů (30 stop).</li>
+            <li><strong>Jazyky:</strong> Obecná řeč a ďábelština.</li>
+            <li><strong>Vidění ve tmě:</strong> V šeru vidíš jako za jasného světla a ve tmě jako v šeru, až na 12 sáhů (60 stop). Ve tmě nerozeznáváš barvy, jen odstíny šedi.</li>
+            <li><strong>Pekelné odolání:</strong> Máš odolnost vůči ohnivému zranění.</li>
+            <li><strong>Pekelné dědictví:</strong> Od začátku znáš magický trik <em>Divotvorství</em>. Na 3. úrovni získáš <em>Pekelné pokárání</em> jako kouzlo 2. úrovně; na 5. úrovni také kouzlo <em>Tma</em>. Každé z těchto dvou kouzel můžeš touto schopností seslat jednou; použití se obnoví po důkladném odpočinku. Sesílací vlastností je Charisma. Podrobnosti kouzel ti vysvětlí Vypravěč.</li>
+            </ul>
+            <h4>Příklad</h4>
+            <p>Zasáhne tě plamen, který by ti způsobil 10 bodů ohnivého zranění. Díky Pekelnému odolání utrpíš pouze <strong>5 bodů zranění</strong>.</p>
+          </article>
+          <p class="study-guide-category">Stručné výukové parafráze. Zdroj pravidel: Příručka hráče D&amp;D 5e (2014), kapitola 2, Rasy.</p>
+        </section>
+      </div>
+    </dialog>
     <noscript>Pro zobrazení deníku povolte JavaScript.</noscript>
   </main>
   <script type="module" src="./character-page.js"></script>
+  <script type="module" src="./study-guide.js"></script>
   <script type="module" src="./navigation.js"></script>
 </body>
 </html>
