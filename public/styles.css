@@ -685,16 +685,37 @@
   :where(.character-page) .abilities { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 440px) {
-  :where(.character-page) dl.character-resources { grid-template-columns: minmax(0, 1fr); }
-  :where(.character-page) .character-resources > div + div { border-left: 0; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgb(166 138 77 / 25%); }
   :where(.character-page) body { margin: 8px; }
   :where(.character-page) .card-header, :where(.character-page) .card-content { padding-inline: 12px; }
   :where(.character-page) .card-header { gap: 8px; }
   :where(.character-page) h1 { font-size: 22px; }
   :where(.character-page) #card-title { font-size: 24px; }
   :where(.character-page) .card-actions { gap: 0; }
-  :where(.character-page) .abilities { grid-template-columns: minmax(0, 1fr); }
-  :where(.character-page) .ability-values { grid-template-columns: 64px minmax(0, 1fr); }
+  :where(.character-page) .abilities { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  :where(.character-page) .ability-card { padding: 8px; }
+  :where(.character-page) .ability-card h2 { gap: 4px; margin-bottom: 8px; padding-bottom: 6px; font-size: 15px; }
+  :where(.character-page) .ability-card h2 label .term-english { font-size: 0; }
+  :where(.character-page) .ability-card h2 label .term-english::after { font-size: 13px; }
+  :where(.character-page) .ability-card h2 label[for="edit-str"] .term-english::after { content: "(STR)"; }
+  :where(.character-page) .ability-card h2 label[for="edit-dex"] .term-english::after { content: "(DEX)"; }
+  :where(.character-page) .ability-card h2 label[for="edit-con"] .term-english::after { content: "(CON)"; }
+  :where(.character-page) .ability-card h2 label[for="edit-int"] .term-english::after { content: "(INT)"; }
+  :where(.character-page) .ability-card h2 label[for="edit-wis"] .term-english::after { content: "(WIS)"; }
+  :where(.character-page) .ability-card h2 label[for="edit-cha"] .term-english::after { content: "(CHA)"; }
+  :where(.character-page) .ability-icon { width: 20px; height: 20px; flex-basis: 20px; }
+  :where(.character-page) .ability-values { display: block; }
+  :where(.character-page) .ability-values input { width: 56px; height: 56px; font-size: 24px; }
+  :where(.character-page) .ability-values input:not([readonly]) { height: 44px; font-size: 18px; }
+  :where(.character-page) .ability-values > input { display: block; margin: 0 auto 8px; }
+  :where(.character-page) .ability-derived { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; padding: 6px 0 0; border-top: 1px solid rgb(166 138 77 / 45%); border-left: 0; font-size: 11px; }
+  :where(.character-page) .ability-derived .modifier-label { white-space: nowrap; }
+  :where(.character-page) .ability-derived > p:first-child { display: flex; align-items: baseline; gap: 3px; }
+  :where(.character-page) .ability-derived .save-row { display: flex; align-items: baseline; gap: 3px; margin: 0; padding: 0; border-top: 0; white-space: nowrap; }
+  :where(.character-page) .ability-derived output { font-size: 16px; }
+  :where(.character-page) .ability-derived .modifier-label { font-size: 0; }
+  :where(.character-page) .ability-derived .modifier-label::before { content: "Mod."; font-size: 11px; }
+  :where(.character-page) .ability-derived .save-row > span:first-child { font-size: 0; }
+  :where(.character-page) .ability-derived .save-row > span:first-child::before { content: "Záchrana"; font-size: 11px; }
 }
 
 /* Game page, map and token controls */
@@ -760,6 +781,25 @@
 :where(.character-page) #notes-status[data-error="true"] { color: var(--error); }
 
 :where(.character-page) :is(#inventory-count, #notes-count)[data-error="true"] { color: var(--error); font-weight: 600; }
+:where(.character-page) #features { margin-top: 24px; border: 1px solid var(--gold); border-radius: 4px; background: linear-gradient(135deg, #fbf6e9, #f5ebd6); }
+:where(.character-page) #features > summary { cursor: pointer; padding: 14px 18px; color: var(--accent); font-family: var(--font-academy-display); font-size: 18px; font-weight: 700; }
+:where(.character-page) #features > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+:where(.character-page) #features[open] > summary { border-bottom: 1px solid var(--gold); }
+:where(.character-page) #character-features { padding: 16px; overflow-wrap: anywhere; }
+:where(.character-page) #character-features article + article { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--gold); }
+:where(.character-page) #character-features h3 { margin: 0 0 8px; color: var(--accent); }
+:where(.character-page) #character-features p { margin: 0; white-space: pre-wrap; }
+:where(.character-page) .feature-item-actions, :where(.character-page) .features-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+:where(.character-page) .feature-item-actions button, :where(.character-page) .features-actions button { min-width: 0; height: auto; padding: 7px 10px; font: inherit; color: var(--accent); background: #f2e7cf; border: 1px solid var(--gold); border-radius: 3px; }
+:where(.character-page) .feature-item-actions button:hover, :where(.character-page) .features-actions button:hover { background: #e9d8b5; }
+:where(.character-page) .features-form { margin: 0 16px 16px; padding: 16px; border: 1px solid rgb(166 138 77 / 55%); border-left: 3px solid var(--gold); border-radius: 4px; background: #fbf6e9; }
+:where(.character-page) .features-form h3 { margin: 0 0 12px; color: var(--accent); }
+:where(.character-page) .features-form label { display: block; margin-top: 10px; color: var(--accent); font-weight: 600; }
+:where(.character-page) .features-form input, :where(.character-page) .features-form textarea { box-sizing: border-box; width: 100%; margin-top: 4px; padding: 8px; font: inherit; color: var(--text); background: #fffdf7; border: 1px solid var(--gold); border-radius: 3px; }
+:where(.character-page) .features-form textarea { resize: vertical; }
+:where(.character-page) .features-form :is(input, textarea)[aria-invalid="true"] { border: 2px solid var(--error); background: #fff8f7; }
+:where(.character-page) #features-status { margin: 0 0 0 auto; color: var(--muted); font-size: 13px; }
+:where(.character-page) #features-status[data-error="true"] { color: var(--error); }
 :where(.character-page) #story-background-count[data-error="true"] { color: var(--error); font-weight: 600; }
 :where(.character-page) :is(#inventory-hint, #notes-hint, #inventory-count, #notes-count)[hidden] { display: none; }
 :where(.character-page) #story-background [hidden] { display: none; }

@@ -133,6 +133,23 @@
         <span id="error-cha" class="field-error" role="status"></span>
       </article>
     </section>
+    <details id="features" hidden>
+      <summary>Schopnosti (Features)</summary>
+      <div id="character-features"></div>
+      <form id="features-form" class="features-form" novalidate>
+        <h3 id="features-form-title">Přidat schopnost</h3>
+        <label for="feature-name">Název</label>
+        <input id="feature-name" type="text" maxlength="100" required aria-describedby="feature-error">
+        <label for="feature-note">Poznámka</label>
+        <textarea id="feature-note" rows="4" maxlength="2000" aria-describedby="feature-error"></textarea>
+        <span id="feature-error" class="field-error" role="status"></span>
+        <div class="features-actions">
+          <button id="feature-save" type="submit">Přidat schopnost</button>
+          <button id="feature-cancel" type="button" hidden>Zrušit úpravy</button>
+          <p id="features-status" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+    </details>
       </div>
       <div id="panel-inventory" role="tabpanel" aria-labelledby="tab-inventory" tabindex="0" hidden>
     <section id="inventory" class="card" aria-labelledby="inventory-title" hidden>

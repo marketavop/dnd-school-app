@@ -32,6 +32,120 @@ function showValue(selector, value) {
   element.dataset.empty = String(value == null);
 }
 
+function featureList(character) {
+  return Array.isArray(character.features)
+    ? character.features.filter(feature => feature && typeof feature.name === 'string' && typeof feature.note === 'string')
+      .map(feature => ({ name: feature.name, note: feature.note }))
+    : [];
+}
+
+function renderFeatures(character, onEdit, onDelete) {
+  const content = document.querySelector('#character-features');
+  content.replaceChildren();
+  const features = featureList(character);
+  if (!features.length) {
+    content.textContent = 'Zatím nemáš zapsané žádné schopnosti.';
+    return;
+  }
+  for (const [index, feature] of features.entries()) {
+    const item = document.createElement('article');
+    const name = document.createElement('h3');
+    name.textContent = feature.name;
+    const note = document.createElement('p');
+    note.textContent = feature.note ?? '';
+    item.append(name, note);
+    if (onEdit) {
+      const actions = document.createElement('div');
+      actions.className = 'feature-item-actions';
+      const edit = document.createElement('button');
+      edit.type = 'button'; edit.textContent = 'Upravit';
+      edit.addEventListener('click', () => onEdit(index));
+      const remove = document.createElement('button');
+      remove.type = 'button'; remove.textContent = 'Smazat';
+      remove.addEventListener('click', () => onDelete(index));
+      actions.append(edit, remove);
+      item.append(actions);
+    }
+    content.append(item);
+  }
+}
+
+function setupFeatures(db, character) {
+  const form = document.querySelector('#features-form');
+  const title = document.querySelector('#features-form-title');
+  const name = document.querySelector('#feature-name');
+  const note = document.querySelector('#feature-note');
+  const save = document.querySelector('#feature-save');
+  const cancel = document.querySelector('#feature-cancel');
+  const error = document.querySelector('#feature-error');
+  const message = document.querySelector('#features-status');
+  let editingIndex = null, busy = false;
+  function clearForm() {
+    editingIndex = null; name.value = ''; note.value = ''; error.textContent = '';
+    name.setAttribute('aria-invalid', 'false'); note.setAttribute('aria-invalid', 'false');
+  }
+  function validationError() {
+    if (!/\S/u.test(name.value)) return 'Název schopnosti je povinný.';
+    if ([...name.value].length > 100) return 'Název může mít nejvýše 100 znaků.';
+    if ([...note.value].length > 2000) return 'Poznámka může mít nejvýše 2 000 znaků.';
+    return '';
+  }
+  async function removeFeature(index) {
+    if (busy) return;
+    const features = featureList(character);
+    await store(features.filter((_, itemIndex) => itemIndex !== index), () => {
+      if (editingIndex === index) clearForm();
+      else if (editingIndex !== null && editingIndex > index) editingIndex--;
+    });
+  }
+  function render() {
+    const features = featureList(character);
+    renderFeatures(character, readOnly ? null : index => {
+      if (busy) return;
+      editingIndex = index; name.value = features[index].name; note.value = features[index].note;
+      error.textContent = ''; render(); name.focus();
+    }, readOnly ? null : removeFeature);
+    form.hidden = readOnly;
+    title.textContent = editingIndex === null ? 'Přidat schopnost' : 'Upravit schopnost';
+    save.textContent = editingIndex === null ? 'Přidat schopnost' : 'Uložit změny';
+    cancel.hidden = editingIndex === null;
+    const atLimit = features.length >= 100 && editingIndex === null;
+    name.disabled = note.disabled = save.disabled = cancel.disabled = busy || atLimit;
+    if (atLimit) message.textContent = 'Dosáhl/a jsi maximálního počtu 100 schopností.';
+  }
+  async function store(nextFeatures, onSuccess) {
+    if (busy) return;
+    busy = true; error.textContent = ''; message.textContent = 'Ukládám…'; message.dataset.error = 'false'; render();
+    try {
+      const updated = await updateCharacterField(db, character.id, 'features', nextFeatures, playerSessionToken);
+      character.features = featureList(updated); onSuccess(); message.textContent = 'Uloženo';
+    } catch {
+      error.textContent = 'Nepodařilo se uložit. Zkus to prosím znovu.';
+      message.textContent = 'Nepodařilo se uložit'; message.dataset.error = 'true';
+    } finally { busy = false; render(); }
+  }
+  async function submit() {
+    if (busy) return;
+    const issue = validationError();
+    if (issue) {
+      error.textContent = issue;
+      name.setAttribute('aria-invalid', String(!/\S/u.test(name.value) || [...name.value].length > 100));
+      note.setAttribute('aria-invalid', String([...note.value].length > 2000));
+      return;
+    }
+    const features = featureList(character);
+    const entry = { name: name.value, note: note.value };
+    const next = editingIndex === null ? [...features, entry] : features.map((feature, index) => index === editingIndex ? entry : feature);
+    await store(next, clearForm);
+  }
+  form.addEventListener('submit', event => { event.preventDefault(); return submit(); });
+  cancel.addEventListener('click', () => { if (!busy) { clearForm(); render(); } });
+  for (const input of [name, note]) input.addEventListener('input', () => {
+    if (error.textContent) { error.textContent = ''; input.setAttribute('aria-invalid', 'false'); }
+  });
+  render();
+}
+
 function label(code, labels, fallback) {
   return code == null ? null : labels.get(code) ?? fallback;
 }
@@ -778,6 +892,13 @@ if (!ids.length) {
         auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       });
       character = await loadCharacter(db, ids[0], playerSessionToken);
+      const visibilityRows = await db.rpc('character_section_visibility', { p_session_token: playerSessionToken });
+      if (visibilityRows.error) throw visibilityRows.error;
+      if (!Array.isArray(visibilityRows.data)) throw new Error('Neplatná odpověď nastavení viditelnosti.');
+      const abilitiesSetting = visibilityRows.data.find(row => row.section_id === 'abilities');
+      document.querySelector('#abilities').hidden = abilitiesSetting?.is_visible !== true;
+      const featuresSetting = visibilityRows.data.find(row => row.section_id === 'features');
+      document.querySelector('#features').hidden = featuresSetting?.is_visible !== true;
     }
     showValue('#character-name', character.name);
     showValue('#character-race', label(character.race_code, RACES, 'Neznámá rasa'));
@@ -791,6 +912,7 @@ if (!ids.length) {
     setupInventory(db, character);
     setupNotes(db, character);
     setupStoryBackground(db, character);
+    setupFeatures(db, character);
     setupTabs();
     if (!readOnly) {
       const gameLink = document.querySelector('#game-link');
@@ -811,7 +933,8 @@ if (!ids.length) {
       });
     }
     card.hidden = false;
-    document.querySelector('#abilities').hidden = false;
+    if (readOnly) document.querySelector('#abilities').hidden = false;
+    if (readOnly) document.querySelector('#features').hidden = false;
     status.textContent = '';
     await setupPortrait(character, () => loadCharacter(db, character.id, playerSessionToken));
   } catch (error) {

@@ -6,10 +6,20 @@ const row = { id: 'character-a', user_id: 'player-a', name: 'Test', level: 1,
   background: 'Učenec', story_background: 'Příběh postavy', inventory: '- Kniha\n- Lano', notes: '# Výuka\nPoznámky' };
 function api(token = 'player-token') {
   const calls = [];
-  const db = { rpc(name, args) { calls.push({ name, args }); return Promise.resolve({ data: [{ ...row, ...args.p_patch }], error: null }); } };
+  const tableCalls = [];
+  const db = {
+    from(table) { tableCalls.push(table); throw new Error('Direct table access is forbidden'); },
+    rpc(name, args) { calls.push({ name, args }); return Promise.resolve({ data: [{ ...row, ...args.p_patch }], error: null }); },
+  };
   const context = vm.createContext({ db });
   vm.runInContext(`${source}`, context);
-  return { calls, load: () => vm.runInContext(`loadCharacter(db, 'character-a', ${JSON.stringify(token)})`, context),
+  return { calls, tableCalls,
+    omitted: () => Promise.all([
+      assert.rejects(vm.runInContext("loadCharacter(db, 'character-a')", context), /Chybí session token/),
+      assert.rejects(vm.runInContext("updateCharacterField(db, 'character-a', 'name', 'New')", context), /Chybí session token/),
+      assert.rejects(vm.runInContext("lowerCharacterHp(db, 'character-a', 5)", context), /Chybí session token/),
+    ]),
+    load: () => vm.runInContext(`loadCharacter(db, 'character-a', ${JSON.stringify(token)})`, context),
     update: (field = 'name', value = 'New') => vm.runInContext(`updateCharacterField(db, 'character-a', ${JSON.stringify(field)}, ${JSON.stringify(value)}, ${JSON.stringify(token)})`, context),
     lower: () => vm.runInContext(`lowerCharacterHp(db, 'character-a', 5, ${JSON.stringify(token)})`, context) };
 }
@@ -42,8 +52,15 @@ function api(token = 'player-token') {
       assert.deepEqual(updated, { ...row, [field]: value });
     }
   }
-  const noToken = api(null);
-  await assert.rejects(noToken.load(), /from/);
-  assert.equal(noToken.calls.length, 0);
-  console.log('PASS: player character read/update/lower use authorized RPCs and never send direct table calls when session exists');
+  assert.equal(client.tableCalls.length, 0);
+  for (const token of [null, '']) {
+    const noToken = api(token);
+    await assert.rejects(noToken.load(), /Chybí session token/);
+    await assert.rejects(noToken.update(), /Chybí session token/);
+    await assert.rejects(noToken.lower(), /Chybí session token/);
+    await noToken.omitted();
+    assert.equal(noToken.calls.length, 0);
+    assert.equal(noToken.tableCalls.length, 0);
+  }
+  console.log('PASS: read/update/lower use authorized RPCs; missing tokens reject before any RPC or table access');
 })().catch(error => { console.error(error); process.exitCode = 1; });

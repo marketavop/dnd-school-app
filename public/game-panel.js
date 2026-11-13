@@ -2,6 +2,7 @@ import { loadCharacter, updateCharacterField } from './characters.js';
 import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { gameUser } from './navigation.js';
 import { renderBasicMarkdown } from './markdown.js';
+import { CHARACTER_SECTIONS } from './character-sections.js';
 
 const $ = id => document.getElementById(id);
 const toggle = $('game-character-name');
@@ -64,6 +65,15 @@ if (valid) {
     const db = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
+    const abilitiesBlock = $('compact-str')?.closest('table');
+    if (abilitiesBlock) abilitiesBlock.hidden = true;
+    try {
+      const visibility = await db.rpc('character_section_visibility', { p_session_token: gameUser.session_token });
+      const sectionId = CHARACTER_SECTIONS.find(section => section.id === 'abilities')?.id;
+      const setting = Array.isArray(visibility.data)
+        ? visibility.data.find(row => row.section_id === sectionId) : null;
+      if (!visibility.error && setting?.is_visible === true && abilitiesBlock) abilitiesBlock.hidden = false;
+    } catch { /* Keep abilities hidden if visibility cannot be loaded. */ }
     const character = await loadCharacter(db, ids[0].toLowerCase(), gameUser.session_token);
     $('game-character-name').textContent = character.name ?? 'Postava';
     $('compact-ac').textContent = character.ac ?? '—';
