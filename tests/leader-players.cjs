@@ -5,6 +5,7 @@ const source = fs.readFileSync('public/leader-players.js', 'utf8')
   .replace("import { getCurrentUser } from './login.js';", '')
   .replace("import { handleSessionFailure } from './login.js';", '')
   .replace("import { showAdminView, navigateAdminView } from './admin-view.js';", `function showAdminView(document, view) { document.querySelector('#leader-content').hidden = view !== 'home'; document.querySelector('#leader-players').hidden = view !== 'players'; document.querySelector('#leader-maps').hidden = view !== 'maps'; } function navigateAdminView(window, view) { const url = new URL(window.location.href); if (view === 'home') url.searchParams.delete('view'); else url.searchParams.set('view', view); url.hash = ''; window.history.pushState(null, '', url.href); }`)
+  .replace("import { CHARACTER_SECTIONS } from './character-sections.js';", fs.readFileSync('public/character-sections.js', 'utf8').replace('export const', 'const'))
   .replace("await import('./config.local.js')", 'getConfig()')
   .replace('export function', 'function');
 const id = '12345678-1234-4321-9876-123456789abc';
@@ -12,20 +13,21 @@ function element() {
   return { hidden: true, children: [], handlers: {}, textContent: '', attrs: {},
     classList: { add() {}, remove() {} },
     addEventListener(type, fn) { this.handlers[type] = fn; },
-    append(child) { this.children.push(child); },
+    append(...children) { this.children.push(...children); },
     replaceChildren() { this.children = []; },
     removeAttribute(key) { delete this[key]; },
   };
 }
 function page(role = 'leader', responses = [[{ character_id: id, name: '<img src=x>' }]]) {
   const els = Object.fromEntries(['#leader-content', '#leader-players', '#leader-maps', '#players-list', '#players-status',
-    '#leader-sheet', 'main', '#leader-players-link', '#players-back'].map(key => [key, element()]));
+    '#character-visibility-controls', '#character-visibility-status', '#leader-sheet', 'main', '#leader-players-link', '#players-back'].map(key => [key, element()]));
+  responses = [[{ section_id: 'abilities', is_visible: true }, { section_id: 'skills', is_visible: false }, { section_id: 'features', is_visible: false }], ...responses];
   const requests = [];
   const window = { location: { href: 'https://example.test/index.html' }, history: { pushState(_, __, href) { window.location.href = href; } } };
   const context = vm.createContext({ window, URL, encodeURIComponent,
     handleSessionFailure: async () => {},
     getCurrentUser: () => role ? { role, session_token: 'ab'.repeat(32) } : null,
-    document: { querySelector: key => els[key], createElement: () => element() },
+    document: { querySelector: key => els[key], createElement: () => element(), createTextNode: text => ({ textContent: text }) },
     getConfig: () => ({ SUPABASE_URL: 'https://project.supabase.co', SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' }),
     fetch: async (url, options) => {
       requests.push({ url, ...options, payload: JSON.parse(options.body) });
@@ -45,20 +47,21 @@ function page(role = 'leader', responses = [[{ character_id: id, name: '<img src
   assert.equal(new URL(p.window.location.href).searchParams.get('view'), 'players');
   assert.equal(p.els['#leader-content'].hidden, true);
   assert.equal(p.els['#leader-players'].hidden, false);
-  assert.equal(p.requests.length, 1);
-  assert.equal(p.requests[0].method, 'POST');
-  assert.equal(p.requests[0].credentials, 'omit');
-  assert.equal(p.requests[0].cache, 'no-store');
-  assert.deepEqual(p.requests[0].payload, { p_session_token: 'ab'.repeat(32) });
-  assert.ok(p.requests[0].url.endsWith('/rpc/leader_players'));
+  assert.equal(p.requests.length, 2);
+  assert.equal(p.requests[1].method, 'POST');
+  assert.equal(p.requests[1].credentials, 'omit');
+  assert.equal(p.requests[1].cache, 'no-store');
+  assert.deepEqual(p.requests[1].payload, { p_session_token: 'ab'.repeat(32) });
+  assert.ok(p.requests[1].url.endsWith('/rpc/leader_players'));
+  assert.equal(p.els['#character-visibility-controls'].children.length, 3);
   const button = p.els['#players-list'].children[0].children[0];
   assert.equal(button.textContent, '<img src=x>', 'names rendered as text');
   button.handlers.click();
   assert.equal(p.els['#leader-sheet'].src, `./character.html?mode=leader&character_id=${id}`);
   assert.equal(p.els['#leader-sheet'].hidden, false);
   assert.equal((await p.window.loadLeaderCharacter(id)).name, 'Test Postava');
-  assert.ok(p.requests[1].url.endsWith('/rpc/leader_character'));
-  assert.deepEqual(p.requests[1].payload, { p_character_id: id, p_session_token: 'ab'.repeat(32) });
+  assert.ok(p.requests[2].url.endsWith('/rpc/leader_character'));
+  assert.deepEqual(p.requests[2].payload, { p_character_id: id, p_session_token: 'ab'.repeat(32) });
   p.back();
   assert.equal(new URL(p.window.location.href).searchParams.get('view'), null);
   assert.equal(p.els['#leader-players'].hidden, true);

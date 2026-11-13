@@ -1,10 +1,18 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.14
+**Verze:** 1.1.15
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.15
+
+- merge `591f35d` na `main` dokončil Schopnosti (Features) jako rozbalovací sekci pod Vlastnostmi: název + poznámka, CRUD, persistence a read-only přístup Vedoucího,
+- společná řízená viditelnost je dostupná v GUI Vedoucího, Studentském průkazu a Studijním panelu; ukládá se v Supabase a změny se načítají po obnovení, realtime viditelnosti zůstává **Později**,
+- mobilní UX používá kompaktní Úroveň/XP/HP/AC v rozložení 2 × 2 a Vlastnosti ve 2 sloupcích × 3 řadách; desktopové rozložení se nemění,
+- databázový základ Dovedností obsahuje `skill_proficiencies`, validaci a autorizované RPC; SQL integrační testy nejsou prezentovány jako úspěšné,
+- merge zahrnuje bezpečnostní opravy přístupu k postavám a portrétům.
 
 ### Změny ve verzi 1.1.14
 
@@ -621,9 +629,11 @@ Aplikace automaticky vypočítá:
 -   proficiency bonus podle levelu,
 -   bonusy záchranných hodů.
 
-Skills jako samostatný seznam dovedností v UI a samostatná evidence
-proficiencies jsou **Později**. Nejsou podmínkou první session. Již
-existující výpočty bonusů dovedností, proficiency a saves se neodstraňují.
+Databázový základ Dovedností je mergnutý: `skill_proficiencies` má validaci
+a autorizované RPC. UI, výpočty a editace Dovedností jsou implementované a
+ručně ověřené na pracovní větvi `feature/character-skills`, ale tato práce
+zatím není mergnutá do `main`. Dovednosti jsou nově prioritou **Důležité** a
+mají se připravit před testovacími hrami. Existující výpočty se neodstraňují.
 
 V aktuálním MVP se proficiency u **záchranných hodů** automaticky odvozuje z
 `class_code` podle základních povolání D&D 5e 2014. Pro saves proto
@@ -787,8 +797,14 @@ Příklad témat: modifikátor vlastnosti, zdatnost, záchranný hod nebo jiné
 mechaniky, které už byly ve hře skutečně vysvětlené. Tato další témata
 jsou **Později**, podle skutečného průběhu session.
 
-Prvním obsahem jsou základní informace o osmi rasách dostupných v kampani
-podle §10. Každá rasa používá jednotnou strukturu:
+Schválený směr Studijní příručky je plán, nikoli hotová implementace.
+Používá krátké dětské kartičky s volitelnými detaily a od začátku má
+obsahovat informace pro výběr **8 ras, 12 povolání a 13 zázemí** z PHB 2014.
+Nápověda k mechanikám se zpřístupňuje stejnými přepínači jako příslušné
+části průkazu. Nová pravidla dalších úrovní se doplňují ručně podle
+průběhu hry, bez automatického odemykání.
+
+První obsah ras používá jednotnou strukturu:
 
 1. Kdo je to?
 2. V čem vyniká?
@@ -802,8 +818,8 @@ strukturované údaje průkazu nebo automatické aplikování bonusů.
 Podrasy se samostatně nerozepisují; u ras s podrasami musí být jasné,
 že další mechanické vlastnosti případně upřesňuje Vypravěč.
 
-Samotné texty ras jsou vedeny odděleně v souboru
-`studijni_prirucka_rasy_DnD5e2014.md`; do PROJECT_BRIEF se nekopírují.
+Obsah je veden odděleně od PROJECT_BRIEF v souboru
+`studijni_prirucka_rasy_DnD5e2014.md`; celé texty ras se do briefu nekopírují.
 
 Implementace má být záměrně jednoduchá:
 
@@ -818,11 +834,11 @@ Implementace má být záměrně jednoduchá:
 
 ### Rozsah a priority
 
-**MVP:** jednoduchá responzivní příručka, přehled témat, detail tématu
-a obsah osmi základních ras kampaně.
+Studijní příručka zůstává schváleným plánem; není prezentována jako
+dokončená implementace merge `591f35d`.
 
-**Později:** další výuková témata podle průběhu session; případné
-vyhledávání a další navigační pomůcky podle skutečné potřeby.
+**Později:** další výuková témata podle průběhu session, pravidla dalších
+úrovní, případné vyhledávání a další navigační pomůcky podle potřeby.
 
 **Mimo rozsah:** character builder, automatické rasové bonusy, databáze
 pravidel, editor lekcí pro Vedoucího, progression systém, individuální
@@ -844,7 +860,9 @@ Jednoduchá sekce:
 Může jít o rasovou vlastnost, schopnost povolání nebo jinou relevantní
 schopnost.
 
-Žádná databáze schopností, automatické efekty ani usage counters.
+Na `main` je implementovaná rozbalovací sekce pod Vlastnostmi s názvem a
+poznámkou. Schopnosti mají CRUD, persistence a read-only zobrazení pro
+Vedoucího. Nejde o automatické efekty ani usage counters.
 
 > **Aplikace připomíná, co postava umí. Nemusí vědět, jak to funguje.**
 
@@ -1494,8 +1512,8 @@ již existujících funkčních mechanik ani výpočtů používaných jinými f
 16. ruční AC + poznámka,
 17. schopnosti jako název + poznámka,
 18. XP + level a jednoduchý threshold hint; změna levelu zůstává ruční,
-19. společnou responzivní Studijní příručku pouze ve Studentském průkazu,
-    s přehledem témat, detailem tématu a obsahem osmi ras kampaně podle §14,
+19. plánovanou Studijní příručku podle §14; její implementace není
+    podmínkou aktuálního MVP,
 20. Inventář jako jedno volné textové pole; dítě edituje, Vedoucí čte read-only,
 21. samostatné Příběhové pozadí a Studentský sešit; sešit je jedno volné textové pole pro herní poznámky, dítě jej edituje, Vedoucí čte read-only,
 22. základní Markdown pro Inventář a Studentský sešit v rozsahu §15,
@@ -1638,7 +1656,7 @@ Musí být spolehlivý, ale jednoduchý.
 
 ## 34. Roadmapa prvních 20 dní
 
-### Aktuální stav ve verzi 1.1.10
+### Aktuální stav ve verzi 1.1.15
 
 Reorganizace Vedoucího je implementovaná a ověřená se skutečným Supabase
 a dvěma klienty. Serverová autorizace Studentského průkazu zůstává otevřenou
@@ -1651,8 +1669,11 @@ Režim Mapa / Obrázek prošel automatickými testy a osmi akceptačními scén�
 se skutečným Supabase a dvěma klienty. První vizuální etapa je dokončená:
 login a homepage hráče i Vedoucího prošly vizuální a funkční akceptací.
 Vizuální návrh záložky Průkaz byl následně schválen; pro Inventář a Sešit
-byl schválen shodný styl vnějšího rámu. Otevřená zůstává závěrečná vizuální
-kontrola dvojjazyčných popisků a regresní ověření před uzavřením větve.
+byl schválen shodný styl vnějšího rámu. Merge `591f35d` na `main` dokončil
+Schopnosti, společnou řízenou viditelnost, mobilní úpravy, databázový základ
+Dovedností a bezpečnostní opravy přístupu k postavám a portrétům.
+SQL integrační testy, které nebyly provedeny, nejsou označeny jako úspěšné.
+Studijní příručka zůstává schváleným plánem podle §14.
 Herní obrazovka podle §39 čeká na samostatnou fázi. Ostatní otevřené
 úkoly MVP a jejich priority se nemění.
 
@@ -1762,6 +1783,10 @@ Studentského průkazu Vedoucím podle §7 je dokončené, se změnami dostupný
 hráčům po obnovení stránky. Nejde o rozšíření povinného MVP a požadavek
 na serverovou autorizaci Studentského průkazu zůstává zachován.
 
+Dovednosti jsou nyní také **Důležité**: připravit UI, výpočty a editaci
+před testovacími hrami. Pracovní větev `feature/character-skills` je ručně
+ověřená, ale její změny zatím nejsou mergnuté.
+
 ### Později
 
 Řešit až podle zkušeností ze skutečného hraní.
@@ -1772,7 +1797,6 @@ Aktuálně sem patří například:
     Studentského průkazu a Studijního panelu; současné realtime kanály
     nemají potřebná oprávnění a pro první použití stačí obnovení stránky,
 -   kouzla, spell sloty a spellcasting UI,
--   Skills jako samostatný seznam dovedností v UI,
 -   Speed (rychlost),
 -   Initiative (iniciativa),
 -   Passive Perception (pasivní vnímání),
@@ -1913,6 +1937,10 @@ Styl se zavádí postupně:
     dokončit konkrétní kontrolu dvojjazyčných popisků a regresi před merge.
 3.  Vizuální sjednocení okolního UI herní obrazovky (`game.html`) zůstává
     další plánovanou prací.
+
+Na `main` je součástí schváleného charakterového UI také mobilní uspořádání
+Úroveň/XP/HP/AC jako 2 × 2 a Vlastností jako 2 sloupce × 3 řady.
+Desktopové rozložení zůstává beze změny.
 
 Zachováváme existující navigaci a dvě klikací karty hráče a čtyři klikací
 karty Vedoucího podle §5. Vizuální sjednocení nepřidává nové funkce ani

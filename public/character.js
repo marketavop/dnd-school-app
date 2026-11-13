@@ -1,4 +1,4 @@
-import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';
+import { SKILLS, abilityValues, skillValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';
 import { getCurrentUser } from './login.js';
 import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';
@@ -37,6 +37,116 @@ function featureList(character) {
     ? character.features.filter(feature => feature && typeof feature.name === 'string' && typeof feature.note === 'string')
       .map(feature => ({ name: feature.name, note: feature.note }))
     : [];
+}
+
+function signed(value) {
+  return value == null ? '' : value > 0 ? `+${value}` : String(value);
+}
+
+let skillRenderer = character => renderSkills(character);
+
+function refreshSkills(character) {
+  skillRenderer(character);
+}
+
+function renderSkills(character, onToggle = null) {
+  const content = document.querySelector('#character-skills');
+  content.replaceChildren();
+  for (const skill of SKILLS) {
+    const { proficient, bonus } = skillValues(character, skill);
+    const row = document.createElement('article');
+    row.className = 'skill-row';
+    const proficiency = document.createElement(onToggle ? 'input' : 'span');
+    proficiency.className = onToggle ? 'skill-toggle' : 'skill-proficiency';
+    proficiency.dataset.proficient = String(proficient);
+    if (onToggle) {
+      proficiency.type = 'checkbox';
+      proficiency.checked = proficient;
+      proficiency.setAttribute('aria-label', `Zdatnost: ${skill.czechName}`);
+      proficiency.addEventListener('change', () => onToggle(skill.code));
+    } else {
+      proficiency.textContent = proficient ? '●' : '○';
+      proficiency.setAttribute('role', 'img');
+      proficiency.setAttribute('aria-label', proficient ? 'Zdatnost' : 'Bez zdatnosti');
+    }
+    const name = document.createElement('span');
+    name.className = 'skill-name';
+    name.textContent = skill.czechName;
+    const englishName = document.createElement('span');
+    englishName.className = 'term-english';
+    englishName.textContent = ` (${skill.englishName})`;
+    name.append(englishName);
+    const ability = document.createElement('span');
+    ability.className = 'skill-ability';
+    ability.textContent = skill.ability.toUpperCase();
+    const result = document.createElement('output');
+    result.className = 'skill-bonus';
+    result.textContent = signed(bonus);
+    result.setAttribute('aria-label', `Bonus ${skill.czechName}`);
+    row.append(proficiency, name, ability, result);
+    content.append(row);
+  }
+}
+
+function skillProficiencies(character) {
+  return Object.fromEntries(SKILLS.filter(skill => character.skill_proficiencies?.[skill.code] === true).map(skill => [skill.code, true]));
+}
+
+function setupSkills(db, character) {
+  const status = document.querySelector('#skills-status');
+  const retry = document.querySelector('#skills-retry');
+  let desired = skillProficiencies(character);
+  let saving = false;
+  let failed = false;
+  let pendingSave = null;
+  const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+  function render(displayCharacter = character) {
+    renderSkills(displayCharacter, readOnly ? null : toggle);
+  }
+  function setStatus(message, error = false) {
+    status.textContent = message;
+    status.dataset.error = String(error);
+    retry.hidden = !error;
+  }
+  function persist() {
+    if (readOnly) return Promise.resolve();
+    if (saving) return pendingSave;
+    saving = true; failed = false; setStatus('Ukládám…');
+    pendingSave = (async () => {
+      try {
+      while (true) {
+        const saved = { ...desired };
+        const updated = await updateCharacterField(db, character.id, 'skill_proficiencies', saved, playerSessionToken);
+        if (same(saved, desired)) {
+          character.skill_proficiencies = skillProficiencies(updated);
+          break;
+        }
+      }
+      setStatus('Uloženo');
+      } catch {
+        failed = true;
+        setStatus('Změnu zdatnosti se nepodařilo uložit.', true);
+      } finally {
+        saving = false;
+        pendingSave = null;
+        render();
+      }
+    })();
+    return pendingSave;
+  }
+  function toggle(code) {
+    desired = { ...desired };
+    if (desired[code]) delete desired[code];
+    else desired[code] = true;
+    character.skill_proficiencies = desired;
+    render();
+    return persist();
+  }
+  retry.addEventListener('click', () => {
+    if (failed) return persist();
+  });
+  skillRenderer = render;
+  render();
 }
 
 function renderFeatures(character, onEdit, onDelete) {
@@ -724,6 +834,7 @@ function enableEditing(db, character) {
       document.querySelector(`#modifier-${field.key}`).textContent = modifier == null ? '' : modifier > 0 ? `+${modifier}` : String(modifier);
       document.querySelector(`#save-${field.key}`).textContent = save == null ? '' : save > 0 ? `+${save}` : String(save);
       document.querySelector(`#save-proficiency-${field.key}`).hidden = !proficient;
+      refreshSkills({ ...character, [field.key]: value });
     }
     if (field.ability) field.refreshSave = () => showModifier(displayedScore);
     showModifier(character[field.key]);
@@ -899,6 +1010,8 @@ if (!ids.length) {
       document.querySelector('#abilities').hidden = abilitiesSetting?.is_visible !== true;
       const featuresSetting = visibilityRows.data.find(row => row.section_id === 'features');
       document.querySelector('#features').hidden = featuresSetting?.is_visible !== true;
+      const skillsSetting = visibilityRows.data.find(row => row.section_id === 'skills');
+      document.querySelector('#skills').hidden = skillsSetting?.is_visible !== true;
     }
     showValue('#character-name', character.name);
     showValue('#character-race', label(character.race_code, RACES, 'Neznámá rasa'));
@@ -913,6 +1026,7 @@ if (!ids.length) {
     setupNotes(db, character);
     setupStoryBackground(db, character);
     setupFeatures(db, character);
+    setupSkills(db, character);
     setupTabs();
     if (!readOnly) {
       const gameLink = document.querySelector('#game-link');
@@ -934,6 +1048,7 @@ if (!ids.length) {
     }
     card.hidden = false;
     if (readOnly) document.querySelector('#abilities').hidden = false;
+    if (readOnly) document.querySelector('#skills').hidden = false;
     if (readOnly) document.querySelector('#features').hidden = false;
     status.textContent = '';
     await setupPortrait(character, () => loadCharacter(db, character.id, playerSessionToken));

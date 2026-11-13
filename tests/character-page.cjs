@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const { resolve } = require('node:path');
 const dataSource = readFileSync(resolve(__dirname, '../public/characters.js'), 'utf8').replaceAll('export async', 'async');
 const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'utf8')
-  .replace("import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';", readFileSync(resolve(__dirname, '../public/character-rules.js'), 'utf8').replaceAll('export function', 'function'))
+  .replace("import { SKILLS, abilityValues, skillValues, validHpDelta, adjustedHp } from './character-rules.js';", readFileSync(resolve(__dirname, '../public/character-rules.js'), 'utf8').replaceAll('export const', 'const').replaceAll('export function', 'function'))
   .replace("import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';", dataSource)
   .replace("import { getCurrentUser } from './login.js';", 'const getCurrentUser = () => ({ session_token: testSessionToken, role: testRole });')
   .replace("import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';", '')
@@ -19,7 +19,7 @@ const base = { id, name: 'Eliška', background: null, story_background: null, in
 
 async function page(query, row = base, error = null, leader = false, authorized = true, portraitControl = {}, visibilityRows = [{ section_id: 'abilities', is_visible: true }]) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
-    'features', 'character-features', 'features-form', 'features-form-title', 'feature-name', 'feature-note', 'feature-save', 'feature-cancel', 'feature-error', 'features-status', 'student-pages', 'tab-card', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-inventory', 'panel-notes', 'game-link', 'game-navigation-status',
+    'skills', 'character-skills', 'skills-status', 'skills-retry', 'features', 'character-features', 'features-form', 'features-form-title', 'feature-name', 'feature-note', 'feature-save', 'feature-cancel', 'feature-error', 'features-status', 'student-pages', 'tab-card', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-inventory', 'panel-notes', 'game-link', 'game-navigation-status',
     'story-background', 'story-background-toggle', 'character-story-background', 'edit-story-background', 'story-background-status', 'error-story-background', 'story-background-hint', 'story-background-count',
     'inventory-hint', 'inventory-count', 'inventory-help', 'notes-hint', 'notes-count', 'notes-help',
     'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
@@ -29,7 +29,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     'dice-toggle', 'dice-dialog', 'dice-title', 'dice-close', 'dice-result', 'dice-reroll', ...[4, 6, 8, 10, 12, 20].map(sides => `dice-d${sides}`),
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
     'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['background', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
-    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'edit-background', 'close-icon', 'inventory-help', 'notes-help', 'inventory-count', 'notes-count', 'feature-cancel'].includes(key), dataset: {}, handlers: {},
+    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'edit-background', 'close-icon', 'inventory-help', 'notes-help', 'inventory-count', 'notes-count', 'feature-cancel', 'skills-retry'].includes(key), dataset: {}, handlers: {},
     value: '', disabled: false, validity: { badInput: false }, children: [], attributes: {},
     append(option) { this.children.push(option); },
     removeAttribute(key) { if (key === 'src') delete this.src; delete this.attributes[key]; },
@@ -62,7 +62,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
     element.replaceChildren = node().replaceChildren;
   }
   elements.features.hidden = true;
-  for (const key of ['character-features', 'character-inventory', 'character-notes']) elements[key] = node();
+  elements.skills.hidden = true;
+  for (const key of ['character-skills', 'character-features', 'character-inventory', 'character-notes']) elements[key] = node();
   for (const key of ['inventory-help', 'notes-help']) {
     elements[key].summary = node('summary', 'Jak upravit text?');
     elements[key].contains = target => target === elements[key].summary;
@@ -694,6 +695,49 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(empty.elements['portrait-placeholder'].hidden, false);
   assert.equal(empty.elements.abilities.hidden, false, 'abilities is shown when the shared setting is true');
   assert.deepEqual(empty.rpcCalls.filter(call => call.name === 'character_section_visibility').length, 1);
+  assert.equal(empty.elements.skills.hidden, true, 'missing visibility setting keeps skills hidden');
+  const skillRow = { ...base, level: 5, dex: 14, skill_proficiencies: { stealth: true } };
+  const visibleSkills = await page(`?character_id=${id}`, skillRow, null, false, true, {}, [{ section_id: 'skills', is_visible: true }]);
+  assert.equal(visibleSkills.elements.skills.hidden, false);
+  assert.equal(visibleSkills.elements['character-skills'].children.length, 18);
+  const stealth = visibleSkills.elements['character-skills'].children.find(row => row.children[1].textContent === 'Plížení (Stealth)');
+  assert.equal(stealth.children[0].tagName, 'input');
+  assert.equal(stealth.children[0].checked, true);
+  assert.equal(stealth.children[1].textContent, 'Plížení (Stealth)');
+  assert.equal(stealth.children[2].textContent, 'DEX');
+  assert.equal(stealth.children[3].textContent, '+5');
+  await stealth.children[0].handlers.change();
+  assert.equal(JSON.stringify(visibleSkills.writes.at(-1)), JSON.stringify({ skill_proficiencies: {} }));
+  const untrainedStealth = visibleSkills.elements['character-skills'].children.find(row => row.children[1].textContent === 'Plížení (Stealth)');
+  assert.equal(untrainedStealth.children[0].checked, false);
+  assert.equal(untrainedStealth.children[3].textContent, '+2');
+  visibleSkills.control.error = { code: 'network' };
+  await untrainedStealth.children[0].handlers.change();
+  assert.match(visibleSkills.elements['skills-status'].textContent, /nepodařilo/);
+  assert.equal(visibleSkills.elements['skills-retry'].hidden, false);
+  visibleSkills.control.error = null;
+  await visibleSkills.elements['skills-retry'].handlers.click();
+  assert.equal(visibleSkills.elements['skills-status'].textContent, 'Uloženo');
+  const rapidSkills = await page(`?character_id=${id}`, { ...base, level: 5, dex: 14, skill_proficiencies: { stealth: true } }, null, false, true, {}, [{ section_id: 'skills', is_visible: true }]);
+  let finishSkillSave;
+  rapidSkills.control.wait = new Promise(resolve => { finishSkillSave = resolve; });
+  const rapidStealth = rapidSkills.elements['character-skills'].children.find(row => row.children[1].textContent === 'Plížení (Stealth)');
+  const firstSkillSave = rapidStealth.children[0].handlers.change();
+  const rapidAcrobatics = rapidSkills.elements['character-skills'].children.find(row => row.children[1].textContent === 'Akrobacie (Acrobatics)');
+  const secondSkillSave = rapidAcrobatics.children[0].handlers.change();
+  assert.equal(rapidSkills.rpcCalls.filter(call => call.name === 'player_update_character').length, 1, 'only one skill write starts while another is pending');
+  rapidSkills.control.wait = null;
+  finishSkillSave();
+  await Promise.all([firstSkillSave, secondSkillSave]);
+  assert.equal(JSON.stringify(rapidSkills.writes.slice(-2)), JSON.stringify([{ skill_proficiencies: {} }, { skill_proficiencies: { acrobatics: true } }]));
+  for (const response of [new Error('network'), null, {}]) {
+    const failed = await page(`?character_id=${id}`, skillRow, null, false, true, {}, response);
+    assert.equal(failed.elements.skills.hidden, true, 'visibility failure must not reveal skills');
+  }
+  const leaderSkills = await page(`?mode=leader&character_id=${id}`, skillRow, null, true);
+  assert.equal(leaderSkills.elements.skills.hidden, false);
+  assert.equal(leaderSkills.elements['character-skills'].children.length, 18);
+  assert.deepEqual(leaderSkills.elements.skills.handlers, {});
   const hiddenAbilities = await page(`?character_id=${id}`, base, null, false, true, {}, [{ section_id: 'abilities', is_visible: false }]);
   assert.equal(hiddenAbilities.elements.abilities.hidden, true, 'abilities is hidden when the shared setting is false');
   assert.equal(empty.elements.features.hidden, true, 'missing visibility setting keeps features hidden');
@@ -1347,10 +1391,13 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.match(html, /<details id="story-background"/);
   assert.ok(html.indexOf('id="story-background"') > html.indexOf('id="panel-card"'));
   assert.ok(html.indexOf('id="story-background"') < html.indexOf('id="panel-inventory"'));
-  assert.equal((html.match(/role="tab"/g) || []).length, 3);
-  assert.equal((html.match(/role="tabpanel"/g) || []).length, 3);
+  assert.equal((html.match(/role="tab"/g) || []).length, 5);
+  assert.equal((html.match(/role="tabpanel"/g) || []).length, 5);
   assert.ok(html.indexOf('id="panel-card"') < html.indexOf('id="student-card"'));
   assert.ok(html.indexOf('id="abilities"') < html.indexOf('id="panel-inventory"'));
+  assert.ok(html.indexOf('id="skills"') > html.indexOf('id="abilities"'));
+  assert.ok(html.indexOf('id="skills"') < html.indexOf('id="features"'));
+  assert.match(html, /○ bez zdatnosti · ● zdatnost/);
   assert.ok(html.indexOf('id="abilities"') < html.indexOf('id="features"'));
   assert.ok(html.indexOf('id="features"') < html.indexOf('id="panel-inventory"'));
   assert.match(html, /<details id="features" hidden>/);
