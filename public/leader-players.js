@@ -1,6 +1,7 @@
 import { getCurrentUser } from './login.js';
 import { handleSessionFailure } from './login.js';
 import { showAdminView, navigateAdminView } from './admin-view.js';
+import { CHARACTER_SECTIONS } from './character-sections.js';
 
 async function rpc(name, args) {
   const user = getCurrentUser();
@@ -23,10 +24,57 @@ export function mountLeaderPlayers(document, window, call = rpc) {
   const panel = document.querySelector('#leader-players');
   const list = document.querySelector('#players-list');
   const status = document.querySelector('#players-status');
+  const visibilityControls = document.querySelector('#character-visibility-controls');
+  const visibilityStatus = document.querySelector('#character-visibility-status');
   const sheet = document.querySelector('#leader-sheet');
   const main = document.querySelector('main');
   let selected = null;
   let generation = 0;
+  let visibilityGeneration = 0;
+  let visibilityState = new Map();
+  async function loadVisibility(request) {
+    visibilityControls.replaceChildren();
+    visibilityStatus.textContent = 'Načítám nastavení…';
+    try {
+      const rows = await call('character_section_visibility', {});
+      if (request !== visibilityGeneration) return;
+      if (!Array.isArray(rows)) throw new Error('Invalid visibility settings');
+      visibilityState = new Map(rows.map(row => [row.section_id, row.is_visible]));
+      for (const section of CHARACTER_SECTIONS) {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = visibilityState.get(section.id) ?? false;
+        checkbox.addEventListener('change', async () => {
+          if (getCurrentUser()?.role !== 'leader' || checkbox.disabled) return;
+          const previous = visibilityState.get(section.id) ?? false;
+          const next = checkbox.checked;
+          checkbox.disabled = true;
+          visibilityStatus.textContent = 'Ukládám…';
+          try {
+            const saved = await call('leader_set_character_section_visibility', {
+              p_section_id: section.id, p_is_visible: next,
+            });
+            if (!Array.isArray(saved) || saved.length !== 1 || saved[0].section_id !== section.id
+                || saved[0].is_visible !== next) throw new Error('Invalid save response');
+            visibilityState.set(section.id, next);
+            visibilityStatus.textContent = 'Nastavení uloženo.';
+          } catch {
+            checkbox.checked = previous;
+            visibilityStatus.textContent = 'Nastavení se nepodařilo uložit.';
+          } finally {
+            checkbox.disabled = false;
+          }
+        });
+        label.append(checkbox, document.createTextNode(` ${section.name}`));
+        visibilityControls.append(label);
+      }
+      visibilityStatus.textContent = '';
+    } catch {
+      if (request !== visibilityGeneration) return;
+      visibilityStatus.textContent = 'Nastavení viditelnosti se nepodařilo načíst.';
+    }
+  }
   function closeSheet() {
     selected = null;
     sheet.hidden = true;
@@ -47,6 +95,7 @@ export function mountLeaderPlayers(document, window, call = rpc) {
     if (new URL(window.location.href).searchParams.get('view') !== 'players') navigateAdminView(window, 'players');
     showAdminView(document, 'players');
     const request = ++generation;
+    if (getCurrentUser()?.role === 'leader') loadVisibility(++visibilityGeneration);
     closeSheet();
     home.hidden = true;
     panel.hidden = false;

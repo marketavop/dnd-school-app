@@ -1,13 +1,31 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.12
+**Verze:** 1.1.14
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
 
+### Změny ve verzi 1.1.14
+
+- ruční zpřístupňování mechanických částí funguje v GUI Vedoucího, Studentském průkazu a Studijním panelu,
+- nastavení je společné pro všechny postavy a ukládá se do Supabase; změna se hráčům projeví po obnovení stránky,
+- automatická realtime synchronizace viditelnosti se odkládá do **Později**, protože současné realtime kanály nemají potřebná oprávnění a okamžitá synchronizace není pro první použití nezbytná,
+- ostatní schválená pravidla viditelnosti zůstávají zachována.
+
+### Změny ve verzi 1.1.13
+
+- potvrzen výběr rasy existujícím dropdownem ve Studentském průkazu; svět Vypravěče nabízí osm ras bez drakorozeného, bez změny pravidel D&D 5e (2014) a bez automatických rasových bonusů,
+- koncept Doplňujícího infa upřesněn jako **Studijní příručka**, dostupná pouze z `character.html` existující informační ikonou,
+- schváleno responzivní modální zobrazení s přehledem témat a detailem tématu; na mobilu přes celou obrazovku,
+- prvním MVP obsahem jsou informace o osmi rasách ve struktuře **Kdo je to? / V čem vyniká? / Rasové vlastnosti / Příklad**; texty jsou vedeny odděleně od briefu,
+- ruční zpřístupňování mechanických částí podle verze 1.1.12 zůstává v prioritě **Důležité**; nejde o odemykání obsahu příručky.
+
 ### Změny ve verzi 1.1.12
 
+- schváleno společné ruční zpřístupňování dalších mechanických částí Studentského průkazu Vedoucím; jde o budoucí funkci s prioritou **Důležité**, nikoliv povinné MVP,
+- základ průkazu, Inventář a Studentský sešit zůstávají vždy viditelné; při zavedení systému zůstanou viditelné také stávající Vlastnosti a záchranné hody, nové volitelné části budou výchozím způsobem skryté,
+- společné nastavení bude uložené v Supabase a synchronizované přes realtime; skrytí nemaže data ani nenarušuje výpočty a implementace nesmí předběhnout dokončení serverové autorizace Studentského průkazu,
 - pro mapy byl produktově upřesněn návrh **Pravítka** s prioritou **Později**; nejde o rozšíření MVP,
 - pravítko umožní hráči i Vedoucímu libovolně měřit vzdálenost mezi dvěma poli čtvercové mřížky, kde **1 pole = 5 ft**,
 - začátek a konec měření se přichytávají ke středům polí; diagonální kroky se počítají stejně jako přímé podle jednoduchého pravidla D&D 5e (2014),
@@ -311,8 +329,11 @@ podpisem vznikne jméno postavy, během cesty se učí používat kostky a ve
 
 > **Pořadí vyplňování postavy určuje příběh a PJ, nikoliv aplikace.**
 
-Relevantní části deníku mohou být viditelné od začátku a prázdné. Nemáme
-odemykání sekcí, progression UI ani procenta dokončení.
+Vedoucí může pomocí systému podle §7 ručně zpřístupňovat další
+mechanické části Studentského průkazu. Zpřístupnění platí společně pro
+všechny hráče a jejich postavy; pořadí určuje Vedoucí podle výuky a příběhu.
+Nejde o automatické odemykání podle levelu, XP, času ani příběhových milníků.
+Nevytváříme character builder, progression systém ani procenta dokončení.
 
 ------------------------------------------------------------------------
 
@@ -327,6 +348,53 @@ Používáme:
 
 Oba pohledy používají stejná data. Nevytváříme dvě kopie dat ani
 samostatné výpočty pro herní panel.
+
+### Zpřístupňování dalších mechanických částí
+
+Ruční zpřístupňování je implementované v GUI Vedoucího, Studentském
+průkazu a Studijním panelu. Původní priorita **Důležité** se nemění na
+povinné MVP. Změna nastavení se hráčům projeví po obnovení stránky.
+
+**Vždy viditelné:**
+
+- identita a základní údaje postavy včetně portrétu, jména, rasy, povolání,
+  zázemí, levelu, XP, HP a AC,
+- Inventář,
+- Studentský sešit.
+
+**Řízená viditelnost:**
+
+- Vlastnosti a záchranné hody,
+- další implementované mechanické části, například Schopnosti nebo
+  po pozdější implementaci Kouzla.
+
+Při zavedení systému zůstanou stávající **Vlastnosti a záchranné hody
+viditelné**. Každá nově implementovaná volitelná část bude výchozím
+způsobem **skrytá**, dokud ji Vedoucí nezpřístupní. V nabídce Vedoucího
+se objeví až po skutečné implementaci a přidání do jednoduchého seznamu
+dostupných částí v kódu.
+
+Pravidla fungování:
+
+- jedno společné nastavení viditelnosti pro celou skupinu, všechny hráče
+  a jejich postavy,
+- jednoduché GUI pro Vedoucího pro ruční zobrazení a skrytí částí,
+- persistence nastavení v Supabase; hráči načtou změny po obnovení stránky,
+- Studentský průkaz a Studijní panel respektují stejné nastavení,
+- skrytí části nikdy nesmaže uložená data ani nenaruší existující výpočty,
+- změnu nastavení smí provádět pouze backendově autorizovaný Vedoucí;
+  samotné skrytí ovladačů v UI není autorizace,
+- Vedoucí má nadále pouze read-only přístup k údajům hráčských postav.
+
+Nevytváříme nové záložky předem, individuální viditelnost pro jednotlivé
+postavy, systém pluginů, pravidlový engine ani nové role. Schválené
+vizuální uspořádání současného Studentského průkazu zůstává zachované.
+Požadavek na serverovou autorizaci Studentského průkazu zůstává zachován.
+
+Automatická realtime synchronizace viditelnosti je **Později** (§35).
+Současné realtime kanály nemají potřebná oprávnění; pro první použití
+není okamžitá synchronizace nezbytná. Toto rozhodnutí se týká pouze
+viditelnosti mechanických částí, nikoliv ostatního realtime herního stavu.
 
 ### Listování Studentským průkazem
 
@@ -348,7 +416,9 @@ pracovním zápisníkem s vlastním vnitřním uspořádáním. Vizuální sjedn
 nesmí změnit Markdown, autosave, editaci ani read-only oprávnění.
 
 Přepínání probíhá na jedné stránce bez routeru a bez nových databázových
-požadavků. Nesmí způsobit ztrátu rozepsaného textu.
+požadavků. Nesmí způsobit ztrátu rozepsaného textu. Toto pravidlo se týká
+listování mezi záložkami, nikoliv persistence společného nastavení
+viditelnosti mechanických částí.
 
 Implementace má zůstat jednoduchá:
 
@@ -506,13 +576,22 @@ Pravidlovým základem je D&D 5e 2014.
 Rasa, povolání a zázemí jsou samostatná pole. Dítě je vyplňuje ve
 chvíli, kdy k nim příběh/PJ dojde.
 
+Hráči vybírají rasu pomocí existujícího rozbalovacího seznamu ve Studentském
+průkazu. V aktuální kampani je dostupných osm ras: **člověk, elf, hobit,
+trpaslík, gnóm, půlelf, půlork a tiefling**. Drakorozený není součástí světa
+Vypravěče, proto není dostupný. Jde o omezení konkrétní kampaně, nikoliv
+změnu pravidel D&D 5e (2014). Existující dropdown, databáze a způsob
+ukládání ras se tímto dokumentačním rozhodnutím nemění.
+
 Princip:
 
 > **Dítě vybere → aplikace stručně poradí → dítě samo zapíše mechanické
 > změny.**
 
 Aplikace automaticky neaplikuje mechanické důsledky rasy, povolání nebo
-zázemí.
+zázemí. Výběr rasy automaticky neupravuje vlastnosti ani jiné údaje
+postavy. Dítě vybere rasu a podle instrukcí Vypravěče samo zapíše
+mechanické změny.
 
 Podrasy/varianty jsou mimo MVP. Featy jsou Budoucnost.
 
@@ -661,10 +740,29 @@ nekontroluje pravidla pohybu.
 
 ------------------------------------------------------------------------
 
-## 14. Doplňující info — studijní vysvětlení pravidel
+## 14. Studijní příručka — studijní vysvětlení pravidel
 
-Deník obsahuje jednu společnou **info ikonu / vstup do Doplňujícího
-infa**.
+Dosavadní koncept **Doplňující info** upřesňujeme jako **Studijní příručku**:
+jednoduchou pomůcku pro připomenutí již vysvětlených pravidel D&D 5e (2014).
+Nenahrazuje výklad Vypravěče a není character builderem.
+
+### Umístění, zobrazení a navigace
+
+Příručka je dostupná **pouze ze Studentského průkazu (`character.html`)**
+a otevírá se existující informační ikonou bez přechodu na jinou stránku.
+Není součástí herní obrazovky (`game.html`).
+
+- na desktopu se zobrazuje jako velké modální okno nad průkazem,
+- na tabletu se okno responzivně přizpůsobuje velikosti displeje,
+- na mobilu používá celoobrazovkové modální zobrazení,
+- obsah lze posouvat uvnitř příručky,
+- výchozí obrazovka obsahuje přehled témat; dítě z něj otevře detail
+  vybraného tématu a může se vrátit zpět do přehledu,
+- příručku lze kdykoliv zavřít; zavření vrací dítě do původního stavu
+  průkazu bez reloadu a bez ztráty rozepsaných údajů,
+- ovládání musí být použitelné myší, dotykem i klávesnicí.
+
+### Obsah
 
 Nejde o tooltipy u každého jednotlivého pole ani o tutorial systém.
 Jde o jednoduchý společný studijní prostor, který připomíná „sešit s
@@ -674,7 +772,7 @@ Obsah se doplňuje ručně podle toho, co se děti během skutečných session
 stihly naučit. Nevíme dopředu, jak rychle budou jednotlivá témata
 probrána, proto nevytváříme automatický výukový plán.
 
-Doplňující info:
+Studijní příručka:
 
 -   je stejné pro všechny děti,
 -   neobsahuje lore ani příběhové spoilery,
@@ -686,17 +784,51 @@ Doplňující info:
     pochopit a zapamatovat si ho.
 
 Příklad témat: modifikátor vlastnosti, zdatnost, záchranný hod nebo jiné
-mechaniky, které už byly ve hře skutečně vysvětlené.
+mechaniky, které už byly ve hře skutečně vysvětlené. Tato další témata
+jsou **Později**, podle skutečného průběhu session.
+
+Prvním obsahem jsou základní informace o osmi rasách dostupných v kampani
+podle §10. Každá rasa používá jednotnou strukturu:
+
+1. Kdo je to?
+2. V čem vyniká?
+3. Rasové vlastnosti.
+4. Příklad.
+
+Texty jsou krátké, srozumitelné dětem a pravidlově správné podle D&D 5e
+(2014). Rasové vlastnosti mohou zahrnovat bonusy k vlastnostem, rychlost,
+jazyky a zvláštní schopnosti. Jde o vysvětlující obsah, nikoliv nové
+strukturované údaje průkazu nebo automatické aplikování bonusů.
+Podrasy se samostatně nerozepisují; u ras s podrasami musí být jasné,
+že další mechanické vlastnosti případně upřesňuje Vypravěč.
+
+Samotné texty ras jsou vedeny odděleně v souboru
+`studijni_prirucka_rasy_DnD5e2014.md`; do PROJECT_BRIEF se nekopírují.
 
 Implementace má být záměrně jednoduchá:
 
--   obsah se upravuje přímo ve zdrojovém obsahu aplikace,
+-   společný obsah je uložen staticky ve zdrojových souborech aplikace
+    a doplňuje se ručně podle skutečného průběhu výuky,
 -   žádný editor pro PJ,
 -   žádná databáze lekcí,
 -   žádné individuální odemykání,
 -   žádné sledování přečtení,
 -   žádný progression systém,
 -   žádné automatické rozhodování, co se má dítě učit.
+
+### Rozsah a priority
+
+**MVP:** jednoduchá responzivní příručka, přehled témat, detail tématu
+a obsah osmi základních ras kampaně.
+
+**Později:** další výuková témata podle průběhu session; případné
+vyhledávání a další navigační pomůcky podle skutečné potřeby.
+
+**Mimo rozsah:** character builder, automatické rasové bonusy, databáze
+pravidel, editor lekcí pro Vedoucího, progression systém, individuální
+odemykání obsahu, nové role a oprávnění, nový framework nebo router.
+Tato pravidla nemění samostatné řízení viditelnosti mechanických částí
+průkazu podle §7, které má nadále prioritu **Důležité**.
 
 ------------------------------------------------------------------------
 
@@ -1347,7 +1479,9 @@ již existujících funkčních mechanik ani výpočtů používaných jinými f
 3.  domovskou stránku Můj deník / Vstoupit do hry,
 4.  jednoduchý seznam hráčů pro Vedoucího,
 5.  jeden účet může mít více postav; každá postava má vlastní deník a token,
-6.  plný deník se sekcemi viditelnými od začátku,
+6.  plný deník s vždy viditelným základem, Inventářem a Studentským sešitem;
+    stávající Vlastnosti a záchranné hody zůstávají při zavedení řízené
+    viditelnosti viditelné,
 7.  portrét = token,
 8.  read-only přístup Vedoucího k deníkům hráčů,
 9.  autosave,
@@ -1360,7 +1494,8 @@ již existujících funkčních mechanik ani výpočtů používaných jinými f
 16. ruční AC + poznámka,
 17. schopnosti jako název + poznámka,
 18. XP + level a jednoduchý threshold hint; změna levelu zůstává ruční,
-19. společné Doplňující info s ručně doplňovaným vysvětlením již probraných D&D pravidel,
+19. společnou responzivní Studijní příručku pouze ve Studentském průkazu,
+    s přehledem témat, detailem tématu a obsahem osmi ras kampaně podle §14,
 20. Inventář jako jedno volné textové pole; dítě edituje, Vedoucí čte read-only,
 21. samostatné Příběhové pozadí a Studentský sešit; sešit je jedno volné textové pole pro herní poznámky, dítě jej edituje, Vedoucí čte read-only,
 22. základní Markdown pro Inventář a Studentský sešit v rozsahu §15,
@@ -1378,6 +1513,11 @@ již existujících funkčních mechanik ani výpočtů používaných jinými f
 34. jednoduché kostky,
 35. krátkodobý společný roll log,
 36. persistence důležitého stavu a reconnect.
+
+Systém společného ručního řízení viditelnosti mechanických částí podle §7
+byl dokončen v prioritě **Důležité**, nikoliv jako nové povinné MVP.
+Hráčům se změny projeví po obnovení stránky; automatická realtime
+synchronizace viditelnosti zůstává **Později**.
 ------------------------------------------------------------------------
 
 ## 31. Výslovně mimo MVP
@@ -1617,12 +1757,20 @@ hraní.
 
 Vysoká hodnota, ale první session může proběhnout bez toho.
 
+Společné ruční zpřístupňování implementovaných mechanických částí
+Studentského průkazu Vedoucím podle §7 je dokončené, se změnami dostupnými
+hráčům po obnovení stránky. Nejde o rozšíření povinného MVP a požadavek
+na serverovou autorizaci Studentského průkazu zůstává zachován.
+
 ### Později
 
 Řešit až podle zkušeností ze skutečného hraní.
 
 Aktuálně sem patří například:
 
+-   automatická realtime synchronizace viditelnosti mechanických částí
+    Studentského průkazu a Studijního panelu; současné realtime kanály
+    nemají potřebná oprávnění a pro první použití stačí obnovení stránky,
 -   kouzla, spell sloty a spellcasting UI,
 -   Skills jako samostatný seznam dovedností v UI,
 -   Speed (rychlost),
@@ -1637,6 +1785,8 @@ Aktuálně sem patří například:
 -   pinch zoom a fullscreen mapy,
 -   různé velikosti NPC tokenů,
 -   **Pravítko pro měření vzdálenosti po polích** podle schváleného návrhu v §23,
+-   další témata Studijní příručky podle průběhu session a případné
+    vyhledávání či další navigační pomůcky podle skutečné potřeby (§14),
 -   další pohodlné funkce potvrzené reálnou potřebou.
 
 Tyto položky nejsou podmínkou první session. Odklad se týká chybějícího UI

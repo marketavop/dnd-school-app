@@ -1,13 +1,11 @@
-const CHARACTER_FIELDS = 'id,user_id,name,portrait_path,race_code,class_code,level,str,dex,con,int,wis,cha,xp,current_hp,max_hp,ac,ac_note,background,story_background,inventory,notes';
 const EDITABLE_FIELDS = new Set([
   'name', 'portrait_path', 'race_code', 'class_code', 'level',
   'str', 'dex', 'con', 'int', 'wis', 'cha',
-  'xp', 'current_hp', 'max_hp', 'ac', 'ac_note', 'background', 'story_background', 'inventory', 'notes',
+  'xp', 'current_hp', 'max_hp', 'ac', 'ac_note', 'background', 'story_background', 'inventory', 'notes', 'features',
 ]);
-const PLAYER_FIELDS = 'id,user_id,name,portrait_path,race_code,class_code,level,str,dex,con,int,wis,cha,xp,current_hp,max_hp,ac,ac_note,background,story_background,inventory,notes';
 
 function playerRpc(db, token, name, args) {
-  if (!token) return null;
+  if (!token) throw new Error('Chybí session token.');
   return db.rpc(name, { p_session_token: token, ...args }).then(({ data, error }) => {
     if (error) throw error;
     if (!Array.isArray(data) || data.length !== 1) throw new Error('DB nevrátila postavu.');
@@ -18,13 +16,7 @@ function playerRpc(db, token, name, args) {
 // Používá již vytvořeného Supabase klienta. NULL vrací beze změny.
 export async function loadCharacter(db, characterId, sessionToken = null) {
   try {
-    const authorized = playerRpc(db, sessionToken, 'player_character', { p_character_id: characterId });
-    if (authorized) return await authorized;
-    const { data, error } = await db.from('characters')
-      .select(CHARACTER_FIELDS).eq('id', characterId).single();
-    if (error) throw error;
-    if (!data) throw new Error('DB nevrátila postavu.');
-    return data;
+    return await playerRpc(db, sessionToken, 'player_character', { p_character_id: characterId });
   } catch (error) {
     console.error('Načtení postavy selhalo:', { characterId, error });
     throw error;
@@ -37,13 +29,7 @@ export async function updateCharacterField(db, characterId, field, value, sessio
     if (!EDITABLE_FIELDS.has(field)) throw new Error('Nepovolené pole postavy.');
     // undefined by při serializaci zmizelo; prázdná hodnota musí být explicitní NULL.
     if (value === undefined) throw new Error('Hodnota pole nesmí být undefined.');
-    const authorized = playerRpc(db, sessionToken, 'player_update_character', { p_character_id: characterId, p_patch: { [field]: value } });
-    if (authorized) return await authorized;
-    const { data, error } = await db.from('characters')
-      .update({ [field]: value }).eq('id', characterId).select(CHARACTER_FIELDS).single();
-    if (error) throw error;
-    if (!data) throw new Error('DB nevrátila aktualizovanou postavu.');
-    return data;
+    return await playerRpc(db, sessionToken, 'player_update_character', { p_character_id: characterId, p_patch: { [field]: value } });
   } catch (error) {
     console.error('Uložení pole postavy selhalo:', { characterId, field, error });
     throw error;
@@ -54,13 +40,7 @@ export async function updateCharacterField(db, characterId, field, value, sessio
 export async function lowerCharacterHp(db, characterId, maxHp, sessionToken = null) {
   try {
     if (!Number.isInteger(maxHp) || maxHp < 0) throw new Error('Neplatné maximum HP.');
-    const authorized = playerRpc(db, sessionToken, 'player_update_character', { p_character_id: characterId, p_patch: { max_hp: maxHp } });
-    if (authorized) return await authorized;
-    const { data, error } = await db.from('characters')
-      .update({ max_hp: maxHp, current_hp: maxHp }).eq('id', characterId).select(CHARACTER_FIELDS).single();
-    if (error) throw error;
-    if (!data) throw new Error('DB nevrátila aktualizovanou postavu.');
-    return data;
+    return await playerRpc(db, sessionToken, 'player_update_character', { p_character_id: characterId, p_patch: { max_hp: maxHp } });
   } catch (error) {
     console.error('Snížení maxima HP selhalo:', { characterId, error });
     throw error;

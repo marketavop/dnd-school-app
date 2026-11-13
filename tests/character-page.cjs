@@ -17,9 +17,9 @@ const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 const base = { id, name: 'Eliška', background: null, story_background: null, inventory: null, notes: null, race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
-async function page(query, row = base, error = null, leader = false, authorized = false, portraitControl = {}) {
+async function page(query, row = base, error = null, leader = false, authorized = true, portraitControl = {}, visibilityRows = [{ section_id: 'abilities', is_visible: true }]) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
-    'student-pages', 'tab-card', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-inventory', 'panel-notes', 'game-link', 'game-navigation-status',
+    'features', 'character-features', 'features-form', 'features-form-title', 'feature-name', 'feature-note', 'feature-save', 'feature-cancel', 'feature-error', 'features-status', 'student-pages', 'tab-card', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-inventory', 'panel-notes', 'game-link', 'game-navigation-status',
     'story-background', 'story-background-toggle', 'character-story-background', 'edit-story-background', 'story-background-status', 'error-story-background', 'story-background-hint', 'story-background-count',
     'inventory-hint', 'inventory-count', 'inventory-help', 'notes-hint', 'notes-count', 'notes-help',
     'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
@@ -29,7 +29,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     'dice-toggle', 'dice-dialog', 'dice-title', 'dice-close', 'dice-result', 'dice-reroll', ...[4, 6, 8, 10, 12, 20].map(sides => `dice-d${sides}`),
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
     'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['background', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
-    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'edit-background', 'close-icon', 'inventory-help', 'notes-help', 'inventory-count', 'notes-count'].includes(key), dataset: {}, handlers: {},
+    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'edit-background', 'close-icon', 'inventory-help', 'notes-help', 'inventory-count', 'notes-count', 'feature-cancel'].includes(key), dataset: {}, handlers: {},
     value: '', disabled: false, validity: { badInput: false }, children: [], attributes: {},
     append(option) { this.children.push(option); },
     removeAttribute(key) { if (key === 'src') delete this.src; delete this.attributes[key]; },
@@ -43,11 +43,12 @@ async function page(query, row = base, error = null, leader = false, authorized 
   }]));
   function node(tagName = 'div', text = '') {
     let ownText = text;
-    const result = { tagName, children: [], attributes: {}, dataset: {}, className: '',
+    const result = { tagName, children: [], attributes: {}, dataset: {}, className: '', handlers: {},
       append(...children) { this.children.push(...children); },
       replaceChildren(...children) { this.children = children; ownText = ''; },
       setAttribute(key, value) { this.attributes[key] = value; },
       getAttribute(key) { return this.attributes[key] ?? null; },
+      addEventListener(event, handler) { this.handlers[event] = handler; },
       classList: { add(value) { result.className = `${result.className} ${value}`.trim(); } },
     };
     Object.defineProperty(result, 'textContent', {
@@ -60,7 +61,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
     element.append = node().append;
     element.replaceChildren = node().replaceChildren;
   }
-  for (const key of ['character-inventory', 'character-notes']) elements[key] = node();
+  elements.features.hidden = true;
+  for (const key of ['character-features', 'character-inventory', 'character-notes']) elements[key] = node();
   for (const key of ['inventory-help', 'notes-help']) {
     elements[key].summary = node('summary', 'Jak upravit text?');
     elements[key].contains = target => target === elements[key].summary;
@@ -74,9 +76,16 @@ async function page(query, row = base, error = null, leader = false, authorized 
   const logs = [];
   const writes = [];
   const rpcCalls = [];
-  const control = { error: null, wait: null };
+  const control = { error: null, wait: null, visibilityError: null, visibilityRows };
   const db = { async rpc(name, args) {
     assert.equal(args.p_session_token, 'test-player-session');
+    if (name === 'character_section_visibility') {
+      if (visibilityRows instanceof Error) throw visibilityRows;
+      assert.equal(Object.hasOwn(args, 'p_character_id'), false);
+      rpcCalls.push({ name, args: JSON.parse(JSON.stringify(args)) });
+      if (control.visibilityError) return { data: null, error: control.visibilityError };
+      return { data: control.visibilityRows, error: null };
+    }
     assert.equal(args.p_character_id.toLowerCase(), id);
     rpcCalls.push({ name, args: JSON.parse(JSON.stringify(args)) });
     if (name === 'player_update_character') {
@@ -92,24 +101,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
       Object.assign(row, next);
     } else { assert.equal(name, 'player_character'); reads++; }
     return { data: error ? null : [{ ...row }], error };
-  }, from(table) {
-    assert.equal(authorized, false, 'session path must not use direct table access');
-    assert.equal(table, 'characters');
-    let patch;
-    return {
-      update(value) { patch = value; writes.push({ ...value }); return this; },
-      select(fields) { assert.equal(fields.split(',').length, 22); return this; },
-      eq(key, value) { assert.equal(key, 'id'); assert.equal(value.toLowerCase(), id); return this; },
-      async single() {
-        if (patch) {
-          if (control.wait) await control.wait;
-          if (control.error) return { data: null, error: control.error };
-          Object.assign(row, patch);
-        } else reads++;
-        return { data: row && { ...row }, error };
-      },
-    };
-  } };
+  }, from() { assert.fail('Direct table access is forbidden'); } };
   const portraitCalls = [];
   let now = 0, timerId = 0;
   const timers = new Map();
@@ -159,7 +151,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     } },
   });
   await vm.runInContext(`(async () => { ${pageSource}\n })()`, context);
-  return { document: context.document, advanceTime, portraitCalls, elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control };
+  return { document: context.document, advanceTime, portraitCalls, elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control, row };
 }
 
 (async () => {
@@ -687,6 +679,12 @@ async function page(query, row = base, error = null, leader = false, authorized 
     assert.equal(result.elements['student-card'].hidden, true);
     assert.equal(result.elements['load-status'].dataset.error, 'true');
   }
+  const noSession = await page(`?character_id=${id}`, { ...base }, null, false, false);
+  assert.equal(noSession.elements['student-card'].hidden, true);
+  assert.equal(noSession.reads, 0);
+  assert.equal(noSession.writes.length, 0);
+  assert.equal(noSession.rpcCalls.length, 0);
+  assert.match(noSession.logs[0][1].error.message, /Chybí session token/);
   const empty = await page(`?character_id=${id}`);
   assert.equal(empty.reads, 1);
   assert.equal(empty.elements['student-card'].hidden, false);
@@ -694,6 +692,77 @@ async function page(query, row = base, error = null, leader = false, authorized 
   for (const field of ['race', 'class', 'level']) assert.equal(empty.elements[`character-${field}`].textContent, '—');
   assert.equal(empty.elements.portrait.hidden, true);
   assert.equal(empty.elements['portrait-placeholder'].hidden, false);
+  assert.equal(empty.elements.abilities.hidden, false, 'abilities is shown when the shared setting is true');
+  assert.deepEqual(empty.rpcCalls.filter(call => call.name === 'character_section_visibility').length, 1);
+  const hiddenAbilities = await page(`?character_id=${id}`, base, null, false, true, {}, [{ section_id: 'abilities', is_visible: false }]);
+  assert.equal(hiddenAbilities.elements.abilities.hidden, true, 'abilities is hidden when the shared setting is false');
+  assert.equal(empty.elements.features.hidden, true, 'missing visibility setting keeps features hidden');
+  assert.equal(empty.elements['character-features'].textContent, 'Zatím nemáš zapsané žádné schopnosti.');
+  const featureRow = { ...base, features: [{ name: '<img src=x>', note: 'První řádek\n<script>text</script>' }, { name: 'Druhá', note: '' }] };
+  const visibleFeatures = await page(`?character_id=${id}`, featureRow, null, false, true, {}, [{ section_id: 'features', is_visible: true }]);
+  assert.equal(visibleFeatures.elements.features.hidden, false);
+  const featureItems = visibleFeatures.elements['character-features'].children;
+  assert.equal(featureItems.length, 2);
+  assert.equal(featureItems[0].children[0].textContent, featureRow.features[0].name);
+  assert.equal(featureItems[0].children[1].textContent, featureRow.features[0].note);
+  assert.equal(featureItems[0].children[0].children.length, 0, 'feature text cannot inject HTML');
+  assert.equal(visibleFeatures.writes.length, 0);
+  for (const setting of [false, 'true', null]) {
+    const hidden = await page(`?character_id=${id}`, featureRow, null, false, true, {}, [{ section_id: 'features', is_visible: setting }]);
+    assert.equal(hidden.elements.features.hidden, true);
+  }
+  for (const response of [new Error('network'), null, {}]) {
+    const failed = await page(`?character_id=${id}`, featureRow, null, false, true, {}, response);
+    assert.equal(failed.elements.features.hidden, true, 'visibility failure must not reveal features');
+    assert.equal(failed.elements['character-features'].children.length, 0);
+  }
+  const leaderFeatures = await page(`?mode=leader&character_id=${id}`, featureRow, null, true);
+  assert.equal(leaderFeatures.elements.features.hidden, false);
+  assert.equal(leaderFeatures.elements['character-features'].children.length, 2);
+  assert.equal(leaderFeatures.elements['features-form'].hidden, true);
+  assert.deepEqual(Object.keys(leaderFeatures.elements['character-features'].children[0].children[2]?.handlers ?? {}), []);
+  assert.equal(leaderFeatures.writes.length, 0);
+  assert.equal(leaderFeatures.rpcCalls.length, 0);
+  const manageFeatures = await page(`?character_id=${id}`, { ...base, features: [] }, null, false, true, {}, [{ section_id: 'features', is_visible: true }]);
+  const featureControls = manageFeatures.elements;
+  featureControls['feature-name'].value = 'Odolnost';
+  featureControls['feature-note'].value = 'Výhoda proti jedu.';
+  await featureControls['features-form'].handlers.submit({ preventDefault() {} });
+  assert.equal(JSON.stringify(manageFeatures.writes.at(-1)), JSON.stringify({ features: [{ name: 'Odolnost', note: 'Výhoda proti jedu.' }] }));
+  assert.equal(featureControls['character-features'].children.length, 1);
+  assert.equal(featureControls['feature-name'].value, '');
+  const featureActions = featureControls['character-features'].children[0].children[2];
+  featureActions.children[0].handlers.click();
+  assert.equal(featureControls['feature-name'].value, 'Odolnost');
+  featureControls['feature-note'].value = 'Odolává jedu.';
+  await featureControls['features-form'].handlers.submit({ preventDefault() {} });
+  assert.equal(JSON.stringify(manageFeatures.writes.at(-1)), JSON.stringify({ features: [{ name: 'Odolnost', note: 'Odolává jedu.' }] }));
+  await featureControls['character-features'].children[0].children[2].children[1].handlers.click();
+  assert.equal(JSON.stringify(manageFeatures.writes.at(-1)), JSON.stringify({ features: [] }));
+  assert.equal(featureControls['character-features'].textContent, 'Zatím nemáš zapsané žádné schopnosti.');
+  featureControls['feature-name'].value = 'Neuložená';
+  manageFeatures.control.error = { code: 'network' };
+  await featureControls['features-form'].handlers.submit({ preventDefault() {} });
+  assert.equal(featureControls['feature-name'].value, 'Neuložená', 'failed saves retain the draft');
+  assert.match(featureControls['feature-error'].textContent, /Nepodařilo/);
+  manageFeatures.control.error = null;
+  let finishFeatureSave;
+  manageFeatures.control.wait = new Promise(resolve => { finishFeatureSave = resolve; });
+  const firstFeatureSave = featureControls['features-form'].handlers.submit({ preventDefault() {} });
+  const secondFeatureSave = featureControls['features-form'].handlers.submit({ preventDefault() {} });
+  assert.equal(manageFeatures.writes.length, 3, 'only one feature write starts while a save is pending');
+  finishFeatureSave();
+  await Promise.all([firstFeatureSave, secondFeatureSave]);
+  manageFeatures.control.wait = null;
+  const restoredFeatures = await page(`?character_id=${id}`, manageFeatures.row, null, false, true, {}, [{ section_id: 'features', is_visible: true }]);
+  assert.equal(restoredFeatures.elements['character-features'].children[0].children[0].textContent, 'Neuložená', 'saved features survive a reload');
+  featureControls['feature-name'].value = ' '.repeat(101);
+  await featureControls['features-form'].handlers.submit({ preventDefault() {} });
+  assert.match(featureControls['feature-error'].textContent, /povinný|100/);
+  const maximumFeatures = Array.from({ length: 100 }, (_, index) => ({ name: `Schopnost ${index}`, note: '' }));
+  const maximum = await page(`?character_id=${id}`, { ...base, features: maximumFeatures }, null, false, true, {}, [{ section_id: 'features', is_visible: true }]);
+  assert.equal(maximum.elements['feature-save'].disabled, true);
+  assert.match(maximum.elements['features-status'].textContent, /100/);
   const filled = await page(`?character_id=${id.toUpperCase()}`, {
     ...base, name: '<img src=x onerror=alert(1)>', race_code: 'elf', class_code: 'wizard', level: 1, ac: 15, ac_note: 'Kroužková zbroj', portrait_path: '/portraits/a.png',
   });
@@ -1024,7 +1093,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   for (const value of ['-1', '1.5', 'abc']) await resourceChange('xp', value);
   assert.equal(resources.writes.length, resourceWrites);
   await resourceChange('max_hp', '10');
-  assert.deepEqual(resources.writes.at(-1), { max_hp: 10, current_hp: 10 });
+  assert.deepEqual(resources.writes.at(-1), { max_hp: 10 });
   assert.equal(resourceRow.current_hp, 10);
   resources.control.error = { code: '42501', message: 'Denied' };
   await resourceChange('max_hp', '5');
@@ -1282,6 +1351,9 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal((html.match(/role="tabpanel"/g) || []).length, 3);
   assert.ok(html.indexOf('id="panel-card"') < html.indexOf('id="student-card"'));
   assert.ok(html.indexOf('id="abilities"') < html.indexOf('id="panel-inventory"'));
+  assert.ok(html.indexOf('id="abilities"') < html.indexOf('id="features"'));
+  assert.ok(html.indexOf('id="features"') < html.indexOf('id="panel-inventory"'));
+  assert.match(html, /<details id="features" hidden>/);
   assert.ok(html.indexOf('id="panel-inventory"') < html.indexOf('id="inventory"'));
   assert.ok(html.indexOf('id="panel-notes"') < html.indexOf('id="notes"'));
   assert.ok(html.indexOf('id="notes"') > html.indexOf('id="inventory"'));

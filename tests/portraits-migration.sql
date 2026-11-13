@@ -73,7 +73,7 @@ DECLARE t text; lt text; r record; ext text;
  own_id constant uuid := '71000000-0000-0000-0000-000000000001';
  other_id constant uuid := '71000000-0000-0000-0000-000000000002';
  npc_id constant uuid := '71000000-0000-0000-0000-000000000021';
- path text; previous text := NULL;
+ path text; previous text := NULL; target_id uuid; replacement text;
  npc_path constant text := 'npcs/71000000-0000-0000-0000-000000000021/71000000-0000-0000-0000-000000000031.png';
 BEGIN
  SELECT session_token INTO STRICT t FROM portrait_test_tokens WHERE role = 'player';
@@ -127,12 +127,39 @@ BEGIN
  PERFORM public.portrait_change_reference(t, 'character', own_id, path, NULL);
  SELECT * INTO STRICT r FROM public.portrait_reference(t, 'character', own_id);
  IF r.object_path IS NOT NULL THEN RAISE EXCEPTION 'Removal failed'; END IF;
- -- Leader can change even an unowned character, as required by IMG-01.
- path := 'characters/' || other_id || '/71000000-0000-0000-0000-000000000031.jpg';
- PERFORM public.portrait_change_reference(lt, 'character', other_id, NULL, path);
- SELECT * INTO STRICT r FROM public.portrait_reference(lt, 'character', other_id);
- IF r.object_path IS DISTINCT FROM path THEN RAISE EXCEPTION 'Leader character write failed'; END IF;
- PERFORM public.portrait_change_reference(lt, 'character', other_id, path, NULL);
+ -- The Edge Function calls as service_role with the user's custom session.
+ -- Deny initial upload for both player-owned and unassigned characters.
+ FOREACH target_id IN ARRAY ARRAY[own_id, other_id, '71000000-0000-0000-0000-000000000003'::uuid] LOOP
+   SELECT * INTO STRICT r FROM public.portrait_reference(lt, 'character', target_id);
+   IF r.object_path IS NOT NULL THEN RAISE EXCEPTION 'Unexpected initial portrait'; END IF;
+   BEGIN
+     PERFORM public.portrait_reference(lt, 'character', target_id, true);
+     RAISE EXCEPTION 'Leader character upload authorization accepted';
+   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+   path := 'characters/' || target_id || '/71000000-0000-0000-0000-000000000031.jpg';
+   BEGIN
+     PERFORM public.portrait_change_reference(lt, 'character', target_id, NULL, path);
+     RAISE EXCEPTION 'Leader initial character portrait accepted';
+   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+   SELECT * INTO STRICT r FROM public.portrait_reference(lt, 'character', target_id);
+   IF r.object_path IS NOT NULL THEN RAISE EXCEPTION 'Denied upload changed portrait'; END IF;
+ END LOOP;
+ -- Seed a real reference through the owning player's authorized RPC, then deny
+ -- replacement/removal with the correct expected path (not a stale-path error).
+ path := 'characters/' || own_id || '/71000000-0000-0000-0000-000000000031.jpg';
+ PERFORM public.portrait_change_reference(t, 'character', own_id, NULL, path);
+ SELECT * INTO STRICT r FROM public.portrait_reference(lt, 'character', own_id);
+ IF r.object_path IS DISTINCT FROM path THEN RAISE EXCEPTION 'Leader character read failed'; END IF;
+ FOREACH replacement IN ARRAY ARRAY[
+   'characters/' || own_id || '/71000000-0000-0000-0000-000000000032.png', NULL::text] LOOP
+   BEGIN
+     PERFORM public.portrait_change_reference(lt, 'character', own_id, path, replacement);
+     RAISE EXCEPTION 'Leader character replacement/removal accepted';
+   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+   SELECT * INTO STRICT r FROM public.portrait_reference(t, 'character', own_id);
+   IF r.object_path IS DISTINCT FROM path THEN RAISE EXCEPTION 'Denied write changed portrait'; END IF;
+ END LOOP;
+ PERFORM public.portrait_change_reference(t, 'character', own_id, path, NULL);
  PERFORM public.portrait_change_reference(lt, 'npc', npc_id, NULL, npc_path);
  SELECT * INTO STRICT r FROM public.portrait_reference(lt, 'npc', npc_id);
  IF r.object_path IS DISTINCT FROM npc_path THEN RAISE EXCEPTION 'Leader NPC write failed'; END IF;
