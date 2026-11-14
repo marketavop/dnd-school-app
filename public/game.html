@@ -33,6 +33,7 @@
         <div class="map-toolbar">
           <button id="add-token" type="button" aria-describedby="add-token-message" hidden>Přidat postavu na mapu</button>
           <button id="remove-token" type="button" aria-describedby="remove-token-message" hidden>Odebrat postavu z mapy</button>
+          <button id="ruler-toggle" type="button" aria-pressed="false" disabled>Pravítko</button>
           <button id="fit-map" type="button">Přizpůsobit mapu</button>
           <p id="add-token-message" role="status"></p>
           <p id="remove-token-message" role="status"></p>
@@ -41,6 +42,10 @@
     <div id="map-space">
       <img id="map" alt="Aktivní mapa" draggable="false" hidden>
       <svg id="grid" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true"></svg>
+      <svg id="ruler-overlay" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" hidden>
+        <line id="ruler-line" x1="0" y1="0" x2="0" y2="0"></line>
+        <text id="ruler-distance" x="0" y="0" text-anchor="middle"></text>
+      </svg>
     </div>
   </div>
 
@@ -80,6 +85,7 @@
       <aside id="character-panel" aria-label="Studijní panel" hidden>
         <div class="panel-tabs" role="tablist" aria-label="Studijní panel">
           <button id="overview-tab" role="tab" aria-selected="true" aria-controls="overview-panel">Přehled</button>
+          <button id="spells-tab" role="tab" aria-selected="false" aria-controls="spells-panel" tabindex="-1" hidden>Kouzla <span class="term-english">(Spells)</span></button>
           <button id="inventory-tab" role="tab" aria-selected="false" aria-controls="inventory-panel" tabindex="-1">Inventář</button>
         </div>
         <p id="diary-status" role="status">Načítám postavu…</p>
@@ -120,6 +126,10 @@
             <summary>Schopnosti <span class="term-english">(Features)</span></summary>
             <div id="game-features-list" class="game-features-list" aria-live="polite"></div>
           </details>
+        </section>
+        <section id="spells-panel" role="tabpanel" aria-labelledby="spells-tab" hidden>
+          <h2>Kouzla <span class="term-english">(Spells)</span></h2>
+          <div id="game-spells" class="game-spells" aria-live="polite"></div>
         </section>
         <section id="inventory-panel" role="tabpanel" aria-labelledby="inventory-tab" hidden>
           <div id="game-inventory">Načítám inventář…</div>
