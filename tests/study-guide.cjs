@@ -9,16 +9,42 @@ const css = readFileSync(resolve(__dirname, '../public/styles.css'), 'utf8');
 const races = ['human', 'elf', 'halfling', 'dwarf', 'gnome', 'half-elf', 'half-orc', 'tiefling'];
 const classes = ['barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk', 'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard'];
 const backgrounds = ['acolyte', 'charlatan', 'criminal', 'entertainer', 'folk-hero', 'guild-artisan', 'hermit', 'noble', 'outlander', 'sage', 'sailor', 'soldier', 'urchin'];
+const classLabels = {
+  barbarian: 'Barbar (Barbarian)', bard: 'Bard (Bard)', cleric: 'Klerik (Cleric)', druid: 'Druid (Druid)',
+  fighter: 'Bojovník (Fighter)', monk: 'Mnich (Monk)', paladin: 'Paladin (Paladin)', ranger: 'Hraničář (Ranger)',
+  rogue: 'Tulák (Rogue)', sorcerer: 'Čaroděj (Sorcerer)', warlock: 'Černokněžník (Warlock)', wizard: 'Kouzelník (Wizard)',
+};
+const backgroundLabels = {
+  acolyte: 'Akolyta (Acolyte)', charlatan: 'Šarlatán (Charlatan)', criminal: 'Zločinec (Criminal)', entertainer: 'Umělec (Entertainer)',
+  'folk-hero': 'Lidový hrdina (Folk Hero)', 'guild-artisan': 'Cechovní řemeslník (Guild Artisan)', hermit: 'Poustevník (Hermit)',
+  noble: 'Šlechtic (Noble)', outlander: 'Poutník z divočiny (Outlander)', sage: 'Učenec (Sage)', sailor: 'Námořník (Sailor)',
+  soldier: 'Voják (Soldier)', urchin: 'Dítě ulice (Urchin)',
+};
 const buttons = [...html.matchAll(/<button id="(study-guide-[^"]+)" type="button" data-study-guide-topic="([^"]+)"[^>]*aria-controls="([^"]+)">/g)];
 assert.deepEqual(buttons.map(match => match[2]), [...races, ...classes, ...backgrounds, 'abilities', 'skills', 'features']);
+for (const [, id, topic] of buttons.filter(match => races.includes(match[2]))) {
+  const expected = {
+    human: 'Člověk (Human)', elf: 'Elf (Elf)', halfling: 'Půlčík (Halfling)', dwarf: 'Trpaslík (Dwarf)',
+    gnome: 'Gnóm (Gnome)', 'half-elf': 'Půlelf (Half-Elf)', 'half-orc': 'Půlork (Half-Orc)', tiefling: 'Tiefling (Tiefling)',
+  }[topic];
+  assert.match(html.match(new RegExp(`<button id="${id}"[^>]*>([\\s\\S]*?)</button>`))[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(), new RegExp(`^${expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}→$`));
+}
 const articles = [...html.matchAll(/<article id="study-guide-race-([^"]+)"[^>]*>([\s\S]*?)<\/article>/g)];
 assert.deepEqual(articles.map(match => match[1]), races);
 for (const [, id, body] of articles) {
-  assert.equal((body.match(/<h4>/g) || []).length, 4, `${id}: four sections`);
+  assert.equal((body.match(/<h4>/g) || []).length, ['elf', 'halfling', 'dwarf', 'gnome'].includes(id) ? 5 : 4, `${id}: expected guide sections`);
   assert.match(body, /<h4>Rasové vlastnosti<\/h4>/);
   assert.match(body, /<h4>Příklad<\/h4>/);
-  if (['elf', 'halfling', 'dwarf', 'gnome'].includes(id)) assert.match(body, /Další vlastnosti závisí.*Vypravěč/);
+  if (['elf', 'halfling', 'dwarf', 'gnome'].includes(id)) assert.match(body, /<h4>Podrasy/);
 }
+const subraceCodes = [...html.matchAll(/data-subrace-code="([^"]+)"/g)].map(match => match[1]);
+assert.deepEqual(subraceCodes, ['high_elf', 'wood_elf', 'drow', 'lightfoot_halfling', 'stout_halfling', 'hill_dwarf', 'mountain_dwarf', 'forest_gnome', 'rock_gnome']);
+const elf = articles.find(match => match[1] === 'elf')[2];
+assert.match(elf, /Citlivost na sluneční světlo/);
+assert.match(elf, /Od 1\. úrovně.*Od 3\. úrovně.*Od 5\. úrovně/);
+const rockGnome = articles.find(match => match[1] === 'gnome')[2];
+assert.match(rockGnome, /nejvýše tři/);
+assert.match(rockGnome, /24 hodin/);
 assert.match(articles[3][2], /dvojnásobek zdatnostního bonusu/);
 assert.match(articles[7][2], /Sesílací vlastností je Charisma/);
 assert.match(articles[7][2], /Každé z těchto dvou kouzel.*jednou.*důkladném odpočinku/);
@@ -28,6 +54,7 @@ const backgroundArticles = [...html.matchAll(/<article id="study-guide-backgroun
 assert.deepEqual(backgroundArticles.map(match => match[1]), backgrounds);
 assert.equal((html.match(/Zdroj pravidel/g) || []).length, 1, 'one shared source note');
 for (const [, id, body] of backgroundArticles) {
+  assert.match(body, new RegExp(`<h3[^>]*>${backgroundLabels[id].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</h3>`), `${id}: exact bilingual title`);
   assert.match(body, /<h3[^>]*>[^<]+ \([^<]+\)<\/h3>/, `${id}: bilingual title`);
   assert.match(body, /<details><summary>Podrobnosti<\/summary>/, `${id}: collapsible details`);
   assert.match(body, /<strong>Dovednosti:<\/strong>/, `${id}: skills`);
@@ -35,6 +62,7 @@ for (const [, id, body] of backgroundArticles) {
 const classArticles = [...html.matchAll(/<article id="study-guide-class-([^\"]+)"[^>]*>([\s\S]*?)<\/article>/g)];
 assert.deepEqual(classArticles.map(match => match[1]), classes);
 for (const [, id, body] of classArticles) {
+  assert.match(body, new RegExp(`<h3[^>]*>${classLabels[id].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</h3>`), `${id}: exact bilingual title`);
   assert.match(body, /<h3[^>]*>[^<]+ \([^<]+\)<\/h3>/, `${id}: bilingual title`);
   assert.match(body, /<p><strong>Chceš|<p><strong>Chces/, `${id}: quick card`);
   assert.match(body, /<details><summary>Podrobnosti<\/summary>/, `${id}: collapsible details`);

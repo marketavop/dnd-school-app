@@ -361,6 +361,9 @@ Používáme:
 
 Oba pohledy používají stejná data. Nevytváříme dvě kopie dat ani
 samostatné výpočty pro herní panel.
+Inventář je dostupný na Studentském průkazu i ve Studijním panelu na herním
+stole; hráč jej může upravovat na obou místech přes stejné pole `inventory`.
+Vedoucí jej v obou pohledech pouze čte.
 
 ### Zpřístupňování dalších mechanických částí
 
@@ -558,17 +561,19 @@ ostatní hodnoty a ovládání zůstávají přirozeně čitelné.
 
 ### Dvojjazyčná D&D terminologie
 
-V rámci výuky děti vidí na průkazu primárně český název a vedle něj
-odpovídající anglický termín běžný v D&D 5e (2014). Platí zejména pro:
-**Rasa (Race)**, **Povolání (Class)**, **Zázemí (Background)**,
-**Úroveň (Level)**, **XP (Experience Points)**, **HP (Hit Points)**
-a **AC (Armor Class)**. U vlastností zůstávají české názvy spolu
-s angličtinou a standardní zkratkou: Strength/STR, Dexterity/DEX,
+V rámci výuky děti vidí zobrazované hodnoty herních pojmů jako
+**Český název (English name)**. Platí to pro **rasy a podrasy**,
+**povolání**, **zázemí**, vlastnosti, dovednosti i další existující
+standardní mechaniky D&D 5e (2014), například **Úroveň (Level)**,
+**Zkušenosti (Experience Points)**, **Životy (Hit Points)**,
+**Obranné číslo (Armor Class)**, **Bonus zdatnosti (Proficiency Bonus)**
+a **Záchranný hod (Saving Throw)**. U vlastností zůstávají české názvy
+spolu s angličtinou a standardní zkratkou: Strength/STR, Dexterity/DEX,
 Constitution/CON, Intelligence/INT, Wisdom/WIS a Charisma/CHA.
-Ve vlastnostech jsou také **Modifikátor (Modifier)** a
-**Záchrana (Saving Throw)**. Anglický termín je výukovým doplňkem,
-nikoli jazykovým přepínačem; nesmí zhoršit čitelnost, dostupnost ani
-responzivitu. Konkrétní zobrazení dlouhých názvů se upraví podle prostoru.
+Výjimkou jsou názvy kouzel, které se zobrazují jako **English name
+(Český název)**. Anglický termín je výukovým doplňkem, nikoli jazykovým
+přepínačem; nesmí zhoršit čitelnost, dostupnost ani responzivitu.
+Běžné ovládací prvky aplikace nemusí být dvojjazyčné.
 
 V MVP neevidujeme:
 
@@ -590,8 +595,9 @@ Rasa, povolání a zázemí jsou samostatná pole. Dítě je vyplňuje ve
 chvíli, kdy k nim příběh/PJ dojde.
 
 Hráči vybírají rasu pomocí existujícího rozbalovacího seznamu ve Studentském
-průkazu. V aktuální kampani je dostupných osm ras: **člověk, elf, hobit,
-trpaslík, gnóm, půlelf, půlork a tiefling**. Drakorozený není součástí světa
+průkazu. Aplikace podporuje osm ras povolených pro kampaň podle PHB 2014:
+**člověk, elf, půlčík (Halfling), trpaslík, gnóm, půlelf, půlork a tiefling**.
+Drakorozený není součástí světa
 Vypravěče, proto není dostupný. Jde o omezení konkrétní kampaně, nikoliv
 změnu pravidel D&D 5e (2014). Existující dropdown, databáze a způsob
 ukládání ras se tímto dokumentačním rozhodnutím nemění.
@@ -606,7 +612,13 @@ zázemí. Výběr rasy automaticky neupravuje vlastnosti ani jiné údaje
 postavy. Dítě vybere rasu a podle instrukcí Vypravěče samo zapíše
 mechanické změny.
 
-Podrasy/varianty jsou mimo MVP. Featy jsou Budoucnost.
+Podrasa je samostatné volitelné pole Studentského průkazu pro čtyři rasy:
+trpaslík, elf, půlčík a gnóm. Dítě si ji vybírá samo.
+K dispozici je devět možností PHB 2014 (Hill a Mountain Dwarf; High, Wood a
+Drow Elf; Lightfoot a Stout Halfling; Forest a Rock Gnome). Při skutečné změně
+rasy se podrasa v tomtéž databázovém zápisu vymaže. Podrasa automaticky
+nemění vlastnosti, HP, zdatnosti ani schopnosti; dítě tyto mechanické změny
+zapisuje ručně podle pravidel a pokynů Vypravěče. Featy jsou Budoucnost.
 
 Případné části specifické pro povolání řešíme jako společné jádro
 deníku + malé specifické části, nikoliv jako 12 samostatných deníků.
@@ -761,6 +773,7 @@ nekontroluje pravidla pohybu.
 Dosavadní koncept **Doplňující info** upřesňujeme jako **Studijní příručku**:
 jednoduchou pomůcku pro připomenutí již vysvětlených pravidel D&D 5e (2014).
 Nenahrazuje výklad Vypravěče a není character builderem.
+Slouží pouze k vysvětlení pravidel; z příručky se postava neupravuje.
 
 ### Umístění, zobrazení a navigace
 
@@ -804,8 +817,8 @@ mechaniky, které už byly ve hře skutečně vysvětlené. Tato další témata
 jsou **Později**, podle skutečného průběhu session.
 
 První obsahová sada Studijní příručky je **implementovaná a ověřená**.
-Obsahuje informace pro výběr **8 ras, 12 povolání a 13 zázemí** z PHB 2014,
-celkem **33 témat D&D 5e (2014)**. Používá kompaktní přehled kategorií,
+Zachovává **33 hlavních témat D&D 5e (2014)**: **8 ras, 12 povolání a 13
+zázemí**. Používá kompaktní přehled kategorií,
 krátké dětské kartičky a rozbalitelné podrobnosti.
 Nápověda k mechanikám se zpřístupňuje stejnými přepínači jako příslušné
 části průkazu. Nová pravidla dalších úrovní se doplňují ručně podle
@@ -822,8 +835,11 @@ Texty jsou krátké, srozumitelné dětem a pravidlově správné podle D&D 5e
 (2014). Rasové vlastnosti mohou zahrnovat bonusy k vlastnostem, rychlost,
 jazyky a zvláštní schopnosti. Jde o vysvětlující obsah, nikoliv nové
 strukturované údaje průkazu nebo automatické aplikování bonusů.
-Podrasy se samostatně nerozepisují; u ras s podrasami musí být jasné,
-že další mechanické vlastnosti případně upřesňuje Vypravěč.
+Podrasy jsou vysvětlené uvnitř čtyř existujících rasových karet (trpaslík,
+elf, půlčík a gnóm); nejsou samostatnými hlavními tématy ani nemění počet 33
+hlavních témat. Vysvětlují devět schválených možností PHB 2014 a připomínají,
+že vlastnosti podrasy se přidávají ke společným vlastnostem rasy. Aplikace je
+stále nezapisuje automaticky; dítě je zadává ručně podle pokynů Vypravěče.
 
 Obsah je veden odděleně od PROJECT_BRIEF v souboru
 `studijni_prirucka_rasy_DnD5e2014.md`; celé texty ras se do briefu nekopírují.
@@ -931,14 +947,16 @@ Nevytváříme databázi zbraní, automatické útoky ani automatické damage.
 
 ## 17. Kouzla
 
-Kouzla a spellcasting UI jsou **Později** a neblokují první session.
-Následující popis včetně kouzelnické matematiky platí pro pozdější doplnění;
-již existující funkční výpočty se neodstraňují.
+**MVP** obsahuje jednoduchou ruční evidenci kouzel: anglický název, český
+název, úroveň 0–9 a krátkou poznámku. Trik je úroveň 0. Dítě seznam samo
+spravuje; aplikace nepřiděluje kouzla automaticky a nepočítá žádné další
+mechaniky.
 
-Kouzla jsou strukturovanější, protože jejich struktura má výukovou
-hodnotu.
+**Později** může přibýt podrobná karta kouzla, pravidlová nápověda, spell
+sloty a další mechaniky. Následující podrobnější návrh patří pouze do této
+budoucí etapy.
 
-Položka kouzla obsahuje:
+Podrobná karta kouzla může obsahovat:
 
 -   název,
 -   úroveň kouzla,
@@ -1018,10 +1036,11 @@ Seznam kouzel znamená kouzla, která dítě aktuálně zná/používá.
 ## 19. Inventář
 
 Inventář je **MVP pro první session** jako **jedno volné textové pole**.
-Dítě jej edituje a samo si zapisuje názvy, množství a další informace podle
-potřeby. Vedoucí jej může zobrazit pouze read-only. Nejde o strukturovaný
-seznam předmětů. Základní Markdown má stejný omezený rozsah jako Studentský
-sešit (§15).
+Dítě jej edituje na Studentském průkazu i přímo v záložce Inventář na herním
+stole; oba pohledy ukládají do stejného pole `inventory` přes existující
+autorizovanou cestu. Vedoucí jej může zobrazit pouze read-only. Nejde o
+strukturovaný seznam předmětů. Základní Markdown má stejný omezený rozsah
+jako Studentský sešit (§15).
 
 Peníze si dítě může zapsat do stejného textu.
 

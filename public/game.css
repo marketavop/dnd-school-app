@@ -61,7 +61,10 @@ button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: d
 #game-inventory :is(h2, h3, h4) { margin: 14px 0 6px; font-size: 18px; }
 #game-inventory :is(ul, ol) { padding-left: 20px; margin: 8px 0; }
 #game-inventory .markdown-checkbox { color: #595e5e; }
-#inventory-edit-link { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; color: #314f63; text-underline-offset: 3px; }
+#inventory-edit-button { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; }
+#game-inventory-editor { box-sizing: border-box; display: block; width: 100%; min-height: 220px; margin-top: 8px; padding: 10px; resize: vertical; font: inherit; line-height: 1.5; color: #26384f; background: #fffdf7; border: 1px solid #b7a579; border-radius: 4px; }
+#game-inventory-editor:focus-visible { outline: 2px solid #314f63; outline-offset: 2px; }
+#game-inventory-status { min-height: 1.3em; margin: 6px 0 0; color: #596675; }
 #character-panel section, #diary-status { margin: 16px; }
 #diary-status:empty, .error:empty, #compact-hp-hint:empty { display: none; }
 h2 { color: #314f63; font: 600 20px Georgia, serif; margin: 0 0 12px; }
