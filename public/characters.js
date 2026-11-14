@@ -1,7 +1,7 @@
 const EDITABLE_FIELDS = new Set([
   'name', 'portrait_path', 'race_code', 'class_code', 'level',
   'str', 'dex', 'con', 'int', 'wis', 'cha',
-  'xp', 'current_hp', 'max_hp', 'ac', 'ac_note', 'background', 'story_background', 'inventory', 'notes', 'features',
+  'xp', 'current_hp', 'max_hp', 'ac', 'ac_note', 'background', 'story_background', 'inventory', 'notes', 'features', 'skill_proficiencies',
 ]);
 
 function playerRpc(db, token, name, args) {

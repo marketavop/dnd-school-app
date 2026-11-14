@@ -4,10 +4,30 @@ const dialog = document.querySelector('#study-guide');
 const overview = document.querySelector('#study-guide-overview');
 const detail = document.querySelector('#study-guide-detail');
 const topics = [...overview.querySelectorAll('[data-study-guide-topic]')];
+const categoryTabs = [...overview.querySelectorAll('[role="tab"]')];
+const categoryPanels = [...overview.querySelectorAll('[data-study-guide-category-panel]')];
+const detailCategory = document.querySelector('#study-guide-detail-category');
+const back = document.querySelector('#study-guide-back');
 let selectedTopic;
+let selectedCategory = 'races';
 const content = dialog.querySelector('.study-guide-content');
 
+function categoryOf(topic) {
+  return topic.getAttribute('aria-controls').startsWith('study-guide-background-') ? 'backgrounds' : 'races';
+}
+
+function showCategory(category) {
+  selectedCategory = category;
+  for (const tab of categoryTabs) {
+    const selected = tab.dataset.studyGuideCategory === category;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  }
+  for (const panel of categoryPanels) panel.hidden = panel.dataset.studyGuideCategoryPanel !== category;
+}
+
 function showOverview() {
+  showCategory(selectedCategory);
   overview.hidden = false;
   detail.hidden = true;
   content.scrollTop = 0;
@@ -17,19 +37,28 @@ trigger.addEventListener('click', () => {
   showOverview();
   dialog.showModal();
 });
+for (const tab of categoryTabs) {
+  tab.dataset.studyGuideCategory = tab.id.endsWith('backgrounds') ? 'backgrounds' : 'races';
+  tab.addEventListener('click', () => showCategory(tab.dataset.studyGuideCategory));
+}
 for (const topic of topics) {
   topic.addEventListener('click', () => {
     selectedTopic = topic;
+    const category = categoryOf(topic);
+    showCategory(category);
     for (const item of topics) {
       document.getElementById(item.getAttribute('aria-controls')).hidden = item !== topic;
     }
     overview.hidden = true;
     detail.hidden = false;
+    back.textContent = `← Zpět na ${category === 'backgrounds' ? 'zázemí' : 'rasy'}`;
+    detailCategory.textContent = category === 'backgrounds'
+      ? 'Zázemí · D&D 5e (2014)' : 'Rasy · D&D 5e (2014)';
     content.scrollTop = 0;
     document.querySelector(`#study-guide-${topic.dataset.studyGuideTopic}-title`).focus({ preventScroll: true });
   });
 }
-document.querySelector('#study-guide-back').addEventListener('click', () => {
+back.addEventListener('click', () => {
   showOverview();
   // Let the browser reveal a topic near the bottom of the list on small screens.
   selectedTopic.focus();
