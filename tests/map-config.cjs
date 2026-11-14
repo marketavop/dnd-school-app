@@ -3,7 +3,9 @@
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const source = (readFileSync('public/grid.js', 'utf8').replace('export ', '') + readFileSync('public/app.js', 'utf8').replace("import { portraitImageUrl, uploadPortrait } from './portrait-api.js';", '').replace("import { renderGrid } from './grid.js';", '').replace("import { configureMapImageUrl, resolveMapImage } from './map-image.js';", 'const configureMapImageUrl = () => {}; const resolveMapImage = async path => path;'))
+const source = (readFileSync('public/grid.js', 'utf8').replace('export ', '')
+  + readFileSync('public/ruler.js', 'utf8').replace(/export /g, '')
+  + readFileSync('public/app.js', 'utf8').replace("import { portraitImageUrl, uploadPortrait } from './portrait-api.js';", '').replace("import { renderGrid } from './grid.js';", '').replace("import { cellCenter, measureDistanceFeet, pointerToCell } from './ruler.js';", '').replace("import { configureMapImageUrl, resolveMapImage } from './map-image.js';", 'const configureMapImageUrl = () => {}; const resolveMapImage = async path => path;'))
   .replace("await import('./config.local.js')", 'testConfig')
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'testSdk');
 const otherId = '10000000-0000-0000-0000-000000000002';
@@ -56,10 +58,11 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
   for (const id of ['scene-npcs', 'scene-npcs-list', 'scene-npcs-empty', 'scene-npcs-status', 'scene-npc-picker', 'scene-npc-add', 'scene-npc-options', 'scene-npc-picker-empty', 'scene-npc-cancel', 'scene-npc-form', 'scene-npc-name', 'scene-npc-image', 'scene-npc-save', 'scene-npc-create', 'scene-npc-close', 'scene-npc-create-status']) {
     elements[id] = { handlers: {}, setAttribute() {}, append() {}, replaceChildren() {}, addEventListener(k, fn) { this.handlers[k] = fn; } };
   }
-  for (const id of ['scene-players', 'scene-players-list', 'map', 'map-space', 'grid', 'map-status', 'token', 'status', 'connection', 'position', 'cell-size', 'cell-size-error', 'cell-size-status', 'map-select', 'active-map-status', 'add-token', 'add-token-message', 'remove-token', 'remove-token-message']) {
+  for (const id of ['scene-players', 'scene-players-list', 'map', 'map-space', 'grid', 'map-status', 'token', 'status', 'connection', 'position', 'cell-size', 'cell-size-error', 'cell-size-status', 'map-select', 'active-map-status', 'add-token', 'add-token-message', 'remove-token', 'remove-token-message', 'ruler-toggle', 'ruler-overlay', 'ruler-line', 'ruler-distance']) {
     elements[id] = { style: {}, attributes: {}, handlers: {}, children: [], validity: {},
       classList: { add() {}, remove() {} },
-      setAttribute(k, v) { this.attributes[k] = String(v); },
+      setAttribute(k, v) { this.attributes[k] = String(v); if (k === 'hidden') this.hidden = true; },
+      removeAttribute(k) { delete this.attributes[k]; if (k === 'hidden') this.hidden = false; },
       addEventListener(k, v) { this.handlers[k] = v; },
       replaceChildren() { this.children = []; }, append(line) { this.children.push(line); },
       getBoundingClientRect() { return { left: 0, top: 0 }; },
@@ -67,7 +70,7 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
     };
   }
   Object.assign(elements.map, { complete: true, naturalWidth: 1536, naturalHeight: 1024 });
-  elements['map-viewport'] = { clientWidth: 2000, clientHeight: 2000, addEventListener() {} };
+  elements['map-viewport'] = { clientWidth: 2000, clientHeight: 2000, addEventListener() {}, setPointerCapture() {}, releasePointerCapture() {}, hasPointerCapture() { return false; } };
   elements['fit-map'] = { addEventListener() {} };
   Object.defineProperty(elements.map, 'src', {
     get() { return this.source; },
@@ -360,10 +363,13 @@ async function client(role = 'leader', ownId = characterId, portrait = {}) {
   assert.equal(a.elements.grid.style.display, 'none');
   assert.equal(a.elements.token.hidden, true);
   assert.equal(a.elements['add-token'].disabled, true);
+  assert.equal(a.elements['ruler-toggle'].hidden, true);
   await b.input(120, 'map');
   for (const c of [a, b, player]) assert.equal(c.elements['active-map-status'].textContent, 'Aktivní mapa: Mapa akademie · Mapa');
   assert.equal(a.elements['map-select'].children[1].textContent, 'Mapa akademie — Mapa');
   assert.equal(a.elements.grid.style.display, '');
+  assert.equal(a.elements['ruler-toggle'].hidden, false);
+  assert.equal(a.elements['ruler-toggle'].disabled, false);
   assert.equal(a.elements.token.hidden, false);
   assert.deepEqual(center(a), ['200px', '200px']);
   for (const c of [await client(), await client()]) {

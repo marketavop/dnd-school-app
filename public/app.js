@@ -1,13 +1,92 @@
 import { renderGrid } from './grid.js';
+import { cellCenter, measureDistanceFeet, pointerToCell } from './ruler.js';
 import { portraitImageUrl, uploadPortrait } from './portrait-api.js';
 const map = document.querySelector('#map');
 const mapSpace = document.querySelector('#map-space');
 const mapViewport = document.querySelector('#map-viewport');
+const rulerToggle = document.querySelector('#ruler-toggle');
+const rulerOverlay = document.querySelector('#ruler-overlay');
+const rulerLine = document.querySelector('#ruler-line');
+const rulerDistance = document.querySelector('#ruler-distance');
 let mapScale = 1;
 let userZoom = 1;
 let panX = 0;
 let panY = 0;
 let cameraDrag = null;
+let rulerActive = false;
+let rulerDrag = null;
+
+function hideRulerMeasurement() {
+  const pointerId = rulerDrag?.id;
+  rulerDrag = null;
+  rulerOverlay.setAttribute('hidden', '');
+  if (pointerId != null && mapViewport.hasPointerCapture(pointerId)) mapViewport.releasePointerCapture(pointerId);
+}
+
+function renderRulerMeasurement() {
+  if (!rulerDrag) return;
+  const start = cellCenter(rulerDrag.start, cellSize);
+  const end = cellCenter(rulerDrag.end, cellSize);
+  rulerLine.setAttribute('x1', start.x);
+  rulerLine.setAttribute('y1', start.y);
+  rulerLine.setAttribute('x2', end.x);
+  rulerLine.setAttribute('y2', end.y);
+  rulerDistance.setAttribute('x', (start.x + end.x) / 2);
+  rulerDistance.setAttribute('y', (start.y + end.y) / 2 - 12);
+  rulerDistance.textContent = `${measureDistanceFeet(rulerDrag.start, rulerDrag.end)} ft`;
+  rulerOverlay.removeAttribute('hidden');
+}
+
+function setRulerActive(active) {
+  rulerActive = Boolean(active) && contentMode === 'map' && mapReady && configReady;
+  rulerToggle.setAttribute('aria-pressed', String(rulerActive));
+  if (!rulerActive) hideRulerMeasurement();
+}
+
+function updateRulerAvailability() {
+  const available = contentMode === 'map' && mapReady && configReady;
+  rulerToggle.hidden = !available;
+  rulerToggle.disabled = !available;
+  if (!available) setRulerActive(false);
+}
+
+function rulerCellFromPointer(event) {
+  return pointerToCell(event, mapSpace.getBoundingClientRect(), mapScale, cellSize);
+}
+
+function beginRuler(event) {
+  if (!rulerActive || !mapReady || contentMode !== 'map'
+      || (event.pointerType === 'mouse' && event.button !== 0)) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const start = rulerCellFromPointer(event);
+  rulerDrag = { id: event.pointerId, start, end: start };
+  renderRulerMeasurement();
+  mapViewport.setPointerCapture(event.pointerId);
+}
+
+function moveRuler(event) {
+  if (!rulerDrag || event.pointerId !== rulerDrag.id) return;
+  event.preventDefault();
+  event.stopPropagation();
+  rulerDrag.end = rulerCellFromPointer(event);
+  renderRulerMeasurement();
+}
+
+function endRuler(event) {
+  if (!rulerDrag || event.pointerId !== rulerDrag.id) return;
+  event.preventDefault();
+  event.stopPropagation();
+  hideRulerMeasurement();
+  if (mapViewport.hasPointerCapture(event.pointerId)) mapViewport.releasePointerCapture(event.pointerId);
+}
+
+rulerToggle.addEventListener('click', () => setRulerActive(!rulerActive));
+mapViewport.addEventListener('pointerdown', beginRuler, { capture: true });
+mapViewport.addEventListener('pointermove', moveRuler, { capture: true });
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+  mapViewport.addEventListener(type, endRuler, { capture: true });
+}
 
 function fitMap() {
   if (!map.naturalWidth || !map.naturalHeight || !mapViewport.clientWidth || !mapViewport.clientHeight) return;
@@ -24,7 +103,7 @@ function resetCamera() {
   fitMap();
 }
 mapViewport.addEventListener('wheel', event => {
-  if (!mapReady || drag || cameraDrag) return;
+  if (!mapReady || drag || cameraDrag || rulerDrag) return;
   event.preventDefault();
   const rect = mapViewport.getBoundingClientRect();
   const x = event.clientX - rect.left - mapViewport.clientWidth / 2;
@@ -38,7 +117,7 @@ mapViewport.addEventListener('wheel', event => {
   fitMap();
 }, { passive: false });
 mapViewport.addEventListener('pointerdown', event => {
-  if (event.button !== 0 || !mapReady || drag || cameraDrag || event.target.closest('.token')) return;
+  if (event.button !== 0 || !mapReady || drag || cameraDrag || rulerActive || event.target.closest('.token')) return;
   event.preventDefault();
   cameraDrag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX, panY };
   mapViewport.setPointerCapture(event.pointerId);
@@ -295,6 +374,7 @@ function applyContentMode() {
   if (imageOnly) setNpcPicker(false);
   refreshNpcViews();
   updateAddTokenButton();
+  updateRulerAvailability();
 }
 
 function createToken(row, npc = false) {
@@ -579,6 +659,7 @@ removeTokenButton.addEventListener('click', () => editToken(tokens.get(gameIdent
 async function activateMap(mapId, refresh = false) {
   if (mapId === activeMapId && configReady && !refresh) return;
   const version = ++mapVersion;
+  setRulerActive(false);
   clearNpcs();
   setNpcStatus('');
   if (mapId !== activeMapId) resetCamera();
@@ -588,6 +669,7 @@ async function activateMap(mapId, refresh = false) {
   mapReady = false;
   savedCellSize = null;
   configRevision = 0;
+  updateRulerAvailability();
   cellSizeOutput.value = '';
   showMessage('info', '', cellSizeStatus);
   map.hidden = true;
@@ -761,16 +843,21 @@ function mapLoaded() {
   grid.style.display = contentMode === 'image' ? 'none' : '';
   mapSpace.style.width = `${map.naturalWidth}px`;
   mapSpace.style.height = `${map.naturalHeight}px`;
+  rulerOverlay.setAttribute('width', map.naturalWidth);
+  rulerOverlay.setAttribute('height', map.naturalHeight);
+  rulerOverlay.setAttribute('viewBox', `0 0 ${map.naturalWidth} ${map.naturalHeight}`);
   fitMap();
   renderGrid(document, grid, map.naturalWidth, map.naturalHeight, cellSize);
   mapStatus.textContent = `Mapa: ${map.naturalWidth} × ${map.naturalHeight} px. Souřadnice označují střed tokenu.`;
   for (const state of [...tokens.values(), ...npcs.values()]) render(state, state.saved);
   applyContentMode();
   updateAddTokenButton();
+  updateRulerAvailability();
 }
 map.addEventListener('load', mapLoaded);
 map.addEventListener('error', () => {
   mapReady = false;
+  updateRulerAvailability();
   for (const state of [...tokens.values(), ...npcs.values()]) state.element.hidden = true;
   updateAddTokenButton();
   console.error('Načtení obrázku mapy selhalo:', MAPS.find(entry => entry.id === activeMapId)?.src);
@@ -904,7 +991,7 @@ async function loadPosition(mapId = activeMapId, version = mapVersion) {
 }
 
 function beginDrag(state, event) {
-  if (contentMode === 'image' || event.button !== 0 || drag || !mapReady || !state.saved || state.busy || loading || !positionLoaded || !connected || !positionConnected || !configReady) return;
+  if (contentMode === 'image' || rulerActive || event.button !== 0 || drag || !mapReady || !state.saved || state.busy || loading || !positionLoaded || !connected || !positionConnected || !configReady) return;
   if (!leaderMode && (state.npc || state.id !== gameIdentity.character_id)) return;
   event.preventDefault();
   const rect = mapSpace.getBoundingClientRect();

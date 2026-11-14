@@ -14,7 +14,7 @@ const leader = gameUser?.role === 'leader' && Boolean(gameUser?.session_token);
 const ids = gameUser?.role === 'player' ? [gameUser.character_id] : [];
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
 const diceAvailable = ['player', 'leader'].includes(gameUser?.role) && Boolean(gameUser?.session_token);
-const tabs = [$('overview-tab'), $('inventory-tab')];
+const tabs = [$('overview-tab'), $('spells-tab'), $('inventory-tab')];
 let prepareInventorySwitch = () => {};
 function selectTab(index) {
   prepareInventorySwitch();
@@ -29,8 +29,11 @@ tabs.forEach((tab, i) => {
   tab.addEventListener('keydown', event => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
-    const index = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 :
-      (i + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    const available = tabs.map((candidate, index) => ({ candidate, index })).filter(({ candidate }) => !candidate.hidden);
+    const current = available.findIndex(({ index }) => index === i);
+    const target = event.key === 'Home' ? 0 : event.key === 'End' ? available.length - 1 :
+      (current + (event.key === 'ArrowRight' ? 1 : -1) + available.length) % available.length;
+    const index = available[target].index;
     selectTab(index);
     tabs[index].focus();
   });
@@ -97,6 +100,20 @@ function renderFeatures(character) {
     list.append(item);
   }
 }
+function renderSpells(character) {
+  const list = $('game-spells');
+  list.replaceChildren();
+  const spells = Array.isArray(character.spells) ? character.spells : [];
+  if (!spells.length) { list.textContent = 'Zatím nemáš zapsaná žádná kouzla.'; return; }
+  for (const spell of spells) {
+    const item = document.createElement('article'); item.className = 'game-spell';
+    const name = document.createElement('h3'); name.textContent = `${spell.english_name} (${spell.czech_name})`;
+    const level = document.createElement('p'); level.textContent = spell.level === 0 ? 'Trik (Cantrip)' : `Úroveň ${spell.level} (Level ${spell.level})`;
+    item.append(name, level);
+    if (spell.note) { const note = document.createElement('p'); note.textContent = spell.note; item.append(note); }
+    list.append(item);
+  }
+}
 let openPanel = null;
 function togglePanel(requested) {
   if (requested === 'scene' && !leader) return;
@@ -133,13 +150,18 @@ if (valid) {
         ? visibility.data.find(row => row.section_id === 'skills') : null;
       const featuresSetting = Array.isArray(visibility.data)
         ? visibility.data.find(row => row.section_id === 'features') : null;
+      const spellsSetting = Array.isArray(visibility.data)
+        ? visibility.data.find(row => row.section_id === 'spells') : null;
       if (!visibility.error && setting?.is_visible === true && abilitiesBlock) abilitiesBlock.hidden = false;
       if (!visibility.error && skillsSetting?.is_visible === true) $('game-skills').hidden = false;
       if (!visibility.error && featuresSetting?.is_visible === true) $('game-features').hidden = false;
+      if (!visibility.error && spellsSetting?.is_visible === true) $('spells-tab').hidden = false;
+      else $('spells-tab').hidden = true;
     } catch { /* Keep abilities hidden if visibility cannot be loaded. */ }
     const character = await loadCharacter(db, ids[0].toLowerCase(), gameUser.session_token);
     if (!$('game-skills').hidden) renderSkills(character);
     if (!$('game-features').hidden) renderFeatures(character);
+    if (!$('spells-tab').hidden) renderSpells(character);
     $('game-character-name').textContent = character.name ?? 'Postava';
     $('compact-ac').textContent = character.ac ?? '—';
     $('compact-level').textContent = character.level ?? '—';

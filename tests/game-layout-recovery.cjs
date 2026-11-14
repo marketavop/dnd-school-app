@@ -121,8 +121,8 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('#compact-level').textContent(), '6');
     assert.equal(await page.locator('#compact-initiative').textContent(), '0');
     assert.equal(await page.locator('footer, .dice-bar').count(), 0);
-    assert.equal(await page.locator('[role="tab"]').count(), 2);
-    assert.deepEqual(await page.getByRole('tab', {includeHidden:true}).allTextContents(), ['Přehled', 'Inventář']);
+    assert.equal(await page.locator('[role="tab"]').count(), 3);
+    assert.deepEqual(await page.getByRole('tab', {includeHidden:true}).allTextContents(), ['Přehled', 'Kouzla (Spells)', 'Inventář']);
     assert.equal(await page.locator('#overview-tab').getAttribute('aria-selected'), 'true');
     await page.locator('#game-character-name').click();
     await page.getByRole('tab', {name:'Inventář', exact:true}).click();

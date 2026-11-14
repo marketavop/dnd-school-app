@@ -2,11 +2,15 @@
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
+const gameCss = readFileSync('public/game.css', 'utf8');
+assert.match(gameCss, /#ruler-toggle\[aria-pressed="true"\][^{]*\{[^}]*color:\s*#fffdf8[^}]*background:\s*#1d3553[^}]*border-color:\s*#c2a05b/);
+assert.match(gameCss, /#ruler-toggle\[aria-pressed="true"\]:focus-visible\s*\{[^}]*outline-color:\s*#e3c57d/);
 const elements = {};
 for (const id of ['scene-npcs', 'scene-npcs-list', 'scene-npcs-empty', 'scene-npcs-status', 'scene-npc-picker', 'scene-npc-add', 'scene-npc-options', 'scene-npc-picker-empty', 'scene-npc-cancel', 'scene-npc-form', 'scene-npc-name', 'scene-npc-image', 'scene-npc-save', 'scene-npc-create', 'scene-npc-close', 'scene-npc-create-status']) elements[id] = { setAttribute() {}, addEventListener() {}, replaceChildren() {} };
-for (const id of ['scene-players', 'scene-players-list', 'map', 'map-space', 'map-status', 'grid', 'token', 'status', 'connection', 'position', 'cell-size', 'cell-size-error', 'cell-size-status', 'map-select', 'active-map-status', 'add-token', 'add-token-message', 'remove-token', 'remove-token-message']) {
-  elements[id] = { style: {}, hidden: true, handlers: {},
-    setAttribute() {},
+for (const id of ['scene-players', 'scene-players-list', 'map', 'map-space', 'map-status', 'grid', 'token', 'status', 'connection', 'position', 'cell-size', 'cell-size-error', 'cell-size-status', 'map-select', 'active-map-status', 'add-token', 'add-token-message', 'remove-token', 'remove-token-message', 'ruler-toggle', 'ruler-overlay', 'ruler-line', 'ruler-distance']) {
+  elements[id] = { style: {}, hidden: true, handlers: {}, attributes: {},
+    setAttribute(name, value) { this.attributes[name] = String(value); if (name === 'hidden') this.hidden = true; },
+    removeAttribute(name) { delete this.attributes[name]; if (name === 'hidden') this.hidden = false; },
     classList: { add() {}, remove() {} }, setPointerCapture() {}, releasePointerCapture() {},
     addEventListener(type, handler) { this.handlers[type] = handler; } };
 }
@@ -25,8 +29,12 @@ Object.assign(elements.grid, { attributes: {}, children: [],
   replaceChildren() { this.children = []; },
   append(child) { this.children.push(child); } });
 let resizeMap;
-elements['map-viewport'] = { clientWidth: 2000, clientHeight: 2000, handlers: {},
-  addEventListener(type, fn) { this.handlers[type] = fn; },
+elements['map-viewport'] = { clientWidth: 2000, clientHeight: 2000, handlers: {}, captureHandlers: {},
+  addEventListener(type, fn, options) { (options?.capture ? this.captureHandlers : this.handlers)[type] = fn; },
+  dispatchPointer(type, event) {
+    this.captureHandlers[type]?.(event);
+    if (!event.propagationStopped) this.handlers[type]?.(event);
+  },
   getBoundingClientRect() { return { left: 0, top: 0 }; },
   classList: { add() {}, remove() {} }, setPointerCapture() {}, hasPointerCapture() { return false; } };
 elements['fit-map'] = { addEventListener(type, fn) { this.click = fn; } };
@@ -49,7 +57,10 @@ const context = vm.createContext({ ResizeObserver, URLSearchParams, window: { pa
     setAttribute(name, value) { this.attributes[name] = String(value); } }; },
 } });
 // Zachováme skutečné handlery; síťový bootstrap nahradíme testovací DB.
-const source = (readFileSync('public/grid.js', 'utf8').replace('export ', '') + readFileSync('public/app.js', 'utf8').replace("import { portraitImageUrl, uploadPortrait } from './portrait-api.js';", '').replace("import { renderGrid } from './grid.js';", '')).replace(/\r\n/g, '\n').split('\ntry {\n  const { SUPABASE_URL')[0];
+const source = (readFileSync('public/grid.js', 'utf8').replace('export ', '')
+  + readFileSync('public/ruler.js', 'utf8').replace(/export /g, '')
+  + readFileSync('public/app.js', 'utf8').replace("import { portraitImageUrl, uploadPortrait } from './portrait-api.js';", '').replace("import { renderGrid } from './grid.js';", '').replace("import { cellCenter, measureDistanceFeet, pointerToCell } from './ruler.js';", ''))
+  .replace(/\r\n/g, '\n').split('\ntry {\n  const { SUPABASE_URL')[0];
 vm.runInContext(source.replace("import { configureMapImageUrl, resolveMapImage } from './map-image.js';", '') + "\nconst testState = createToken({ character_id: gameIdentity.character_id, name: 'Test' });", context);
 elements.token = vm.runInContext('testState.element', context);
 const input = elements['cell-size'];
@@ -78,12 +89,38 @@ assert.equal(elements.token.style.left, '100px');
 assert.equal(elements.token.style.top, '100px');
 assert.equal(elements['map-space'].style.width, '1536px');
 assert.equal(elements['map-space'].style.height, '1024px');
+assert.equal(elements['ruler-overlay'].attributes.width, '1536');
+assert.equal(elements['ruler-overlay'].attributes.height, '1024');
+assert.equal(elements['ruler-overlay'].attributes.viewBox, '0 0 1536 1024');
 assert.equal(elements.grid.attributes.width, '1536');
 assert.equal(elements.grid.attributes.height, '1024');
 assert.equal(elements.grid.children.length, 27);
 assert.deepEqual(elements.grid.children[0].attributes, { x1: '0', y1: '0', x2: '0', y2: '1024' });
 assert.deepEqual(elements.grid.children[15].attributes, { x1: '1500', y1: '0', x2: '1500', y2: '1024' });
 assert.deepEqual(elements.grid.children[26].attributes, { x1: '0', y1: '1000', x2: '1536', y2: '1000' });
+assert.equal(elements['ruler-toggle'].hidden, false);
+assert.equal(elements['ruler-toggle'].disabled, false);
+const rulerEvent = (x, y) => ({ button: 0, pointerId: 7, pointerType: 'mouse', clientX: x, clientY: y,
+  target: { closest: () => null }, preventDefault() {}, stopPropagation() { this.propagationStopped = true; } });
+elements['ruler-toggle'].handlers.click();
+elements['map-viewport'].dispatchPointer('pointerdown', rulerEvent(rect.left + 150, rect.top + 250));
+elements['map-viewport'].dispatchPointer('pointermove', rulerEvent(rect.left + 450, rect.top + 650));
+assert.equal(elements['ruler-overlay'].hidden, false);
+assert.equal(elements['ruler-overlay'].attributes.hidden, undefined);
+assert.deepEqual(elements['ruler-line'].attributes, { x1: '150', y1: '250', x2: '450', y2: '650' });
+assert.equal(elements['ruler-distance'].textContent, '20 ft');
+assert.equal(vm.runInContext('cameraDrag', context), null, 'Pravítko nesmí spustit panování');
+elements['map-viewport'].dispatchPointer('pointerup', rulerEvent(rect.left + 450, rect.top + 650));
+assert.equal(elements['ruler-overlay'].hidden, true);
+assert.equal(elements['ruler-overlay'].attributes.hidden, '');
+assert.equal(elements['ruler-toggle'].attributes['aria-pressed'], 'true');
+// Režim zůstává zapnutý a další měření je možné bez dalšího kliknutí.
+elements['map-viewport'].dispatchPointer('pointerdown', rulerEvent(rect.left + 150, rect.top + 250));
+elements['map-viewport'].dispatchPointer('pointermove', rulerEvent(rect.left + 250, rect.top + 350));
+assert.equal(elements['ruler-distance'].textContent, '5 ft');
+elements['map-viewport'].dispatchPointer('pointercancel', rulerEvent(rect.left + 250, rect.top + 350));
+elements['ruler-toggle'].handlers.click();
+assert.equal(elements['ruler-toggle'].attributes['aria-pressed'], 'false');
 const event = (x, y) => ({ button: 0, pointerId: 1, clientX: x, clientY: y, preventDefault() {} });
 const h = elements.token.handlers;
 const point = () => [parseFloat(elements.token.style.left), parseFloat(elements.token.style.top)];

@@ -1,12 +1,14 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.17
+**Verze:** 1.1.18
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
 
-### Změny ve verzi 1.1.17
+### Změny ve verzi 1.1.18
+
+- Pravítko se přesouvá z priority **Později** do MVP. Zůstává omezené na lokální měření po polích; dotykové ovládání přes pointer události je součástí požadavku pro mobily a tablety.
 
 - první obsahová sada Studijní příručky je implementovaná a ověřená: 8 ras, 12 povolání a 13 zázemí, celkem 33 témat D&D 5e (2014),
 - příručka používá kompaktní přehled kategorií, krátké dětské kartičky a rozbalitelné podrobnosti,
@@ -1242,7 +1244,6 @@ V MVP nemáme:
 -   grid offset,
 -   rotaci gridu,
 -   autodetekci,
--   measurement tools,
 -   map drawing,
 -   fog of war,
 -   lights,
@@ -1251,7 +1252,7 @@ V MVP nemáme:
 
 ------------------------------------------------------------------------
 
-### Pravítko — Později (schválené chování, neimplementovat v MVP)
+### Pravítko — MVP
 
 Jednoduchá pomůcka pro **libovolné měření vzdáleností** na mapě pro hráče i
 Vedoucího. Slouží například k orientačnímu měření pohybu, dosahu útoků nebo
@@ -1259,8 +1260,9 @@ kouzel; aplikace sama nerozhoduje, zda je akce podle pravidel možná.
 
 - Pravítko je dostupné pouze v režimu obsahu `map`, kde existuje čtvercová mřížka.
 - **1 pole = 5 ft** bez ohledu na rozměry pole v pixelech.
-- Uživatel zapne nástroj Pravítko, stiskne tlačítko myši na mapě a táhne ke
-  koncovému poli. Oba konce se přichytávají ke **středům polí**.
+- Uživatel zapne nástroj Pravítko, stiskne ukazatel na mapě a táhne ke
+  koncovému poli. Oba konce se přichytávají ke **středům polí**. Funguje
+  s myší i dotykem pomocí pointer událostí.
 - Během tažení se zobrazuje jednoduchá čára a vzdálenost ve ft, vždy v
   násobcích 5 ft (bez desetinného měření).
 - Platí jednoduché diagonální počítání D&D 5e (2014): diagonální posun o
@@ -1270,8 +1272,8 @@ kouzel; aplikace sama nerozhoduje, zda je akce podle pravidel možná.
   zůstává zapnutý pro další měření, dokud jej uživatel nevypne.
 - Měření je lokální: **bez databáze, ukládání a realtime synchronizace**.
   Nesmí přesouvat tokeny, validovat rychlost nebo dosah ani měnit sdílený stav.
-- Při pozdější implementaci využít existující mřížku a převody souřadnic
-  kompatibilní s lokálním zoomem/panem; nevytvářet druhý systém souřadnic.
+- Pravítko využívá existující mřížku a převody souřadnic kompatibilní s
+  lokálním zoomem/panem; nevytváří druhý systém souřadnic.
 
 Mimo tento návrh zůstávají trasy s více body, geometrické měření v pixelech,
 konfigurovatelné jednotky, sdílené kresby a automatická pravidlová validace.
@@ -1837,7 +1839,6 @@ Aktuálně sem patří například:
 -   temporary HP,
 -   pinch zoom a fullscreen mapy,
 -   různé velikosti NPC tokenů,
--   **Pravítko pro měření vzdálenosti po polích** podle schváleného návrhu v §23,
 -   další témata Studijní příručky podle průběhu session a případné
     vyhledávání či další navigační pomůcky podle skutečné potřeby (§14),
 -   další pohodlné funkce potvrzené reálnou potřebou.
