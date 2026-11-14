@@ -6,14 +6,36 @@ import { renderBasicMarkdown } from './markdown.js';
 import { CHARACTER_SECTIONS } from './character-sections.js';
 
 const RACES = new Map([
-  ['human', 'Člověk'], ['elf', 'Elf'], ['halfling', 'Půlčík'], ['dwarf', 'Trpaslík'],
-  ['gnome', 'Gnóm'], ['half_elf', 'Půlelf'], ['half_orc', 'Půlork'], ['tiefling', 'Tiefling'],
+  ['human', 'Člověk (Human)'], ['elf', 'Elf (Elf)'], ['halfling', 'Půlčík (Halfling)'], ['dwarf', 'Trpaslík (Dwarf)'],
+  ['gnome', 'Gnóm (Gnome)'], ['half_elf', 'Půlelf (Half-Elf)'], ['half_orc', 'Půlork (Half-Orc)'], ['tiefling', 'Tiefling (Tiefling)'],
+]);
+const SUBRACES = new Map([
+  ['dwarf', new Map([['hill_dwarf', 'Kopcový trpaslík (Hill Dwarf)'], ['mountain_dwarf', 'Horský trpaslík (Mountain Dwarf)']])],
+  ['elf', new Map([['high_elf', 'Vznešený elf (High Elf)'], ['wood_elf', 'Lesní elf (Wood Elf)'], ['drow', 'Temný elf / Drow (Dark Elf)']])],
+  ['halfling', new Map([['lightfoot_halfling', 'Půlčík tichošlápek (Lightfoot Halfling)'], ['stout_halfling', 'Půlčík pořízek (Stout Halfling)']])],
+  ['gnome', new Map([['forest_gnome', 'Lesní gnóm (Forest Gnome)'], ['rock_gnome', 'Skalní gnóm (Rock Gnome)']])],
 ]);
 const CLASSES = new Map([
-  ['barbarian', 'Barbar'], ['bard', 'Bard'], ['cleric', 'Klerik'], ['druid', 'Druid'],
-  ['fighter', 'Bojovník'], ['monk', 'Mnich'], ['paladin', 'Paladin'], ['ranger', 'Hraničář'],
-  ['rogue', 'Tulák'], ['sorcerer', 'Čaroděj'], ['warlock', 'Černokněžník'], ['wizard', 'Kouzelník'],
+  ['barbarian', 'Barbar (Barbarian)'], ['bard', 'Bard (Bard)'], ['cleric', 'Klerik (Cleric)'], ['druid', 'Druid (Druid)'],
+  ['fighter', 'Bojovník (Fighter)'], ['monk', 'Mnich (Monk)'], ['paladin', 'Paladin (Paladin)'], ['ranger', 'Hraničář (Ranger)'],
+  ['rogue', 'Tulák (Rogue)'], ['sorcerer', 'Čaroděj (Sorcerer)'], ['warlock', 'Černokněžník (Warlock)'], ['wizard', 'Kouzelník (Wizard)'],
 ]);
+const BACKGROUNDS = new Map([
+  ['Acolyte', 'Akolyta (Acolyte)'], ['Charlatan', 'Šarlatán (Charlatan)'], ['Criminal', 'Zločinec (Criminal)'],
+  ['Entertainer', 'Umělec (Entertainer)'], ['Folk Hero', 'Lidový hrdina (Folk Hero)'], ['Guild Artisan', 'Cechovní řemeslník (Guild Artisan)'],
+  ['Hermit', 'Poustevník (Hermit)'], ['Noble', 'Šlechtic (Noble)'], ['Outlander', 'Poutník z divočiny (Outlander)'],
+  ['Sage', 'Učenec (Sage)'], ['Sailor', 'Námořník (Sailor)'], ['Soldier', 'Voják (Soldier)'], ['Urchin', 'Dítě ulice (Urchin)'],
+]);
+
+function backgroundLabel(value) {
+  return value == null ? null : BACKGROUNDS.get(value) ?? value;
+}
+
+function backgroundValue(value) {
+  if (value == null) return value;
+  for (const [stored, display] of BACKGROUNDS) if (value === display) return stored;
+  return value;
+}
 const status = document.querySelector('#load-status');
 const card = document.querySelector('#student-card');
 const ids = new URLSearchParams(window.location.search).getAll('character_id');
@@ -365,7 +387,7 @@ async function setupPortrait(character, reload) {
 }
 
 function setupTabs() {
-  const names = ['card', 'inventory', 'notes'];
+  const names = ['card', 'spells', 'inventory', 'notes'];
   const tabs = names.map(name => document.querySelector('#tab-' + name));
   const panels = names.map(name => document.querySelector('#panel-' + name));
   let active = 0;
@@ -384,14 +406,99 @@ function setupTabs() {
     tab.addEventListener('keydown', event => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
-      const index = event.key === 'Home' ? 0 : event.key === 'End' ? 2 :
-        (i + (event.key === 'ArrowRight' ? 1 : -1) + 3) % 3;
+      const index = event.key === 'Home' ? 0 : event.key === 'End' ? names.length - 1 :
+        (i + (event.key === 'ArrowRight' ? 1 : -1) + names.length) % names.length;
       select(index);
       tabs[index].focus();
     });
   });
-  select(new URLSearchParams(window.location.search).get('tab') === 'inventory' ? 1 : 0);
+  const requested = new URLSearchParams(window.location.search).get('tab');
+  select(names.indexOf(requested) >= 0 ? names.indexOf(requested) : 0);
   document.querySelector('#student-pages').hidden = false;
+}
+
+function setupSpells(db, character) {
+  const section = document.querySelector('#spells');
+  if (!section) return;
+  const list = document.querySelector('#character-spells');
+  const form = document.querySelector('#spells-form');
+  const title = document.querySelector('#spells-form-title');
+  const english = document.querySelector('#spell-english-name');
+  const czech = document.querySelector('#spell-czech-name');
+  const level = document.querySelector('#spell-level');
+  const note = document.querySelector('#spell-note');
+  const save = document.querySelector('#spell-save');
+  const cancel = document.querySelector('#spell-cancel');
+  const error = document.querySelector('#spells-error');
+  const status = document.querySelector('#spells-status');
+  let editingIndex = null, busy = false;
+  const spells = () => Array.isArray(character.spells) ? character.spells : [];
+  function reset() {
+    editingIndex = null;
+    form.reset();
+    level.value = '0';
+    title.textContent = 'Přidat kouzlo';
+    save.textContent = 'Přidat kouzlo';
+    cancel.hidden = true;
+    error.textContent = '';
+  }
+  function render() {
+    list.replaceChildren();
+    if (!spells().length) list.textContent = 'Zatím nemáš zapsaná žádná kouzla.';
+    for (const [index, spell] of spells().entries()) {
+      const item = document.createElement('article'); item.className = 'spell-entry';
+      const heading = document.createElement('h3'); heading.textContent = `${spell.english_name} (${spell.czech_name})`;
+      const spellLevel = document.createElement('p'); spellLevel.textContent = spell.level === 0 ? 'Trik (Cantrip)' : `Úroveň ${spell.level} (Level ${spell.level})`;
+      item.append(heading, spellLevel);
+      if (spell.note) { const paragraph = document.createElement('p'); paragraph.textContent = spell.note; item.append(paragraph); }
+      if (!readOnly) {
+        const actions = document.createElement('div'); actions.className = 'spell-actions';
+        const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Upravit';
+        edit.addEventListener('click', () => {
+          editingIndex = index;
+          english.value = spell.english_name; czech.value = spell.czech_name; level.value = String(spell.level); note.value = spell.note;
+          title.textContent = 'Upravit kouzlo'; save.textContent = 'Uložit změny'; cancel.hidden = false; error.textContent = '';
+          english.focus();
+        });
+        const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Odstranit';
+        remove.addEventListener('click', async () => { await persist(spells().filter((_, itemIndex) => itemIndex !== index)); });
+        actions.append(edit, remove); item.append(actions);
+      }
+      list.append(item);
+    }
+    form.hidden = readOnly;
+    section.hidden = false;
+    if (readOnly) status.textContent = 'Pouze pro čtení';
+  }
+  function candidate() {
+    return { english_name: english.value.trim(), czech_name: czech.value.trim(), level: Number(level.value), note: note.value };
+  }
+  function valid(spell) {
+    return spell.english_name.length > 0 && spell.english_name.length <= 100
+      && spell.czech_name.length > 0 && spell.czech_name.length <= 100
+      && Number.isInteger(spell.level) && spell.level >= 0 && spell.level <= 9 && spell.note.length <= 2000;
+  }
+  async function persist(next) {
+    if (busy) return false;
+    busy = true; save.disabled = cancel.disabled = true; status.textContent = 'Ukládám…'; error.textContent = '';
+    try {
+      const updated = await updateCharacterField(db, character.id, 'spells', next, playerSessionToken);
+      character.spells = updated.spells;
+      status.textContent = 'Uloženo'; reset(); render(); return true;
+    } catch {
+      error.textContent = 'Nepodařilo se uložit. Rozepsané údaje zůstaly zachované.';
+      status.textContent = 'Nepodařilo se uložit'; return false;
+    } finally { busy = false; save.disabled = cancel.disabled = false; }
+  }
+  form.addEventListener('submit', async event => {
+    event.preventDefault(); const spell = candidate();
+    if (!valid(spell)) { error.textContent = 'Vyplň oba názvy a zvol úroveň 0 až 9.'; return; }
+    const next = [...spells()];
+    if (editingIndex === null) next.push(spell); else next[editingIndex] = spell;
+    await persist(next);
+  });
+  cancel.addEventListener('click', reset);
+  render();
 }
 
 function setupInventory(db, character) {
@@ -728,8 +835,9 @@ function enableEditing(db, character) {
   const fields = [
     { key: 'name', slot: 'name' },
     { key: 'race_code', slot: 'race', choices: RACES },
+    { key: 'subrace_code', slot: 'subrace', choices: new Map(), subrace: true },
     { key: 'class_code', slot: 'class', choices: CLASSES },
-    { key: 'background', slot: 'background', text: true },
+    { key: 'background', slot: 'background', text: true, display: backgroundLabel, normalize: backgroundValue },
     { key: 'level', slot: 'level' },
     { key: 'xp', slot: 'xp', resource: true },
     { key: 'ac', slot: 'ac', resource: true },
@@ -748,6 +856,15 @@ function enableEditing(db, character) {
   delta.value = '1';
   const hpError = document.querySelector('#hp-error');
   const thresholds = [null, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+  const emptyChoices = new Map();
+  const subraceChoices = () => SUBRACES.get(character.race_code) ?? emptyChoices;
+  const subraceField = fields.find(field => field.subrace);
+  function syncSubrace() {
+    const choices = subraceChoices();
+    document.querySelector('#subrace-field').hidden = choices.size === 0;
+    subraceField.setChoices?.(choices);
+    showValue('#character-subrace', label(character.subrace_code, choices, 'Neznámá podrasa'));
+  }
   function refreshResources() {
     for (const key of ['xp', 'current_hp', 'max_hp']) showValue(`#character-${key}`, character[key]);
     const bonus = proficiencyBonus(character.level);
@@ -813,22 +930,29 @@ function enableEditing(db, character) {
     const input = field.input = document.querySelector(`#edit-${field.slot}`);
     const error = document.querySelector(`#error-${field.slot}`);
     if (field.choices) {
-      for (const [value, text] of [['', '— nevybráno —'], ...field.choices]) {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = text;
-        input.append(option);
-      }
-      // Neznámý uložený kód nesmí pouhým blur zmizet nebo se změnit na NULL.
-      if (character[field.key] != null && !field.choices.has(character[field.key])) {
-        const option = document.createElement('option');
-        option.value = character[field.key];
-        option.textContent = 'Neznámá uložená hodnota';
-        option.disabled = true;
-        input.append(option);
-      }
+      field.setChoices = choices => {
+        field.choices = choices;
+        input.replaceChildren();
+        const placeholder = field.subrace ? 'Vyber podrasu' : '— nevybráno —';
+        for (const [value, text] of [['', placeholder], ...field.choices]) {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = text;
+          input.append(option);
+        }
+        // Neznámý uložený kód nesmí pouhým blur zmizet nebo se změnit na NULL.
+        if (character[field.key] != null && !field.choices.has(character[field.key])) {
+          const option = document.createElement('option');
+          option.value = character[field.key];
+          option.textContent = 'Neznámá uložená hodnota';
+          option.disabled = true;
+          input.append(option);
+        }
+        input.value = character[field.key] ?? '';
+      };
+      field.setChoices(field.subrace ? subraceChoices() : field.choices);
     }
-    input.value = character[field.key] ?? '';
+    input.value = field.display ? field.display(character[field.key]) ?? '' : character[field.key] ?? '';
     if (field.ability) {
       input.readOnly = true;
       input.tabIndex = -1;
@@ -859,7 +983,7 @@ function enableEditing(db, character) {
       } else if (field.text) {
         // Count Unicode code points like PostgreSQL char_length, including emoji.
         if (field.key === 'background' && [...value].length > 100) message = 'Zázemí může mít nejvýše 100 znaků.';
-        value = value === '' ? null : value;
+        value = value === '' ? null : field.normalize ? field.normalize(value) : value;
       } else if (field.resource) {
         value = value === '' ? null : Number(value);
         const minimum = 0;
@@ -905,7 +1029,7 @@ function enableEditing(db, character) {
           updateStatus();
           return;
         }
-        input.value = character[field.key] ?? '';
+        input.value = field.display ? field.display(character[field.key]) ?? '' : character[field.key] ?? '';
         showModifier(character[field.key]);
         return;
       }
@@ -924,12 +1048,17 @@ function enableEditing(db, character) {
         }
         // Jiný souběžný zápis mohl vrátit starší hodnoty ostatních polí.
         character[field.key] = updated[field.key];
-        input.value = character[field.key] ?? '';
+        input.value = field.display ? field.display(character[field.key]) ?? '' : character[field.key] ?? '';
+        if (field.key === 'race_code') {
+          // Authorized RPC clears this in the same UPDATE only when the race actually changed.
+          character.subrace_code = updated.subrace_code ?? null;
+          syncSubrace();
+        }
         showModifier(character[field.key]);
         if (field.key === 'level' || field.key === 'class_code') {
           for (const ability of fields) ability.refreshSave?.();
         }
-        const display = field.choices ? label(updated[field.key], field.choices, 'Neznámá hodnota') : updated[field.key];
+        const display = field.choices ? label(updated[field.key], field.choices, 'Neznámá hodnota') : field.display ? field.display(updated[field.key]) : updated[field.key];
         if (!field.ability) showValue(`#character-${field.slot}`, display);
       } catch {
         // Technický detail loguje datová vrstva.
@@ -945,6 +1074,7 @@ function enableEditing(db, character) {
       }
     });
   }
+  syncSubrace();
   if (readOnly) {
     toggle.hidden = true;
     toggle.disabled = true;
@@ -969,6 +1099,7 @@ function enableEditing(db, character) {
       field.input.hidden = !editable;
       document.querySelector(`#character-${field.slot}`).hidden = editable;
     }
+    document.querySelector('#subrace-field').hidden = subraceChoices().size === 0;
     document.querySelector('#edit-icon').hidden = editing;
     document.querySelector('#close-icon').hidden = !editing;
     toggle.setAttribute('aria-pressed', String(editing));
@@ -1024,13 +1155,17 @@ if (!ids.length) {
     }
     showValue('#character-name', character.name);
     showValue('#character-race', label(character.race_code, RACES, 'Neznámá rasa'));
+    const subraceChoices = SUBRACES.get(character.race_code) ?? new Map();
+    document.querySelector('#subrace-field').hidden = subraceChoices.size === 0;
+    showValue('#character-subrace', label(character.subrace_code, subraceChoices, 'Neznámá podrasa'));
     showValue('#character-class', label(character.class_code, CLASSES, 'Neznámé povolání'));
-    showValue('#character-background', character.background);
+    showValue('#character-background', backgroundLabel(character.background));
     showValue('#character-level', character.level);
     showValue('#character-ac', character.ac);
     showValue('#character-ac_note', character.ac_note);
     setupDiceRoller();
     enableEditing(db, character);
+    setupSpells(db, character);
     setupInventory(db, character);
     setupNotes(db, character);
     setupStoryBackground(db, character);

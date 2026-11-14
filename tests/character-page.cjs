@@ -15,12 +15,18 @@ const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'u
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
 const abilityKeys = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
-const base = { id, name: 'Eliška', background: null, story_background: null, inventory: null, notes: null, race_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
+const backgroundLabels = new Map([
+  ['Acolyte', 'Akolyta (Acolyte)'], ['Charlatan', 'Šarlatán (Charlatan)'], ['Criminal', 'Zločinec (Criminal)'],
+  ['Entertainer', 'Umělec (Entertainer)'], ['Folk Hero', 'Lidový hrdina (Folk Hero)'], ['Guild Artisan', 'Cechovní řemeslník (Guild Artisan)'],
+  ['Hermit', 'Poustevník (Hermit)'], ['Noble', 'Šlechtic (Noble)'], ['Outlander', 'Poutník z divočiny (Outlander)'],
+  ['Sage', 'Učenec (Sage)'], ['Sailor', 'Námořník (Sailor)'], ['Soldier', 'Voják (Soldier)'], ['Urchin', 'Dítě ulice (Urchin)'],
+]);
+const base = { id, name: 'Eliška', background: null, story_background: null, inventory: null, notes: null, spells: [], race_code: null, subrace_code: null, class_code: null, level: null, portrait_path: null, ac: null, ac_note: null, xp: null, current_hp: null, max_hp: null,
   ...Object.fromEntries(abilityKeys.map(key => [key, null])) };
 
 async function page(query, row = base, error = null, leader = false, authorized = true, portraitControl = {}, visibilityRows = [{ section_id: 'abilities', is_visible: true }]) {
-  const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race',
-    'skills', 'character-skills', 'skills-status', 'skills-retry', 'features', 'character-features', 'features-form', 'features-form-title', 'feature-name', 'feature-note', 'feature-save', 'feature-cancel', 'feature-error', 'features-status', 'student-pages', 'tab-card', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-inventory', 'panel-notes', 'game-link', 'game-navigation-status',
+  const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race', 'subrace-field', 'character-subrace',
+    'skills', 'character-skills', 'skills-status', 'skills-retry', 'features', 'character-features', 'features-form', 'features-form-title', 'feature-name', 'feature-note', 'feature-save', 'feature-cancel', 'feature-error', 'features-status', 'student-pages', 'tab-card', 'tab-spells', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-spells', 'panel-inventory', 'panel-notes', 'spells', 'character-spells', 'spells-form', 'spells-form-title', 'spell-english-name', 'spell-czech-name', 'spell-level', 'spell-note', 'spell-save', 'spell-cancel', 'spells-error', 'spells-status', 'game-link', 'game-navigation-status',
     'story-background', 'story-background-toggle', 'character-story-background', 'edit-story-background', 'story-background-status', 'error-story-background', 'story-background-hint', 'story-background-count',
     'inventory-hint', 'inventory-count', 'inventory-help', 'notes-hint', 'notes-count', 'notes-help',
     'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
@@ -28,9 +34,9 @@ async function page(query, row = base, error = null, leader = false, authorized 
     'portrait-controls', 'portrait-upload', 'portrait-remove', 'portrait-file', 'portrait-status',
     'character-class', 'character-level', 'character-proficiency-bonus', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'dice-toggle', 'dice-dialog', 'dice-title', 'dice-close', 'dice-result', 'dice-reroll', ...[4, 6, 8, 10, 12, 20].map(sides => `dice-d${sides}`),
-    'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
+    'edit-name', 'edit-race', 'edit-subrace', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-subrace', 'error-class', 'error-level',
     'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['background', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
-    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'edit-name', 'edit-race', 'edit-class', 'edit-level', 'edit-background', 'close-icon', 'inventory-help', 'notes-help', 'inventory-count', 'notes-count', 'feature-cancel', 'skills-retry'].includes(key), dataset: {}, handlers: {},
+    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'subrace-field', 'edit-name', 'edit-race', 'edit-subrace', 'edit-class', 'edit-level', 'edit-background', 'close-icon', 'inventory-help', 'notes-help', 'inventory-count', 'notes-count', 'feature-cancel', 'spell-cancel', 'skills-retry'].includes(key), dataset: {}, handlers: {},
     value: '', disabled: false, validity: { badInput: false }, children: [], attributes: {},
     append(option) { this.children.push(option); },
     removeAttribute(key) { if (key === 'src') delete this.src; delete this.attributes[key]; },
@@ -39,6 +45,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     showModal() { this.open = true; },
     close() { this.open = false; },
     focus() { this.focused = true; },
+    reset() { this.resetCalled = true; },
     setAttribute(key, value) { this.attributes[key] = value; },
     addEventListener(event, handler) { this.handlers[event] = handler; },
   }]));
@@ -64,7 +71,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   }
   elements.features.hidden = true;
   elements.skills.hidden = true;
-  for (const key of ['character-skills', 'character-features', 'character-inventory', 'character-notes']) elements[key] = node();
+  for (const key of ['character-skills', 'character-features', 'character-inventory', 'character-notes', 'character-spells']) elements[key] = node();
   for (const key of ['inventory-help', 'notes-help']) {
     elements[key].summary = node('summary', 'Jak upravit text?');
     elements[key].contains = target => target === elements[key].summary;
@@ -95,6 +102,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
       if (control.wait) await control.wait;
       if (control.error) return { data: null, error: control.error };
       const next = { ...row, ...patch };
+      if (Object.hasOwn(patch, 'race_code') && patch.race_code !== row.race_code) next.subrace_code = null;
       if (Object.hasOwn(patch, 'max_hp') && next.max_hp !== null && next.current_hp > next.max_hp) next.current_hp = next.max_hp;
       if (next.current_hp < 0 || next.max_hp < 0 || (next.current_hp !== null && next.max_hp !== null && next.current_hp > next.max_hp)) {
         return { data: null, error: { code: '23514' } };
@@ -165,7 +173,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
       els['game-link'].handlers.click({preventDefault() { prevented = true; }});
       return prevented;
     };
-    for (const tab of ['card', 'inventory', 'notes']) {
+    for (const tab of ['card', 'spells', 'inventory', 'notes']) {
       els['tab-' + tab].handlers.click();
       assert.equal(els['game-link'].hidden, false);
       assert.equal(blocked(), false);
@@ -181,10 +189,11 @@ async function page(query, row = base, error = null, leader = false, authorized 
     els['inventory-status'].dataset.error = 'true';
     assert.equal(blocked(), true, 'failed save keeps the diary open');
   }
-  for (const tab of ['inventory', 'unknown']) {
+  for (const tab of ['spells', 'inventory', 'unknown']) {
     const view = await page(`?character_id=${id}&tab=${tab}`, {...base}, null, false, true);
     assert.equal(view.elements['panel-inventory'].hidden, tab !== 'inventory');
-    assert.equal(view.elements['panel-card'].hidden, tab === 'inventory');
+    assert.equal(view.elements['panel-spells'].hidden, tab !== 'spells');
+    assert.equal(view.elements['panel-card'].hidden, ['inventory', 'spells'].includes(tab));
   }
   // Dice roller: opens independently, rolls each die, repeats the previous die, and closes.
   {
@@ -209,7 +218,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     const view = await page(`?${leader ? 'mode=leader&' : ''}character_id=${id}`, { ...base }, null, leader, !leader);
     const els = view.elements;
     function active(name) {
-      for (const other of ['card', 'inventory', 'notes']) {
+      for (const other of ['card', 'spells', 'inventory', 'notes']) {
         assert.equal(els[`panel-${other}`].hidden, other !== name);
         assert.equal(els[`tab-${other}`].attributes['aria-selected'], String(other === name));
         assert.equal(els[`tab-${other}`].tabIndex, other === name ? 0 : -1);
@@ -217,10 +226,10 @@ async function page(query, row = base, error = null, leader = false, authorized 
     }
     active('card');
     const reads = view.reads + view.leaderReads;
-    for (const name of ['inventory', 'notes', 'card']) {
+    for (const name of ['spells', 'inventory', 'notes', 'card']) {
       els[`tab-${name}`].handlers.click(); active(name);
     }
-    for (const [from, key, to] of [['card','ArrowRight','inventory'], ['inventory','End','notes'],
+    for (const [from, key, to] of [['card','ArrowRight','spells'], ['spells','ArrowRight','inventory'], ['inventory','End','notes'],
       ['notes','ArrowRight','card'], ['card','ArrowLeft','notes'], ['notes','Home','card']]) {
       let prevented = false;
       els[`tab-${from}`].handlers.keydown({ key, preventDefault() { prevented = true; } });
@@ -560,7 +569,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     assert.deepEqual(backgroundRow, { ...before, background: value || null });
     assert.equal(bg['save-status'].textContent, 'Uloženo');
     const reloaded = await page(`?character_id=${id}`, backgroundRow, null, false, true);
-    assert.equal(reloaded.elements['character-background'].textContent, value || '—');
+    assert.equal(reloaded.elements['character-background'].textContent, value ? backgroundLabels.get(value) ?? value : '—');
   }
   const callCount = backgroundPage.rpcCalls.length;
   for (const value of ['a'.repeat(101), '😀'.repeat(101)]) {
@@ -595,9 +604,16 @@ async function page(query, row = base, error = null, leader = false, authorized 
   finishBackground();
   await retryBackground;
   assert.equal(backgroundRow.background, 'Folk Hero');
+  assert.equal(bg['edit-background'].value, 'Lidový hrdina (Folk Hero)');
   assert.equal(bg['save-status'].textContent, 'Uloženo');
+  for (const [stored, display] of backgroundLabels) {
+    const knownBackground = await page(`?character_id=${id}`, { ...base, background: stored });
+    assert.equal(knownBackground.elements['character-background'].textContent, display);
+    knownBackground.elements['edit-toggle'].handlers.click();
+    assert.equal(knownBackground.elements['edit-background'].value, display);
+  }
   const backgroundLeader = await page(`?mode=leader&character_id=${id}`, backgroundRow, null, true);
-  assert.equal(backgroundLeader.elements['character-background'].textContent, 'Folk Hero');
+  assert.equal(backgroundLeader.elements['character-background'].textContent, 'Lidový hrdina (Folk Hero)');
   assert.equal(backgroundLeader.elements['edit-background'].disabled, true);
   assert.equal(backgroundLeader.elements['edit-background'].hidden, true);
   assert.deepEqual(backgroundLeader.elements['edit-background'].handlers, {});
@@ -691,7 +707,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(empty.reads, 1);
   assert.equal(empty.elements['student-card'].hidden, false);
   assert.equal(empty.elements['character-name'].textContent, 'Eliška');
-  for (const field of ['race', 'class', 'level']) assert.equal(empty.elements[`character-${field}`].textContent, '—');
+  for (const field of ['race', 'subrace', 'class', 'level']) assert.equal(empty.elements[`character-${field}`].textContent, '—');
+  assert.equal(empty.elements['subrace-field'].hidden, true);
   assert.equal(empty.elements.portrait.hidden, true);
   assert.equal(empty.elements['portrait-placeholder'].hidden, false);
   for (const [level, bonus] of [[3, '+2'], [5, '+3'], [9, '+4'], [13, '+5'], [17, '+6']]) {
@@ -813,11 +830,13 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(maximum.elements['feature-save'].disabled, true);
   assert.match(maximum.elements['features-status'].textContent, /100/);
   const filled = await page(`?character_id=${id.toUpperCase()}`, {
-    ...base, name: '<img src=x onerror=alert(1)>', race_code: 'elf', class_code: 'wizard', level: 1, ac: 15, ac_note: 'Kroužková zbroj', portrait_path: '/portraits/a.png',
+    ...base, name: '<img src=x onerror=alert(1)>', race_code: 'elf', subrace_code: 'high_elf', class_code: 'wizard', level: 1, ac: 15, ac_note: 'Kroužková zbroj', portrait_path: '/portraits/a.png',
   });
   assert.equal(filled.elements['character-name'].textContent, '<img src=x onerror=alert(1)>');
-  assert.equal(filled.elements['character-race'].textContent, 'Elf');
-  assert.equal(filled.elements['character-class'].textContent, 'Kouzelník');
+  assert.equal(filled.elements['character-race'].textContent, 'Elf (Elf)');
+  assert.equal(filled.elements['character-subrace'].textContent, 'Vznešený elf (High Elf)');
+  assert.equal(filled.elements['subrace-field'].hidden, false);
+  assert.equal(filled.elements['character-class'].textContent, 'Kouzelník (Wizard)');
   assert.equal(filled.elements['character-level'].textContent, 1);
   assert.equal(filled.elements['character-ac'].textContent, 15);
   assert.equal(filled.elements['character-ac_note'].textContent, 'Kroužková zbroj');
@@ -827,6 +846,13 @@ async function page(query, row = base, error = null, leader = false, authorized 
   filled.elements.portrait.handlers.error();
   assert.equal(filled.elements['portrait-placeholder'].hidden, false);
   assert.equal(filled.elements.portrait.hidden, true);
+  const leaderSubrace = await page(`?mode=leader&character_id=${id}`, { ...base, race_code: 'elf', subrace_code: 'wood_elf' }, null, true);
+  assert.equal(leaderSubrace.elements['character-subrace'].textContent, 'Lesní elf (Wood Elf)');
+  assert.equal(leaderSubrace.elements['subrace-field'].hidden, false);
+  assert.equal(leaderSubrace.elements['edit-subrace'].disabled, true);
+  assert.equal(leaderSubrace.elements['edit-subrace'].hidden, true);
+  assert.equal(leaderSubrace.elements['edit-toggle'].hidden, true);
+  assert.equal(leaderSubrace.writes.length, 0);
   const unknown = await page(`?character_id=${id}`, { ...base, race_code: 'unknown', class_code: '__proto__', portrait_path: 'javascript:alert(1)' });
   assert.equal(unknown.elements['character-race'].textContent, 'Neznámá rasa');
   assert.equal(unknown.elements['character-class'].textContent, 'Neznámé povolání');
@@ -854,11 +880,38 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(el['character-name'].hidden, true);
   assert.equal(el['close-icon'].hidden, false);
   assert.deepEqual(el['edit-race'].children.map(o => o.value), ['', 'human', 'elf', 'halfling', 'dwarf', 'gnome', 'half_elf', 'half_orc', 'tiefling']);
-  assert.equal(el['edit-race'].children.find(o => o.value === 'halfling').textContent, 'Půlčík');
+  assert.deepEqual(el['edit-race'].children.map(o => o.textContent), ['— nevybráno —', 'Člověk (Human)', 'Elf (Elf)', 'Půlčík (Halfling)', 'Trpaslík (Dwarf)', 'Gnóm (Gnome)', 'Půlelf (Half-Elf)', 'Půlork (Half-Orc)', 'Tiefling (Tiefling)']);
+  assert.equal(el['edit-race'].children.find(o => o.value === 'halfling').textContent, 'Půlčík (Halfling)');
   assert.equal(el['edit-class'].children.length, 13);
+  assert.deepEqual(el['edit-class'].children.map(o => o.textContent), ['— nevybráno —', 'Barbar (Barbarian)', 'Bard (Bard)', 'Klerik (Cleric)', 'Druid (Druid)', 'Bojovník (Fighter)', 'Mnich (Monk)', 'Paladin (Paladin)', 'Hraničář (Ranger)', 'Tulák (Rogue)', 'Čaroděj (Sorcerer)', 'Černokněžník (Warlock)', 'Kouzelník (Wizard)']);
   async function change(slot, value) {
     el[`edit-${slot}`].value = value;
     await el[`edit-${slot}`].handlers.blur();
+  }
+  await change('race', 'elf');
+  assert.equal(el['subrace-field'].hidden, false);
+  assert.deepEqual(el['edit-subrace'].children.map(option => option.value), ['', 'high_elf', 'wood_elf', 'drow']);
+  assert.deepEqual(el['edit-subrace'].children.map(option => option.textContent), ['Vyber podrasu', 'Vznešený elf (High Elf)', 'Lesní elf (Wood Elf)', 'Temný elf / Drow (Dark Elf)']);
+  assert.equal(el['edit-subrace'].children[0].textContent, 'Vyber podrasu');
+  assert.equal(el['edit-subrace'].children[1].textContent, 'Vznešený elf (High Elf)');
+  await change('subrace', 'high_elf');
+  assert.deepEqual(edit.writes.at(-1), { subrace_code: 'high_elf' });
+  assert.equal(stored.subrace_code, 'high_elf');
+  assert.equal((await page(`?character_id=${id}`, stored)).elements['character-subrace'].textContent, 'Vznešený elf (High Elf)');
+  await change('race', 'dwarf');
+  assert.deepEqual(edit.writes.at(-1), { race_code: 'dwarf' });
+  assert.equal(stored.subrace_code, null, 'race RPC clears subrace atomically without a second write');
+  assert.deepEqual(el['edit-subrace'].children.map(option => option.value), ['', 'hill_dwarf', 'mountain_dwarf']);
+  assert.deepEqual(el['edit-subrace'].children.map(option => option.textContent), ['Vyber podrasu', 'Kopcový trpaslík (Hill Dwarf)', 'Horský trpaslík (Mountain Dwarf)']);
+  await change('race', 'halfling');
+  assert.deepEqual(el['edit-subrace'].children.map(option => option.value), ['', 'lightfoot_halfling', 'stout_halfling']);
+  assert.deepEqual(el['edit-subrace'].children.map(option => option.textContent), ['Vyber podrasu', 'Půlčík tichošlápek (Lightfoot Halfling)', 'Půlčík pořízek (Stout Halfling)']);
+  await change('race', 'gnome');
+  assert.deepEqual(el['edit-subrace'].children.map(option => option.value), ['', 'forest_gnome', 'rock_gnome']);
+  assert.deepEqual(el['edit-subrace'].children.map(option => option.textContent), ['Vyber podrasu', 'Lesní gnóm (Forest Gnome)', 'Skalní gnóm (Rock Gnome)']);
+  for (const race of ['human', 'half_elf', 'half_orc', 'tiefling']) {
+    await change('race', race);
+    assert.equal(el['subrace-field'].hidden, true, `${race} has no subrace selector`);
   }
   for (const [slot, value, key, saved] of [
     ['name', 'Eliška', 'name', 'Eliška'], ['race', 'elf', 'race_code', 'elf'],
@@ -986,8 +1039,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
   await change('class', 'wizard');
   assert.equal(el['save-status'].textContent, 'Ukládám…');
   finishFirst(); await first;
-  assert.equal(el['character-race'].textContent, 'Elf');
-  assert.equal(el['character-class'].textContent, 'Kouzelník');
+  assert.equal(el['character-race'].textContent, 'Elf (Elf)');
+  assert.equal(el['character-class'].textContent, 'Kouzelník (Wizard)');
   assert.equal(el['save-status'].textContent, 'Uloženo');
   // Úspěch jiného pole nesmí zamaskovat předchozí selhání.
   edit.control.error = { code: '23514', message: 'Rejected' };
@@ -1393,12 +1446,33 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(storyLeader.writes.length, 0);
   assert.equal(storyLeader.rpcCalls.length, 0);
 
+  // Spell list uses the same one-field authorized write and stays read-only for leaders.
+  const spellsPage = await page(`?character_id=${id}`, { ...base, spells: [] }, null, false, true);
+  const spellEls = spellsPage.elements;
+  assert.equal(spellEls['character-spells'].textContent, 'Zatím nemáš zapsaná žádná kouzla.');
+  spellEls['spell-english-name'].value = 'Light';
+  spellEls['spell-czech-name'].value = 'Světlo';
+  spellEls['spell-level'].value = '0';
+  spellEls['spell-note'].value = 'Pro průzkum.';
+  await spellEls['spells-form'].handlers.submit({ preventDefault() {} });
+  assert.equal(JSON.stringify(spellsPage.writes.at(-1)), JSON.stringify({ spells: [{ english_name: 'Light', czech_name: 'Světlo', level: 0, note: 'Pro průzkum.' }] }));
+  const spellActions = spellEls['character-spells'].children[0].children.at(-1);
+  spellActions.children[0].handlers.click();
+  spellEls['spell-czech-name'].value = 'Světélko';
+  await spellEls['spells-form'].handlers.submit({ preventDefault() {} });
+  assert.equal(spellsPage.row.spells[0].czech_name, 'Světélko');
+  spellEls['character-spells'].children[0].children.at(-1).children[1].handlers.click();
+  assert.equal(JSON.stringify(spellsPage.row.spells), '[]');
+  const spellLeader = await page(`?mode=leader&character_id=${id}`, { ...base, spells: [{ english_name: 'Light', czech_name: 'Světlo', level: 0, note: '' }] }, null, true);
+  assert.equal(spellLeader.elements['spells-form'].hidden, true);
+  assert.equal(spellLeader.elements['character-spells'].children[0].children.length, 2);
+
   const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
   assert.match(html, /<details id="story-background"/);
   assert.ok(html.indexOf('id="story-background"') > html.indexOf('id="panel-card"'));
   assert.ok(html.indexOf('id="story-background"') < html.indexOf('id="panel-inventory"'));
-  assert.equal((html.match(/role="tab"/g) || []).length, 7);
-  assert.equal((html.match(/role="tabpanel"/g) || []).length, 7);
+  assert.equal((html.match(/role="tab"/g) || []).length, 8);
+  assert.equal((html.match(/role="tabpanel"/g) || []).length, 8);
   assert.ok(html.indexOf('id="panel-card"') < html.indexOf('id="student-card"'));
   assert.ok(html.indexOf('id="abilities"') < html.indexOf('id="panel-inventory"'));
   assert.ok(html.indexOf('id="skills"') > html.indexOf('id="abilities"'));
@@ -1406,6 +1480,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.match(html, /○ bez zdatnosti · ● zdatnost/);
   assert.ok(html.indexOf('id="abilities"') < html.indexOf('id="features"'));
   assert.ok(html.indexOf('id="features"') < html.indexOf('id="panel-inventory"'));
+  assert.ok(html.indexOf('id="panel-spells"') < html.indexOf('id="panel-inventory"'));
+  assert.match(html, /<section id="spells"[^>]*hidden>/);
   assert.match(html, /<details id="features" hidden>/);
   assert.ok(html.indexOf('id="panel-inventory"') < html.indexOf('id="inventory"'));
   assert.ok(html.indexOf('id="panel-notes"') < html.indexOf('id="notes"'));

@@ -85,7 +85,7 @@
         <p id="diary-status" role="status">Načítám postavu…</p>
         <section id="overview-panel" role="tabpanel" aria-labelledby="overview-tab">
           <div class="overview-summary">
-          <h2>Životy</h2>
+          <h2>Životy <span class="term-english">(Hit Points)</span></h2>
           <p class="hp-values"><span id="compact-current-hp">—</span> / <span id="compact-max-hp">—</span> <small>HP</small></p>
           <div class="hp-adjust">
             <button id="compact-hp-minus" aria-label="Ubrat HP" disabled>−</button>
@@ -95,20 +95,20 @@
           <p id="compact-hp-hint" class="muted"></p>
           <p id="compact-hp-error" role="status" class="error"></p>
           <dl class="overview-stats">
-            <div><dt>AC</dt><dd id="compact-ac">—</dd></div>
-            <div><dt>Level</dt><dd id="compact-level">—</dd></div>
+            <div><dt>Obranné číslo <span class="term-english">(Armor Class)</span></dt><dd id="compact-ac">—</dd></div>
+            <div><dt>Úroveň <span class="term-english">(Level)</span></dt><dd id="compact-level">—</dd></div>
             <div class="overview-initiative"><dt>Iniciativa</dt><dd id="compact-initiative">—</dd></div>
           </dl>
           </div>
           <table class="ability-table" aria-label="Vlastnosti postavy">
             <thead><tr><th scope="col">Vlastnost</th><th scope="col" title="Hodnota vlastnosti">Score</th><th scope="col">Mod.</th><th scope="col" title="Záchranný hod">Save</th></tr></thead>
             <tbody>
-              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h3v8H5zM16 8h3v8h-3zM8 12h8M2 10v4M22 10v4"/></svg>Síla <span>(STR)</span></th><td id="compact-str">—</td><td id="compact-modifier-str">—</td><td id="compact-save-str">—</td></tr>
-              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18 19 5M11 5h8v8M3 7h5M3 11h3"/></svg>Obratnost <span>(DEX)</span></th><td id="compact-dex">—</td><td id="compact-modifier-dex">—</td><td id="compact-save-dex">—</td></tr>
-              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6zM12 7v10"/></svg>Odolnost <span>(CON)</span></th><td id="compact-con">—</td><td id="compact-modifier-con">—</td><td id="compact-save-con">—</td></tr>
-              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1zM12 6v14"/></svg>Inteligence <span>(INT)</span></th><td id="compact-int">—</td><td id="compact-modifier-int">—</td><td id="compact-save-int">—</td></tr>
-              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Moudrost <span>(WIS)</span></th><td id="compact-wis">—</td><td id="compact-modifier-wis">—</td><td id="compact-save-wis">—</td></tr>
-              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8l-6 3v-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM7 9h10M7 13h7"/></svg>Charisma <span>(CHA)</span></th><td id="compact-cha">—</td><td id="compact-modifier-cha">—</td><td id="compact-save-cha">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h3v8H5zM16 8h3v8h-3zM8 12h8M2 10v4M22 10v4"/></svg>Síla <span>(Strength / STR)</span></th><td id="compact-str">—</td><td id="compact-modifier-str">—</td><td id="compact-save-str">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18 19 5M11 5h8v8M3 7h5M3 11h3"/></svg>Obratnost <span>(Dexterity / DEX)</span></th><td id="compact-dex">—</td><td id="compact-modifier-dex">—</td><td id="compact-save-dex">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 3v6c0 4-4 7-8 9-4-2-8-5-8-9V6zM12 7v10"/></svg>Odolnost <span>(Constitution / CON)</span></th><td id="compact-con">—</td><td id="compact-modifier-con">—</td><td id="compact-save-con">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1zM12 6v14"/></svg>Inteligence <span>(Intelligence / INT)</span></th><td id="compact-int">—</td><td id="compact-modifier-int">—</td><td id="compact-save-int">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Moudrost <span>(Wisdom / WIS)</span></th><td id="compact-wis">—</td><td id="compact-modifier-wis">—</td><td id="compact-save-wis">—</td></tr>
+              <tr><th scope="row"><svg class="ability-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8l-6 3v-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM7 9h10M7 13h7"/></svg>Charisma <span>(Charisma / CHA)</span></th><td id="compact-cha">—</td><td id="compact-modifier-cha">—</td><td id="compact-save-cha">—</td></tr>
             </tbody>
           </table>
           <details id="game-skills" class="game-skills" hidden>
@@ -123,7 +123,9 @@
         </section>
         <section id="inventory-panel" role="tabpanel" aria-labelledby="inventory-tab" hidden>
           <div id="game-inventory">Načítám inventář…</div>
-          <a id="inventory-edit-link" target="_top" hidden>Upravit v deníku</a>
+          <button id="inventory-edit-button" type="button" hidden>Upravit</button>
+          <textarea id="game-inventory-editor" rows="8" aria-label="Inventář" hidden></textarea>
+          <p id="game-inventory-status" role="status" aria-live="polite"></p>
         </section>
       </aside>
       <aside id="dice-panel" aria-label="Kostky" hidden>

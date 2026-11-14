@@ -130,10 +130,16 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('#game-inventory strong').textContent(), 'Meč');
     assert.equal(await page.locator('#game-inventory em').textContent(), 'Lano');
     assert.deepEqual(await page.locator('#game-inventory .markdown-checkbox').allTextContents(), ['☑', '☐']);
-    assert.equal(await page.locator('#game-inventory input, #game-inventory script, #game-inventory img, #inventory-panel textarea').count(), 0);
+    assert.equal(await page.locator('#game-inventory input, #game-inventory script, #game-inventory img').count(), 0);
     assert.equal(await page.evaluate(() => window.inventoryExecuted), undefined);
-    assert.equal(await page.locator('#inventory-edit-link').getAttribute('href'), `./character.html?character_id=${characterId}&tab=inventory`);
-    assert.equal(await page.locator('#inventory-edit-link').getAttribute('target'), '_top');
+    assert.equal(await page.locator('#inventory-edit-button').textContent(), 'Upravit');
+    assert.equal(await page.locator('#game-inventory-editor').isHidden(), true);
+    await page.locator('#inventory-edit-button').click();
+    assert.equal(await page.locator('#game-inventory-editor').inputValue(), overview.inventory);
+    await page.locator('#game-inventory-editor').fill(overview.inventory + '\n- Přidán');
+    await page.waitForTimeout(650);
+    await page.locator('#inventory-edit-button').click();
+    assert.equal(await page.locator('#game-inventory').textContent(), 'Výbava\nMeč\nLano\n☑ Pochodeň\n☐ Jídlo\nPřidán');
     await page.getByRole('tab', {name:'Inventář', exact:true}).press('Home');
     assert.equal(await page.locator('#overview-panel').isVisible(), true);
     await page.locator('#compact-hp-delta').fill('2');
@@ -226,7 +232,7 @@ const server = http.createServer((req, res) => {
           await page.getByRole('tab', {name:'Inventář', exact:true}).click();
           assert.equal(await page.locator('#inventory-panel').isVisible(), true);
           assert.ok(await page.locator('#character-panel').evaluate(panel => panel.scrollWidth===panel.clientWidth && document.documentElement.scrollWidth<=innerWidth && getComputedStyle(panel).overflowY==='auto'));
-          await page.locator('#inventory-edit-link').scrollIntoViewIfNeeded();
+          await page.locator('#inventory-edit-button').scrollIntoViewIfNeeded();
           await page.getByRole('tab', {name:'Přehled', exact:true}).click();
         }
       }
@@ -306,7 +312,7 @@ const server = http.createServer((req, res) => {
     assert.equal(await peer.locator('#compact-ac').textContent(), '—');
     assert.equal(await peer.locator('#compact-level').textContent(), '—');
     assert.equal(await peer.locator('#game-inventory').textContent(), 'Inventář je zatím prázdný.');
-    assert.equal(await peer.locator('#inventory-edit-link').getAttribute('href'), `./character.html?character_id=${peerId}&tab=inventory`);
+    assert.equal(await peer.locator('#inventory-edit-button').isHidden(), false);
     assert.equal(await peer.locator('#compact-initiative').textContent(), '-1');
     assert.equal(await page.locator('#compact-initiative').textContent(), '0');
     assert.deepEqual(await page.locator('[data-die]').evaluateAll(nodes => nodes.map(n => Number(n.dataset.die))), [4,6,8,10,12,20,100]);

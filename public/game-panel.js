@@ -15,7 +15,9 @@ const ids = gameUser?.role === 'player' ? [gameUser.character_id] : [];
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
 const diceAvailable = ['player', 'leader'].includes(gameUser?.role) && Boolean(gameUser?.session_token);
 const tabs = [$('overview-tab'), $('inventory-tab')];
+let prepareInventorySwitch = () => {};
 function selectTab(index) {
+  prepareInventorySwitch();
   tabs.forEach((tab, i) => {
     tab.setAttribute('aria-selected', String(i === index));
     tab.tabIndex = i === index ? 0 : -1;
@@ -141,10 +143,73 @@ if (valid) {
     $('game-character-name').textContent = character.name ?? 'Postava';
     $('compact-ac').textContent = character.ac ?? '—';
     $('compact-level').textContent = character.level ?? '—';
-    if (character.inventory?.trim()) renderBasicMarkdown($('game-inventory'), character.inventory);
-    else $('game-inventory').textContent = 'Inventář je zatím prázdný.';
-    $('inventory-edit-link').href = `./character.html?character_id=${encodeURIComponent(character.id)}&tab=inventory`;
-    $('inventory-edit-link').hidden = false;
+    const inventoryView = $('game-inventory');
+    const inventoryEditor = $('game-inventory-editor');
+    const inventoryButton = $('inventory-edit-button');
+    const inventoryStatus = $('game-inventory-status');
+    let inventoryBusy = false;
+    let inventoryTimer = null;
+    let inventoryEditing = false;
+    const renderInventory = value => {
+      inventoryView.replaceChildren();
+      if (value?.trim()) renderBasicMarkdown(inventoryView, value);
+      else inventoryView.textContent = 'Inventář je zatím prázdný.';
+    };
+    const showInventoryStatus = (text, error = false) => {
+      inventoryStatus.textContent = text;
+      inventoryStatus.classList.toggle('error', error);
+    };
+    const saveInventory = async () => {
+      if (!inventoryEditing || inventoryBusy) return false;
+      const value = inventoryEditor.value.trim() ? inventoryEditor.value : '';
+      if (value === (character.inventory ?? '')) return true;
+      inventoryBusy = true;
+      inventoryEditor.disabled = true;
+      showInventoryStatus('Ukládám…');
+      try {
+        const updated = await updateCharacterField(db, character.id, 'inventory', value || null, gameUser.session_token);
+        character.inventory = updated.inventory;
+        inventoryEditor.value = character.inventory ?? '';
+        renderInventory(character.inventory);
+        showInventoryStatus('Uloženo');
+        return true;
+      } catch {
+        showInventoryStatus('Nepodařilo se uložit. Změny zůstaly v editoru.', true);
+        return false;
+      } finally {
+        inventoryBusy = false;
+        inventoryEditor.disabled = false;
+      }
+    };
+    const scheduleInventorySave = () => {
+      if (inventoryTimer) clearTimeout(inventoryTimer);
+      inventoryTimer = setTimeout(() => { inventoryTimer = null; saveInventory(); }, 500);
+    };
+    const enterInventoryEdit = () => {
+      if (leader || inventoryEditing) return;
+      inventoryEditing = true;
+      inventoryEditor.value = character.inventory ?? '';
+      inventoryView.hidden = true;
+      inventoryEditor.hidden = false;
+      inventoryButton.textContent = 'Hotovo';
+      inventoryEditor.focus();
+    };
+    const leaveInventoryEdit = async () => {
+      if (!inventoryEditing) return;
+      if (inventoryTimer) { clearTimeout(inventoryTimer); inventoryTimer = null; }
+      if (inventoryEditor.value !== (character.inventory ?? '') && !await saveInventory()) return;
+      if (inventoryBusy) return;
+      inventoryEditing = false;
+      inventoryView.hidden = false;
+      inventoryEditor.hidden = true;
+      inventoryButton.textContent = 'Upravit';
+    };
+    inventoryButton.hidden = leader;
+    inventoryButton.addEventListener('click', () => inventoryEditing ? leaveInventoryEdit() : enterInventoryEdit());
+    inventoryEditor.addEventListener('input', scheduleInventorySave);
+    inventoryEditor.addEventListener('blur', saveInventory);
+    prepareInventorySwitch = () => { if (inventoryEditing) saveInventory(); };
+    renderInventory(character.inventory);
     for (const key of ['str', 'dex', 'con', 'int', 'wis', 'cha']) {
       const { modifier, save } = abilityValues(character, key);
       if (key === 'dex') $('compact-initiative').textContent = signed(modifier);

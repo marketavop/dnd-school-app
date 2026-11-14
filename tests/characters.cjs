@@ -8,8 +8,8 @@ const { resolve } = require('node:path');
   const { loadCharacter, updateCharacterField } = await import(
     `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
   );
-  const fields = ['id', 'user_id', 'name', 'portrait_path', 'race_code', 'class_code',
-    'level', 'str', 'dex', 'con', 'int', 'wis', 'cha', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note', 'background', 'story_background', 'inventory', 'notes', 'features'];
+  const fields = ['id', 'user_id', 'name', 'portrait_path', 'race_code', 'subrace_code', 'class_code',
+    'level', 'str', 'dex', 'con', 'int', 'wis', 'cha', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note', 'background', 'story_background', 'inventory', 'notes', 'features', 'spells'];
   const row = Object.fromEntries(fields.map(field => [field, null]));
   Object.assign(row, { id: 'character-a', user_id: 'account-a', name: 'Test' });
   const other = { ...row, id: 'character-b' };
@@ -40,16 +40,16 @@ const { resolve } = require('node:path');
     for (const field of fields.slice(3)) assert.equal(row[field], null);
     for (const [field, value] of [
       ['str', 15], ['str', null], ['name', 'Eliška'], ['portrait_path', 'portraits/a.png'],
-      ['race_code', 'elf'], ['race_code', null], ['class_code', 'wizard'],
+      ['race_code', 'elf'], ['subrace_code', 'high_elf'], ['subrace_code', null], ['race_code', null], ['class_code', 'wizard'],
       ['level', 1], ['dex', 12], ['con', 13], ['int', 14], ['wis', 15], ['cha', 16],
       ['ac', 15], ['ac_note', 'Kroužková zbroj'],
-      ['story_background', 'Příběh\nDruhý řádek'], ['background', 'Učenec'], ['inventory', '- Lano\n- Kniha'], ['notes', '# Výuka\nPoznámky'], ['features', [{ name: 'Odolnost', note: 'Výhoda proti jedu.' }]],
+      ['story_background', 'Příběh\nDruhý řádek'], ['background', 'Učenec'], ['inventory', '- Lano\n- Kniha'], ['notes', '# Výuka\nPoznámky'], ['features', [{ name: 'Odolnost', note: 'Výhoda proti jedu.' }]], ['spells', []], ['spells', [{ english_name: 'Light', czech_name: 'Světlo', level: 0, note: 'Pro průzkum.' }]],
     ]) {
       const before = { ...row };
       assert.deepEqual(await updateCharacterField(db, row.id, field, value, 'test-session'), { ...before, [field]: value });
       assert.deepEqual(await loadCharacter(db, row.id, 'test-session'), { ...before, [field]: value });
     }
-    for (const field of fields.slice(3).filter(field => field !== 'features')) {
+    for (const field of fields.slice(3).filter(field => !['features', 'spells'].includes(field))) {
       await updateCharacterField(db, row.id, field, null, 'test-session');
       assert.equal((await loadCharacter(db, row.id, 'test-session'))[field], null);
     }
