@@ -32,6 +32,34 @@ export function mountLeaderPlayers(document, window, call = rpc) {
   let generation = 0;
   let visibilityGeneration = 0;
   let visibilityState = new Map();
+  let sheetResizeObserver = null;
+  function syncSheetHeight() {
+    const body = sheet.contentDocument?.body;
+    const content = sheet.contentDocument?.querySelector('main');
+    if (!body || !content) return;
+    const style = sheet.contentWindow?.getComputedStyle(body);
+    const margins = (Number.parseFloat(style?.marginTop) || 0) + (Number.parseFloat(style?.marginBottom) || 0);
+    const height = content.scrollHeight + margins;
+    if (sheet.dataset) {
+      sheet.dataset.iframeHeight = String(Math.ceil(sheet.getBoundingClientRect().height));
+      sheet.dataset.documentHeight = String(sheet.contentDocument?.documentElement?.scrollHeight ?? 0);
+      sheet.dataset.contentHeight = String(Math.ceil(height));
+    }
+    if (height > 0) sheet.style.height = `${height}px`;
+  }
+  function observeSheetHeight() {
+    sheetResizeObserver?.disconnect();
+    sheetResizeObserver = null;
+    syncSheetHeight();
+    const content = sheet.contentDocument?.querySelector('main');
+    if (typeof ResizeObserver === 'undefined' || !content) return;
+    sheetResizeObserver = new ResizeObserver(syncSheetHeight);
+    sheetResizeObserver.observe(content);
+  }
+  sheet.addEventListener('load', observeSheetHeight);
+  function clearSelectedPlayer() {
+    Array.from(list.children).forEach(item => item.children[0]?.removeAttribute('aria-current'));
+  }
   async function loadVisibility(request) {
     visibilityControls.replaceChildren();
     visibilityStatus.textContent = 'Načítám nastavení…';
@@ -42,6 +70,7 @@ export function mountLeaderPlayers(document, window, call = rpc) {
       visibilityState = new Map(rows.map(row => [row.section_id, row.is_visible]));
       for (const section of CHARACTER_SECTIONS) {
         const label = document.createElement('label');
+        label.className = 'character-visibility-toggle';
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = visibilityState.get(section.id) ?? false;
@@ -66,7 +95,20 @@ export function mountLeaderPlayers(document, window, call = rpc) {
             checkbox.disabled = false;
           }
         });
-        label.append(checkbox, document.createTextNode(` ${section.name}`));
+        const text = document.createElement('span');
+        text.className = 'character-visibility-toggle-text';
+        const translationStart = section.name.lastIndexOf(' (');
+        const czechName = document.createElement('span');
+        czechName.className = 'character-visibility-toggle-czech';
+        czechName.textContent = translationStart > 0 ? section.name.slice(0, translationStart) : section.name;
+        text.append(czechName);
+        if (translationStart > 0) {
+          const englishName = document.createElement('span');
+          englishName.className = 'character-visibility-toggle-english';
+          englishName.textContent = section.name.slice(translationStart);
+          text.append(englishName);
+        }
+        label.append(checkbox, text);
         visibilityControls.append(label);
       }
       visibilityStatus.textContent = '';
@@ -77,8 +119,11 @@ export function mountLeaderPlayers(document, window, call = rpc) {
   }
   function closeSheet() {
     selected = null;
+    sheetResizeObserver?.disconnect();
+    sheetResizeObserver = null;
     sheet.hidden = true;
     sheet.removeAttribute('src');
+    clearSelectedPlayer();
   }
   // Only data crosses into the existing sheet. The token stays in this document.
   window.loadLeaderCharacter = async id => {
@@ -115,9 +160,19 @@ export function mountLeaderPlayers(document, window, call = rpc) {
         const item = document.createElement('li');
         const button = document.createElement('button');
         button.type = 'button';
-        button.textContent = row.name ?? 'Beze jména';
+        const name = document.createElement('span');
+        name.textContent = row.name ?? 'Beze jména';
+        button.append(name);
+        if (row.username) {
+          const username = document.createElement('span');
+          username.className = 'character-owner-username';
+          username.textContent = ` (${row.username})`;
+          button.append(username);
+        }
         button.addEventListener('click', () => {
           selected = row.character_id;
+          clearSelectedPlayer();
+          button.setAttribute('aria-current', 'true');
           sheet.src = `./character.html?mode=leader&character_id=${encodeURIComponent(selected)}`;
           sheet.hidden = false;
         });

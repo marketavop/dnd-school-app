@@ -73,6 +73,7 @@
 :where(.home-page) * { box-sizing: border-box; }
 :where(.home-page) main { width: min(100% - 32px, 960px); margin: 40px auto; }
 :where(.home-page) main.players-open { margin-top: 24px; }
+:where(.home-page) main.players-open { width: min(100% - 32px, 1280px); }
 :where(.home-page) :where(#home-content, #leader-content, .content-section) { display: grid; gap: 24px; }
 :where(.home-page) h1 { margin: 0; color: #243b57; font: 600 clamp(30px, 4vw, 40px)/1.15 Georgia, "Times New Roman", serif; letter-spacing: -.02em; }
 :where(.home-page) p { margin: 0; }
@@ -94,19 +95,50 @@
 :where(.home-page) .content-section > button, :where(.home-page) form button, :where(.home-page) #players-list button { min-height: 44px; padding: 10px 16px; border: 1px solid #c3b791; border-radius: 6px; background: #fffdf8; color: #314f63; font: inherit; cursor: pointer; }
 :where(.home-page) button:hover:not(:disabled) { border-color: #a68a4d; background: #f8f4e9; }
 :where(.home-page) .card-list, :where(.home-page) #players-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
-:where(.home-page) #players-list button { width: 100%; text-align: left; font-weight: 600; }
-:where(.home-page) .map-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid #d5cdbd; border-radius: 8px; background: #fffdf8; box-shadow: 0 3px 10px rgb(38 52 66 / 6%); }
+:where(.home-page) .players-workspace { display: grid; grid-template-columns: minmax(240px, 280px) minmax(0, 1fr); align-items: start; gap: 24px; }
+:where(.home-page) #players-list { align-content: start; }
+:where(.home-page) #players-list button { width: 100%; min-width: 0; text-align: left; font-weight: 600; overflow-wrap: anywhere; }
+:where(.home-page) #players-list button[aria-current="true"] { border-color: #d8ba77; color: #fff3d2; background: #1d3553; box-shadow: inset 0 2px #d8ba77, 0 3px 10px rgb(29 53 83 / 18%); }
+:where(.home-page) #players-list button[aria-current="true"] .character-owner-username { color: #d9d2c2; }
+:where(.home-page) #add-map-button { justify-self: start; min-height: 46px; padding: 10px 18px; border-color: #a68a4d; background: #1d3553; color: #fff3d2; box-shadow: inset 0 2px #d8ba77, 0 3px 10px rgb(29 53 83 / 16%); font-weight: 700; }
+:where(.home-page) #add-map-button:hover:not(:disabled) { border-color: #d8ba77; background: #29496b; }
+:where(.home-page) .map-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid #d5cdbd; border-radius: 8px; background: #fffdf8; box-shadow: 0 3px 10px rgb(38 52 66 / 6%); }
+:where(.home-page) .map-card-active { border-color: #d8ba77; background: linear-gradient(100deg, #fffdf8, #f5ecd8); box-shadow: inset 3px 0 #a68a4d, 0 4px 12px rgb(29 53 83 / 10%); }
 :where(.home-page) .map-card-summary { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
 :where(.home-page) .map-card-name { color: #243b57; font-weight: 650; overflow-wrap: anywhere; }
-:where(.home-page) .map-card-type { padding: 2px 8px; border: 1px solid #d5cdbd; border-radius: 4px; font-size: 13px; }
-:where(.home-page) .map-card-status { color: #6e5b2b; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+:where(.home-page) .map-card-type { padding: 2px 8px; border: 1px solid #d5cdbd; border-radius: 999px; color: #526171; background: #f7f0df; font-size: 12px; font-weight: 650; }
+:where(.home-page) .map-card-status { padding: 2px 8px; border: 1px solid #a68a4d; border-radius: 999px; color: #6e5b2b; background: #fff6dc; font-size: 12px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
 :where(.home-page) .map-card-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-:where(.home-page) .map-card-actions button { min-width: 100px; }
-:where(.home-page) #leader-sheet { width: 100%; height: 80vh; border: 0; margin-top: 16px; }
+:where(.home-page) .map-card-actions button { min-width: 96px; }
+:where(.home-page) .map-card-actions .map-card-prepare { border-color: #a68a4d; color: #fff3d2; background: #1d3553; box-shadow: inset 0 1px #d8ba77; font-weight: 700; }
+:where(.home-page) .map-card-actions .map-card-prepare:hover:not(:disabled) { border-color: #d8ba77; background: #29496b; }
+:where(.home-page) .map-card-actions .map-card-delete { border-color: #bb6c61; color: #8f2f28; background: #fff7f5; }
+:where(.home-page) .map-card-actions .map-card-delete:hover:not(:disabled) { border-color: #9d4037; color: #fff; background: #a9473d; }
+:where(.home-page) #leader-sheet { display: block; width: 100%; height: 1px; border: 0; margin: 0; }
+:where(.home-page) #players-list button:focus-visible { outline: 3px solid #d8ba77; outline-offset: 2px; }
 :where(.home-page) #navigation-status { color: #526171; }
 :where(.home-page) #session-logout { display: block; margin: 0 0 24px auto; padding: 8px 14px; border: 1px solid #c3b791; border-radius: 6px; background: transparent; color: #68685f; font: inherit; cursor: pointer; }
 :where(.home-page) #session-logout:hover { color: #314f63; border-color: #a68a4d; background: #fffdf8; }
 :where(.home-page) .error-message { color: #b42318; }
+:where(.home-page) .character-visibility { display: grid; gap: 0; }
+:where(.home-page) .character-visibility > h2 { margin: 0; }
+:where(.home-page) .character-visibility > p { margin: 4px 0 0; }
+:where(.home-page) #character-visibility-controls { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start; gap: 10px; }
+:where(.home-page) .character-visibility > #character-visibility-controls { margin-top: 16px; }
+:where(.home-page) .character-visibility-toggle { position: relative; display: inline-flex; width: fit-content; max-width: 100%; min-height: 48px; align-items: center; gap: 12px; padding: 9px 14px; border: 1px solid rgb(166 138 77 / 58%); border-radius: 999px; color: #1d3553; background: #fffdf7; box-shadow: 0 3px 10px rgb(29 53 83 / 7%); cursor: pointer; line-height: 1.25; }
+:where(.home-page) .character-visibility-toggle:hover { border-color: #a68a4d; box-shadow: 0 5px 14px rgb(29 53 83 / 12%); }
+:where(.home-page) .character-visibility-toggle:has(input:checked) { border-color: #d8ba77; color: #fff3d2; background: #1d3553; box-shadow: inset 0 2px #d8ba77, 0 4px 12px rgb(29 53 83 / 18%); }
+:where(.home-page) .character-visibility-toggle-text { display: flex; min-width: 0; align-items: baseline; flex-wrap: wrap; gap: 4px; overflow-wrap: anywhere; }
+:where(.home-page) .character-visibility-toggle-czech { font-weight: 700; }
+:where(.home-page) .character-visibility-toggle-english { color: #6e6b61; font-size: .82em; }
+:where(.home-page) .character-visibility-toggle:has(input:checked) .character-visibility-toggle-english { color: #d9d2c2; }
+:where(.home-page) .character-visibility-toggle input { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+:where(.home-page) .character-visibility-toggle::after { flex: 0 0 38px; width: 38px; height: 22px; border: 1px solid #a68a4d; border-radius: 999px; background: #e7ddc8; box-shadow: inset 0 1px 3px rgb(29 53 83 / 16%); content: ''; pointer-events: none; }
+:where(.home-page) .character-visibility-toggle::before { position: absolute; right: 33px; width: 16px; height: 16px; border-radius: 50%; background: #1d3553; box-shadow: 0 1px 3px rgb(29 53 83 / 28%); content: ''; pointer-events: none; transition: transform 120ms ease, background-color 120ms ease; }
+:where(.home-page) .character-visibility-toggle:has(input:checked)::before { background: #d8ba77; transform: translateX(16px); }
+:where(.home-page) .character-visibility-toggle:has(input:focus-visible) { outline: 3px solid #d8ba77; outline-offset: 2px; }
+:where(.home-page) .character-visibility-toggle:has(input:disabled) { cursor: wait; opacity: .72; }
+:where(.home-page) #character-visibility-status { margin-top: 8px; }
 :where(.home-page) .prep-viewport { position: relative; width: 100%; height: 60vh; overflow: hidden; background: #d1d5db; }
 :where(.home-page) .prep-space { position: absolute; transform-origin: top left; }
 :where(.home-page) .prep-image { display: block; max-width: none; }
@@ -153,6 +185,10 @@
   :where(.home-page) .academy-header { margin-bottom: 20px; }
   :where(.home-page) .academy-header .academy-emblem { width: 64px; height: 64px; }
   :where(.home-page) .academy-header-name { font-size: 11px; letter-spacing: .12em; }
+}
+@media (max-width: 760px) {
+  :where(.home-page) .players-workspace { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  :where(.home-page) #players-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 8px; }
 }
 
 /* Homepage scenery is absent from login and all administrative/game views. */
@@ -400,6 +436,7 @@
 }
 :where(.character-page) * { box-sizing: border-box; }
 :where(.character-page) body { min-height: 100vh; margin: 16px 24px; background: var(--background); }
+:where(.character-page) body[data-leader-embed="true"] { min-height: 0; }
 /* DESIGN-6A: document shell only; preserve the existing field layout. */
 :root:where(.character-page) {
   background-color: var(--background);
@@ -791,6 +828,9 @@
 :where(.game-page) #scene-players-list { list-style: none; padding: 0; }
 :where(.game-page) #scene-players-list [role="status"] { min-height: 20px; margin: 4px 0; }
 :where(.game-page) #scene-players-list button { margin-left: 12px; font: inherit; }
+:where(.game-page) #scene-players-list .character-owner-username,
+:where(.home-page) #players-list .character-owner-username { color: var(--muted); font-size: .88em; }
+:where(.home-page) #players-list button .character-owner-username { font-weight: 400; }
 :where(.game-page) #scene-players-list [data-message-type="error"], :where(.game-page) #add-token-message[data-message-type="error"], :where(.game-page) #remove-token-message[data-message-type="error"] { color: #b42318; }
 :where(.game-page) #status, :where(.game-page) #connection { min-height: 24px; }
 :where(.game-page) #map-select { padding: 6px; font: inherit; }

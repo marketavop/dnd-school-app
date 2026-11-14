@@ -33,7 +33,7 @@ function element() {
   });
   vm.runInContext(registry + '\n' + source.replace('mountLeaderPlayers(document, window);', 'mountLeaderPlayers(document, window, call);'), context);
   await document.querySelector('#leader-players-link').handlers.click({ preventDefault() {} });
-  const label = document.querySelector('#character-visibility-controls').children.find(item => item.children[1].textContent.includes('Schopnosti'));
+  const label = document.querySelector('#character-visibility-controls').children.find(item => item.children[1].children[0].textContent.includes('Schopnosti'));
   const checkbox = label.children[0];
   assert.equal(checkbox.checked, false);
   checkbox.checked = true;

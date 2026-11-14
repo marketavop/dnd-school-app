@@ -27,7 +27,7 @@ async function showMaps(event) {
       || typeof row.name !== 'string' || typeof row.is_active !== 'boolean')) throw new Error('Invalid map list');
     for (const row of rows) {
       const item = document.createElement('li');
-      item.className = 'map-card';
+      item.className = row.is_active ? 'map-card map-card-active' : 'map-card';
       const summary = document.createElement('div');
       summary.className = 'map-card-summary';
       const name = document.createElement('span');
@@ -49,6 +49,7 @@ async function showMaps(event) {
       actions.className = 'map-card-actions';
       if (!row.is_active) {
         const button = document.createElement('button');
+        button.className = 'map-card-activate';
         button.textContent = 'Aktivovat';
         button.type = 'button';
         button.addEventListener('click', async () => {
@@ -68,6 +69,7 @@ async function showMaps(event) {
         });
         actions.append(button);
         const remove = document.createElement('button');
+        remove.className = 'map-card-delete';
         remove.type = 'button';
         remove.textContent = 'Smazat';
         remove.addEventListener('click', async () => {
@@ -95,6 +97,7 @@ async function showMaps(event) {
         actions.append(remove);
       }
       const prepare = document.createElement('button');
+      prepare.className = 'map-card-prepare';
       prepare.type = 'button';
       prepare.textContent = 'Připravit';
       prepare.addEventListener('click', () => openMapPreparation(row.map_id));

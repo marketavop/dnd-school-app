@@ -41,6 +41,9 @@ const card = document.querySelector('#student-card');
 const ids = new URLSearchParams(window.location.search).getAll('character_id');
 const readOnly = new URLSearchParams(window.location.search).has('mode')
   || Boolean(window.parent && window.parent !== window);
+if (new URLSearchParams(window.location.search).get('mode') === 'leader' && window.parent !== window) {
+  document.body?.setAttribute('data-leader-embed', 'true');
+}
 const playerSessionToken = readOnly ? null : getCurrentUser()?.session_token;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
