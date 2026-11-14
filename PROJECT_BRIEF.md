@@ -1,12 +1,17 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.15
+**Verze:** 1.1.17
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
 
-### Změny ve verzi 1.1.15
+### Změny ve verzi 1.1.17
+
+- první obsahová sada Studijní příručky je implementovaná a ověřená: 8 ras, 12 povolání a 13 zázemí, celkem 33 témat D&D 5e (2014),
+- příručka používá kompaktní přehled kategorií, krátké dětské kartičky a rozbalitelné podrobnosti,
+- UI a výpočty 18 Dovedností byly mergnuty do `main`; dřívější pracovní větev již není aktuálním stavem implementace,
+- další vysvětlení mechanik navázaná na přepínače Vedoucího zůstávají schváleným, zatím neimplementovaným směrem.
 
 - merge `591f35d` na `main` dokončil Schopnosti (Features) jako rozbalovací sekci pod Vlastnostmi: název + poznámka, CRUD, persistence a read-only přístup Vedoucího,
 - společná řízená viditelnost je dostupná v GUI Vedoucího, Studentském průkazu a Studijním panelu; ukládá se v Supabase a změny se načítají po obnovení, realtime viditelnosti zůstává **Později**,
@@ -631,9 +636,10 @@ Aplikace automaticky vypočítá:
 
 Databázový základ Dovedností je mergnutý: `skill_proficiencies` má validaci
 a autorizované RPC. UI, výpočty a editace Dovedností jsou implementované a
-ručně ověřené na pracovní větvi `feature/character-skills`, ale tato práce
-zatím není mergnutá do `main`. Dovednosti jsou nově prioritou **Důležité** a
-mají se připravit před testovacími hrami. Existující výpočty se neodstraňují.
+UI, výpočty a editace 18 Dovedností jsou nyní mergnuté v `main`, včetně
+jejich persistence a navázaného oprávnění. Dřívější pracovní větev
+`feature/character-skills` je historická a není popisem aktuálního stavu.
+Existující výpočty se neodstraňují.
 
 V aktuálním MVP se proficiency u **záchranných hodů** automaticky odvozuje z
 `class_code` podle základních povolání D&D 5e 2014. Pro saves proto
@@ -797,9 +803,10 @@ Příklad témat: modifikátor vlastnosti, zdatnost, záchranný hod nebo jiné
 mechaniky, které už byly ve hře skutečně vysvětlené. Tato další témata
 jsou **Později**, podle skutečného průběhu session.
 
-Schválený směr Studijní příručky je plán, nikoli hotová implementace.
-Používá krátké dětské kartičky s volitelnými detaily a od začátku má
-obsahovat informace pro výběr **8 ras, 12 povolání a 13 zázemí** z PHB 2014.
+První obsahová sada Studijní příručky je **implementovaná a ověřená**.
+Obsahuje informace pro výběr **8 ras, 12 povolání a 13 zázemí** z PHB 2014,
+celkem **33 témat D&D 5e (2014)**. Používá kompaktní přehled kategorií,
+krátké dětské kartičky a rozbalitelné podrobnosti.
 Nápověda k mechanikám se zpřístupňuje stejnými přepínači jako příslušné
 části průkazu. Nová pravidla dalších úrovní se doplňují ručně podle
 průběhu hry, bez automatického odemykání.
@@ -834,8 +841,9 @@ Implementace má být záměrně jednoduchá:
 
 ### Rozsah a priority
 
-Studijní příručka zůstává schváleným plánem; není prezentována jako
-dokončená implementace merge `591f35d`.
+Základní obsah příručky je dokončený a ověřený. Další vysvětlení mechanik,
+navázaná na stejné přepínače Vedoucího jako části průkazu, jsou pouze
+schváleným směrem a zatím nejsou implementovaná.
 
 **Později:** další výuková témata podle průběhu session, pravidla dalších
 úrovní, případné vyhledávání a další navigační pomůcky podle potřeby.
@@ -1656,7 +1664,7 @@ Musí být spolehlivý, ale jednoduchý.
 
 ## 34. Roadmapa prvních 20 dní
 
-### Aktuální stav ve verzi 1.1.15
+### Aktuální stav ve verzi 1.1.17
 
 Reorganizace Vedoucího je implementovaná a ověřená se skutečným Supabase
 a dvěma klienty. Serverová autorizace Studentského průkazu zůstává otevřenou
@@ -1673,7 +1681,9 @@ byl schválen shodný styl vnějšího rámu. Merge `591f35d` na `main` dokonči
 Schopnosti, společnou řízenou viditelnost, mobilní úpravy, databázový základ
 Dovedností a bezpečnostní opravy přístupu k postavám a portrétům.
 SQL integrační testy, které nebyly provedeny, nejsou označeny jako úspěšné.
-Studijní příručka zůstává schváleným plánem podle §14.
+Studijní příručka má implementovanou a ověřenou první sadu 33 témat
+(8 ras, 12 povolání a 13 zázemí). Další mechanická vysvětlení podle §14
+zůstávají schváleným, zatím neimplementovaným směrem.
 Herní obrazovka podle §39 čeká na samostatnou fázi. Ostatní otevřené
 úkoly MVP a jejich priority se nemění.
 
@@ -1783,9 +1793,9 @@ Studentského průkazu Vedoucím podle §7 je dokončené, se změnami dostupný
 hráčům po obnovení stránky. Nejde o rozšíření povinného MVP a požadavek
 na serverovou autorizaci Studentského průkazu zůstává zachován.
 
-Dovednosti jsou nyní také **Důležité**: připravit UI, výpočty a editaci
-před testovacími hrami. Pracovní větev `feature/character-skills` je ručně
-ověřená, ale její změny zatím nejsou mergnuté.
+Dovednosti jsou implementované v `main` a jejich UI a výpočty jsou
+mergnuté. Dřívější pracovní větev `feature/character-skills` se už
+neuvádí jako rozpracovaný stav.
 
 ### Později
 

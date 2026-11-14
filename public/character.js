@@ -3,6 +3,7 @@ import { loadCharacter, updateCharacterField, lowerCharacterHp } from './charact
 import { getCurrentUser } from './login.js';
 import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';
 import { renderBasicMarkdown } from './markdown.js';
+import { CHARACTER_SECTIONS } from './character-sections.js';
 
 const RACES = new Map([
   ['human', 'Člověk'], ['elf', 'Elf'], ['halfling', 'Půlčík'], ['dwarf', 'Trpaslík'],
@@ -37,6 +38,10 @@ function featureList(character) {
     ? character.features.filter(feature => feature && typeof feature.name === 'string' && typeof feature.note === 'string')
       .map(feature => ({ name: feature.name, note: feature.note }))
     : [];
+}
+
+function publishSectionVisibility(rows) {
+  document.dispatchEvent?.(new CustomEvent('study-guide-section-visibility', { detail: rows }));
 }
 
 function signed(value) {
@@ -992,6 +997,7 @@ if (!ids.length) {
       }
       document.querySelector('#home-link').hidden = true;
       character = await window.parent.loadLeaderCharacter(ids[0]);
+      publishSectionVisibility(CHARACTER_SECTIONS.map(section => ({ section_id: section.id, is_visible: true })));
     } else {
       const { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = await import('./config.local.js');
       if (!SUPABASE_URL?.startsWith('https://') || SUPABASE_URL.includes('YOUR_PROJECT') ||
@@ -1012,6 +1018,7 @@ if (!ids.length) {
       document.querySelector('#features').hidden = featuresSetting?.is_visible !== true;
       const skillsSetting = visibilityRows.data.find(row => row.section_id === 'skills');
       document.querySelector('#skills').hidden = skillsSetting?.is_visible !== true;
+      publishSectionVisibility(visibilityRows.data);
     }
     showValue('#character-name', character.name);
     showValue('#character-race', label(character.race_code, RACES, 'Neznámá rasa'));

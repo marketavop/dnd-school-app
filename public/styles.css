@@ -16,6 +16,7 @@
 :where(.character-page) .study-guide-category-tabs button[aria-selected="true"] { background: var(--accent); color: var(--surface); font-weight: 700; }
 :where(.character-page) .study-guide-category-panel > h4 { margin-top: 0; }
 :where(.character-page) .study-guide-topics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; list-style: none; margin: 0; padding: 0; }
+:where(.character-page) [data-study-guide-category-panel="mechanics"] .study-guide-topics { grid-template-columns: minmax(0, 1fr); }
 :where(.character-page) .study-guide article { max-width: 70ch; }
 :where(.character-page) .study-guide article ul { padding-left: 1.4em; }
 :where(.character-page) .study-guide article li + li { margin-top: 8px; }
@@ -36,6 +37,11 @@
 :where(.character-page) .study-guide-classes article details summary { cursor: pointer; color: var(--accent); font-weight: 700; }
 :where(.character-page) .study-guide-classes article details p { margin: 0; padding: 8px 0; }
 :where(.character-page) .study-guide-classes article details p + p { border-top: 1px solid rgb(166 138 77 / 28%); }
+:where(.character-page) .study-guide-mechanics { max-width: 70ch; }
+:where(.character-page) .study-guide-mechanics article details { margin-top: 12px; padding: 10px 12px; border: 1px solid rgb(166 138 77 / 45%); border-radius: 4px; background: rgb(255 249 236 / 55%); }
+:where(.character-page) .study-guide-mechanics article details summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+:where(.character-page) .study-guide-mechanics article details p { margin: 0; padding: 8px 0; }
+:where(.character-page) .study-guide-mechanics article details p + p { border-top: 1px solid rgb(166 138 77 / 28%); }
 @media (max-width: 600px) {
   :where(.character-page) .study-guide { inset: 0; margin: 0; width: 100%; height: 100%; height: 100dvh; border: 0; border-radius: 0; }
   :where(.character-page) .study-guide-header { padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left)); }

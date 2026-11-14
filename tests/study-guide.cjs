@@ -5,11 +5,12 @@ const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const vm = require('node:vm');
 const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
+const css = readFileSync(resolve(__dirname, '../public/styles.css'), 'utf8');
 const races = ['human', 'elf', 'halfling', 'dwarf', 'gnome', 'half-elf', 'half-orc', 'tiefling'];
 const classes = ['barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk', 'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard'];
 const backgrounds = ['acolyte', 'charlatan', 'criminal', 'entertainer', 'folk-hero', 'guild-artisan', 'hermit', 'noble', 'outlander', 'sage', 'sailor', 'soldier', 'urchin'];
-const buttons = [...html.matchAll(/<button id="(study-guide-[^"]+)" type="button" data-study-guide-topic="([^"]+)" aria-controls="([^"]+)">/g)];
-assert.deepEqual(buttons.map(match => match[2]), [...races, ...classes, ...backgrounds]);
+const buttons = [...html.matchAll(/<button id="(study-guide-[^"]+)" type="button" data-study-guide-topic="([^"]+)"[^>]*aria-controls="([^"]+)">/g)];
+assert.deepEqual(buttons.map(match => match[2]), [...races, ...classes, ...backgrounds, 'abilities', 'skills', 'features']);
 const articles = [...html.matchAll(/<article id="study-guide-race-([^"]+)"[^>]*>([\s\S]*?)<\/article>/g)];
 assert.deepEqual(articles.map(match => match[1]), races);
 for (const [, id, body] of articles) {
@@ -37,9 +38,18 @@ for (const [, id, body] of classArticles) {
   assert.match(body, /<details><summary>Podrobnosti<\/summary>/, `${id}: collapsible details`);
   assert.match(body, /<strong>Důležité vlastnosti:<\/strong>/, `${id}: key abilities`);
 }
+const mechanicArticles = [...html.matchAll(/<article id="study-guide-mechanic-([^\"]+)"[^>]*>([\s\S]*?)<\/article>/g)];
+assert.deepEqual(mechanicArticles.map(match => match[1]), ['abilities', 'skills', 'features']);
+for (const [, id, body] of mechanicArticles) {
+  assert.match(body, /<details><summary>Podrobnosti<\/summary>/, `${id}: collapsible details`);
+}
+assert.match(mechanicArticles.find(match => match[1] === 'skills')[2], /<details><summary>Co znamená 18 Dovedností\?<\/summary>/);
+assert.equal((html.match(/data-study-guide-section=/g) || []).length, 3);
+assert.match(css, /\[data-study-guide-category-panel="mechanics"\] \.study-guide-topics \{ grid-template-columns: minmax\(0, 1fr\); \}/);
 const elements = new Map();
+const documentHandlers = {};
 let focused;
-const document = { querySelector(selector) {
+const document = { addEventListener(event, handler) { documentHandlers[event] = handler; }, dispatchEvent(event) { documentHandlers[event.type]?.(event); }, querySelector(selector) {
   if (!elements.has(selector)) elements.set(selector, {
     id: selector.startsWith('#') ? selector.slice(1) : selector,
     hidden: false, scrollTop: 100, handlers: {}, dataset: {},
@@ -47,9 +57,9 @@ const document = { querySelector(selector) {
     setAttribute(name, value) { this[name] = value; },
     querySelector: selector => document.querySelector(selector),
     querySelectorAll: selector => selector.includes('[role="tab"]')
-      ? ['study-guide-category-races', 'study-guide-category-classes', 'study-guide-category-backgrounds'].map(id => document.querySelector(`#${id}`))
+      ? ['study-guide-category-races', 'study-guide-category-classes', 'study-guide-category-backgrounds', 'study-guide-category-mechanics'].map(id => document.querySelector(`#${id}`))
       : selector.includes('[data-study-guide-category-panel]')
-        ? ['study-guide-races-panel', 'study-guide-classes-panel', 'study-guide-backgrounds-panel'].map(id => document.querySelector(`#${id}`))
+        ? ['study-guide-races-panel', 'study-guide-classes-panel', 'study-guide-backgrounds-panel', 'study-guide-mechanics-panel'].map(id => document.querySelector(`#${id}`))
         : buttons.map(match => document.querySelector(`#${match[1]}`)),
     focus() { focused = this; },
     showModal() { this.open = true; },
@@ -61,11 +71,15 @@ document.getElementById = id => document.querySelector(`#${id}`);
 for (const [, id, race, target] of buttons) {
   const button = document.getElementById(id);
   button.dataset = { studyGuideTopic: race };
+  if (['abilities', 'skills', 'features'].includes(race)) button.dataset.studyGuideSection = race;
   button.getAttribute = name => name === 'aria-controls' ? target : null;
+  button.topicParent = { hidden: false };
+  button.closest = () => button.topicParent;
 }
 document.querySelector('#study-guide-races-panel').dataset = { studyGuideCategoryPanel: 'races' };
 document.querySelector('#study-guide-classes-panel').dataset = { studyGuideCategoryPanel: 'classes' };
 document.querySelector('#study-guide-backgrounds-panel').dataset = { studyGuideCategoryPanel: 'backgrounds' };
+document.querySelector('#study-guide-mechanics-panel').dataset = { studyGuideCategoryPanel: 'mechanics' };
 vm.runInNewContext(readFileSync(resolve(__dirname, '../public/study-guide.js'), 'utf8'), { document });
 const get = id => document.querySelector(`#${id}`);
 const click = id => get(id).handlers.click();
@@ -90,6 +104,17 @@ assert.equal(get('study-guide-detail-category').textContent, 'Zázemí · D&D 5e
 click('study-guide-back');
 assert.equal(get('study-guide-backgrounds-panel').hidden, false);
 click('study-guide-category-races');
+document.dispatchEvent({ type: 'study-guide-section-visibility', detail: [
+  { section_id: 'abilities', is_visible: true }, { section_id: 'features', is_visible: true },
+] });
+assert.equal(get('study-guide-category-mechanics').hidden, false);
+assert.equal(get('study-guide-mechanics-panel').hidden, false);
+assert.equal(get('study-guide-abilities').closest().hidden, false);
+assert.equal(get('study-guide-skills').closest().hidden, true);
+assert.equal(get('study-guide-features').closest().hidden, false);
+document.dispatchEvent({ type: 'study-guide-section-visibility', detail: [] });
+assert.equal(get('study-guide-category-mechanics').hidden, true);
+assert.equal(get('study-guide-mechanics-panel').hidden, true);
 for (const topic of [...races, ...classes, ...backgrounds]) {
   click(`study-guide-${topic}`);
   assert.equal(focused, get(`study-guide-${topic}-title`));
