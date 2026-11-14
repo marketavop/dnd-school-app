@@ -125,6 +125,25 @@ input[aria-invalid="true"] { border-color: #b63832; }
 }
 
 #overview-panel > .ability-table { margin-top: 16px; }
+.game-skills { margin-top: 16px; border: 1px solid #b7a579; border-radius: 4px; background: #f7f0df; color: #26384f; }
+.game-skills summary { padding: 10px 8px; cursor: pointer; font-weight: 600; color: #314f63; }
+.game-skills-legend { margin: 0; padding: 0 8px 6px; color: #595e5e; font-size: 11px; }
+.game-skills-list { border-top: 1px solid #d5c5a1; }
+.game-skill-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: baseline; gap: 4px; padding: 7px 8px; border-bottom: 1px solid #e8e1d4; font-size: 13px; line-height: 1.25; }
+.game-skill-row:last-child { border-bottom: 0; }
+.game-skill-row:nth-child(even) { background: #fffdf8; }
+.game-skill-proficiency { text-align: center; color: #816933; }
+.game-skill-name { min-width: 0; overflow-wrap: anywhere; }
+.game-skill-name .term-english { color: #595e5e; font-size: 11px; }
+.game-skill-bonus { font-weight: 700; font-variant-numeric: tabular-nums; }
+.game-features { margin-top: 12px; border: 1px solid #b7a579; border-radius: 4px; background: #f7f0df; color: #26384f; }
+.game-features summary { padding: 10px 8px; cursor: pointer; font-weight: 600; color: #314f63; }
+.game-features-list { border-top: 1px solid #d5c5a1; }
+.game-features-list:empty { border-top: 0; }
+.game-feature { padding: 8px; overflow-wrap: anywhere; }
+.game-feature + .game-feature { border-top: 1px solid #e8e1d4; }
+.game-feature h3 { margin: 0; font-size: 14px; line-height: 1.3; }
+.game-feature p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: #595e5e; }
 @media (min-width: 768px) {
   #character-panel, #dice-panel, #scene-panel { flex-basis: clamp(320px, 28vw, 380px); }
   .ability-table th:first-child { width: 43%; }

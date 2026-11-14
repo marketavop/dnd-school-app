@@ -1,8 +1,7 @@
 import { loadCharacter, updateCharacterField } from './characters.js';
-import { abilityValues, validHpDelta, adjustedHp } from './character-rules.js';
+import { SKILLS, abilityValues, skillValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { gameUser } from './navigation.js';
 import { renderBasicMarkdown } from './markdown.js';
-import { CHARACTER_SECTIONS } from './character-sections.js';
 
 const $ = id => document.getElementById(id);
 const toggle = $('game-character-name');
@@ -39,6 +38,63 @@ toggle.hidden = leader;
 sceneToggle.hidden = !leader;
 sceneToggle.disabled = !leader;
 diceToggle.disabled = !diceAvailable;
+const signed = value => value == null ? '—' : value > 0 ? `+${value}` : String(value);
+function renderSkills(character) {
+  const list = $('game-skills-list');
+  list.replaceChildren();
+  for (const skill of SKILLS) {
+    const { proficient, bonus } = skillValues(character, skill);
+    const row = document.createElement('div');
+    row.className = 'game-skill-row';
+    const proficiency = document.createElement('span');
+    proficiency.className = 'game-skill-proficiency';
+    proficiency.textContent = proficient ? '●' : '○';
+    proficiency.setAttribute('role', 'img');
+    proficiency.setAttribute('aria-label', proficient ? 'Zdatnost' : 'Bez zdatnosti');
+    const name = document.createElement('span');
+    name.className = 'game-skill-name';
+    name.textContent = skill.czechName;
+    const english = document.createElement('span');
+    english.className = 'term-english';
+    english.textContent = ` (${skill.englishName})`;
+    name.append(english);
+    const bonusElement = document.createElement('output');
+    bonusElement.className = 'game-skill-bonus';
+    bonusElement.textContent = signed(bonus);
+    bonusElement.setAttribute('aria-label', `Bonus ${skill.czechName}`);
+    row.append(proficiency, name, bonusElement);
+    list.append(row);
+  }
+}
+function featureList(character) {
+  return Array.isArray(character.features)
+    ? character.features
+      .filter(feature => feature && typeof feature.name === 'string')
+      .map(feature => ({ name: feature.name, note: typeof feature.note === 'string' ? feature.note : '' }))
+    : [];
+}
+function renderFeatures(character) {
+  const list = $('game-features-list');
+  list.replaceChildren();
+  const features = featureList(character);
+  if (!features.length) {
+    list.textContent = 'Zatím nemáš zapsané žádné schopnosti.';
+    return;
+  }
+  for (const feature of features) {
+    const item = document.createElement('article');
+    item.className = 'game-feature';
+    const name = document.createElement('h3');
+    name.textContent = feature.name;
+    item.append(name);
+    if (feature.note) {
+      const note = document.createElement('p');
+      note.textContent = feature.note;
+      item.append(note);
+    }
+    list.append(item);
+  }
+}
 let openPanel = null;
 function togglePanel(requested) {
   if (requested === 'scene' && !leader) return;
@@ -69,12 +125,19 @@ if (valid) {
     if (abilitiesBlock) abilitiesBlock.hidden = true;
     try {
       const visibility = await db.rpc('character_section_visibility', { p_session_token: gameUser.session_token });
-      const sectionId = CHARACTER_SECTIONS.find(section => section.id === 'abilities')?.id;
       const setting = Array.isArray(visibility.data)
-        ? visibility.data.find(row => row.section_id === sectionId) : null;
+        ? visibility.data.find(row => row.section_id === 'abilities') : null;
+      const skillsSetting = Array.isArray(visibility.data)
+        ? visibility.data.find(row => row.section_id === 'skills') : null;
+      const featuresSetting = Array.isArray(visibility.data)
+        ? visibility.data.find(row => row.section_id === 'features') : null;
       if (!visibility.error && setting?.is_visible === true && abilitiesBlock) abilitiesBlock.hidden = false;
+      if (!visibility.error && skillsSetting?.is_visible === true) $('game-skills').hidden = false;
+      if (!visibility.error && featuresSetting?.is_visible === true) $('game-features').hidden = false;
     } catch { /* Keep abilities hidden if visibility cannot be loaded. */ }
     const character = await loadCharacter(db, ids[0].toLowerCase(), gameUser.session_token);
+    if (!$('game-skills').hidden) renderSkills(character);
+    if (!$('game-features').hidden) renderFeatures(character);
     $('game-character-name').textContent = character.name ?? 'Postava';
     $('compact-ac').textContent = character.ac ?? '—';
     $('compact-level').textContent = character.level ?? '—';
@@ -82,7 +145,6 @@ if (valid) {
     else $('game-inventory').textContent = 'Inventář je zatím prázdný.';
     $('inventory-edit-link').href = `./character.html?character_id=${encodeURIComponent(character.id)}&tab=inventory`;
     $('inventory-edit-link').hidden = false;
-    const signed = value => value == null ? '—' : value > 0 ? `+${value}` : String(value);
     for (const key of ['str', 'dex', 'con', 'int', 'wis', 'cha']) {
       const { modifier, save } = abilityValues(character, key);
       if (key === 'dex') $('compact-initiative').textContent = signed(modifier);

@@ -21,7 +21,7 @@ const server = http.createServer((req, res) => {
   const browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || 'msedge' });
   try {
     const context = await browser.newContext({ hasTouch: true });
-    await context.exposeFunction('fixtureOverview', id => id === characterId ? overview : { ac: null, level: null, dex: 8 });
+    await context.exposeFunction('fixtureOverview', (id, emptyFeatures = false) => id === characterId ? { ...overview, level: 5, str: 10, dex: 14, int: 12, wis: 8, cha: 16, skill_proficiencies: { stealth: true }, features: emptyFeatures ? [] : [{ name: 'Odolnost', note: 'Výhoda proti jedu.\nDlouhá poznámka.' }] } : { ac: null, level: null, dex: 8 });
     await context.exposeFunction('fixtureTokens', () => [{ character_id: characterId, name: 'Test', ...saved }]);
     await context.exposeFunction('fixtureMove', (action, id, mapId, point) => {
       assert.equal(action, 'move');
@@ -50,12 +50,15 @@ const server = http.createServer((req, res) => {
           const c = { on(type, filter, fn) {handlers[filter.event]=fn; return c}, subscribe(fn) {setTimeout(()=>fn?.('SUBSCRIBED'),0); return c}, async send(message) {bus.postMessage(message); return 'ok'}, close() {bus.close()} }; return c; },
         removeChannel(c) {c.close()},
         async rpc(name, args) {
+          if (name === 'character_section_visibility' && args.p_session_token === 'fixture-session') {
+            return {data:[{section_id:'abilities', is_visible:true}, {section_id:'skills', is_visible:!location.search.includes('hide-skills')}, {section_id:'features', is_visible:!location.search.includes('hide-features')}]};
+          }
           if (!['player_character', 'player_update_character'].includes(name) || args.p_session_token !== 'fixture-session') throw new Error('Unexpected RPC');
           if (name === 'player_update_character') {
             if (Object.keys(args.p_patch).join() !== 'current_hp') throw new Error('Only HP may be edited');
             currentHp = args.p_patch.current_hp;
           }
-          return {data:[{id:args.p_character_id, name:args.p_character_id === '${peerId}' ? 'Test Postava 2' : 'Test Postava', current_hp:currentHp, max_hp:10, str:14, dex:12, con:10, int:16, wis:10, cha:8, ...await window.fixtureOverview(args.p_character_id)}]};
+          return {data:[{id:args.p_character_id, name:args.p_character_id === '${peerId}' ? 'Test Postava 2' : 'Test Postava', current_hp:currentHp, max_hp:10, str:14, dex:12, con:10, int:16, wis:10, cha:8, ...await window.fixtureOverview(args.p_character_id, location.search.includes('empty-features'))}]};
         },
         from(table) { return { select() {return this}, eq() {return this}, async single() {return {data:
           table === 'game_state' ? {active_map_id:'test-map'} :
@@ -142,6 +145,21 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('#compact-level').textContent(), '6');
     await page.getByRole('tab', {name:'Přehled'}).click();
     assert.deepEqual(await page.locator('.ability-table thead th').allTextContents(), ['Vlastnost', 'Score', 'Mod.', 'Save']);
+    assert.equal(await page.locator('#game-skills').getAttribute('open'), null);
+    assert.equal(await page.locator('#game-skills-list .game-skill-row').count(), 0);
+    await page.locator('#game-skills summary').click();
+    assert.equal(await page.locator('#game-skills-list .game-skill-row').count(), 18);
+    assert.equal(await page.locator('.game-skill-row').filter({hasText:'Plížení'}).locator('.game-skill-bonus').textContent(), '+4');
+    assert.equal(await page.locator('.game-skill-row').filter({hasText:'Plížení'}).locator('.game-skill-proficiency').textContent(), '●');
+    assert.equal(await page.locator('.game-skill-row').filter({hasText:'Arkána'}).locator('.game-skill-bonus').textContent(), '+1');
+    assert.equal(await page.locator('.game-skill-row').filter({hasText:'Arkána'}).locator('.game-skill-proficiency').textContent(), '○');
+    assert.equal(await page.locator('#game-features').getAttribute('open'), null);
+    assert.equal(await page.locator('#game-features-list .game-feature').count(), 0);
+    await page.locator('#game-features summary').click();
+    assert.equal(await page.locator('#game-features-list .game-feature').count(), 1);
+    assert.equal(await page.locator('.game-feature h3').textContent(), 'Odolnost');
+    assert.equal(await page.locator('.game-feature p').textContent(), 'Výhoda proti jedu.\nDlouhá poznámka.');
+    assert.equal(await page.locator('#game-features input, #game-features textarea, #game-features button').count(), 0);
     await page.locator('#dice-toggle').click();
     await page.locator('#game-character-name').click();
     assert.equal(await page.getByRole('tab', {name:'Přehled'}).getAttribute('aria-selected'), 'true');
@@ -320,6 +338,16 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('#game-inventory li').textContent(), 'Uložená změna z deníku');
     assert.deepEqual((await geometry()).coordinates, saved);
     assert.equal(writes.length, 1);
+    await page.goto(url + '&hide-skills&hide-features');
+    await page.waitForFunction(() => document.querySelector('#game-character-name').textContent === 'Test Postava');
+    assert.equal(await page.locator('#game-skills').isVisible(), false);
+    assert.equal(await page.locator('#game-skills-list .game-skill-row').count(), 0);
+    assert.equal(await page.locator('#game-features').isVisible(), false);
+    assert.equal(await page.locator('#game-features-list .game-feature').count(), 0);
+    await page.goto(url + '&empty-features');
+    await page.waitForFunction(() => document.querySelector('#game-character-name').textContent === 'Test Postava');
+    await page.locator('#game-features summary').click();
+    assert.equal(await page.locator('#game-features-list').textContent(), 'Zatím nemáš zapsané žádné schopnosti.');
     assert.deepEqual(errors, []);
     if (process.env.GAME_SCREENSHOT) await page.screenshot({path:process.env.GAME_SCREENSHOT});
     console.log('PASS: recovery DOM, responsive map/panel layout, real token drag/snap and reload with isolated backend');
