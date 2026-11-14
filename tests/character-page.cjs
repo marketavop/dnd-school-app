@@ -10,6 +10,7 @@ const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'u
   .replace("import { getCurrentUser } from './login.js';", 'const getCurrentUser = () => ({ session_token: testSessionToken, role: testRole });')
   .replace("import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';", '')
   .replace("import { renderBasicMarkdown } from './markdown.js';", readFileSync(resolve(__dirname, '../public/markdown.js'), 'utf8').replace('export function', 'function'))
+  .replace("import { CHARACTER_SECTIONS } from './character-sections.js';", readFileSync(resolve(__dirname, '../public/character-sections.js'), 'utf8').replace('export const', 'const'))
   .replace("await import('./config.local.js')", 'getConfig()')
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
@@ -1391,8 +1392,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.match(html, /<details id="story-background"/);
   assert.ok(html.indexOf('id="story-background"') > html.indexOf('id="panel-card"'));
   assert.ok(html.indexOf('id="story-background"') < html.indexOf('id="panel-inventory"'));
-  assert.equal((html.match(/role="tab"/g) || []).length, 6);
-  assert.equal((html.match(/role="tabpanel"/g) || []).length, 6);
+  assert.equal((html.match(/role="tab"/g) || []).length, 7);
+  assert.equal((html.match(/role="tabpanel"/g) || []).length, 7);
   assert.ok(html.indexOf('id="panel-card"') < html.indexOf('id="student-card"'));
   assert.ok(html.indexOf('id="abilities"') < html.indexOf('id="panel-inventory"'));
   assert.ok(html.indexOf('id="skills"') > html.indexOf('id="abilities"'));

@@ -11,6 +11,9 @@ const back = document.querySelector('#study-guide-back');
 let selectedTopic;
 let selectedCategory = 'races';
 const content = dialog.querySelector('.study-guide-content');
+const mechanicsTab = document.querySelector('#study-guide-category-mechanics');
+const mechanicsPanel = document.querySelector('#study-guide-mechanics-panel');
+const mechanicTopics = topics.filter(topic => topic.dataset.studyGuideSection);
 
 function categoryOf(topic) {
   const target = topic.getAttribute('aria-controls');
@@ -20,11 +23,13 @@ function categoryOf(topic) {
 }
 
 function categoryLabel(category) {
-  return category === 'backgrounds' ? 'zázemí' : category === 'classes' ? 'povolání' : 'rasy';
+  return category === 'backgrounds' ? 'zázemí' : category === 'classes' ? 'povolání'
+    : category === 'mechanics' ? 'mechaniky' : 'rasy';
 }
 
 function categoryTitle(category) {
-  return category === 'backgrounds' ? 'Zázemí' : category === 'classes' ? 'Povolání' : 'Rasy';
+  return category === 'backgrounds' ? 'Zázemí' : category === 'classes' ? 'Povolání'
+    : category === 'mechanics' ? 'Mechaniky' : 'Rasy';
 }
 
 function showCategory(category) {
@@ -50,7 +55,7 @@ trigger.addEventListener('click', () => {
 });
 for (const tab of categoryTabs) {
   tab.dataset.studyGuideCategory = tab.id.endsWith('backgrounds') ? 'backgrounds'
-    : tab.id.endsWith('classes') ? 'classes' : 'races';
+    : tab.id.endsWith('classes') ? 'classes' : tab.id.endsWith('mechanics') ? 'mechanics' : 'races';
   tab.addEventListener('click', () => showCategory(tab.dataset.studyGuideCategory));
 }
 for (const topic of topics) {
@@ -77,3 +82,20 @@ back.addEventListener('click', () => {
 document.querySelector('#study-guide-close').addEventListener('click', () => dialog.close());
 // Native modal behavior handles Escape and keeps keyboard focus inside the dialog.
 dialog.addEventListener('close', () => trigger.focus({ preventScroll: true }));
+
+function applyMechanicVisibility(rows) {
+  const visible = new Set(rows.filter(row => row?.is_visible === true).map(row => row.section_id));
+  let anyVisible = false;
+  for (const topic of mechanicTopics) {
+    const isVisible = visible.has(topic.dataset.studyGuideSection);
+    topic.closest('li').hidden = !isVisible;
+    anyVisible ||= isVisible;
+  }
+  mechanicsTab.hidden = !anyVisible;
+  mechanicsPanel.hidden = !anyVisible;
+  if (!anyVisible && selectedCategory === 'mechanics') showCategory('races');
+}
+
+document.addEventListener?.('study-guide-section-visibility', event => {
+  applyMechanicVisibility(Array.isArray(event.detail) ? event.detail : []);
+});
