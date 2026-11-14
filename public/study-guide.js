@@ -13,7 +13,18 @@ let selectedCategory = 'races';
 const content = dialog.querySelector('.study-guide-content');
 
 function categoryOf(topic) {
-  return topic.getAttribute('aria-controls').startsWith('study-guide-background-') ? 'backgrounds' : 'races';
+  const target = topic.getAttribute('aria-controls');
+  if (target.startsWith('study-guide-background-')) return 'backgrounds';
+  if (target.startsWith('study-guide-class-')) return 'classes';
+  return 'races';
+}
+
+function categoryLabel(category) {
+  return category === 'backgrounds' ? 'zázemí' : category === 'classes' ? 'povolání' : 'rasy';
+}
+
+function categoryTitle(category) {
+  return category === 'backgrounds' ? 'Zázemí' : category === 'classes' ? 'Povolání' : 'Rasy';
 }
 
 function showCategory(category) {
@@ -38,7 +49,8 @@ trigger.addEventListener('click', () => {
   dialog.showModal();
 });
 for (const tab of categoryTabs) {
-  tab.dataset.studyGuideCategory = tab.id.endsWith('backgrounds') ? 'backgrounds' : 'races';
+  tab.dataset.studyGuideCategory = tab.id.endsWith('backgrounds') ? 'backgrounds'
+    : tab.id.endsWith('classes') ? 'classes' : 'races';
   tab.addEventListener('click', () => showCategory(tab.dataset.studyGuideCategory));
 }
 for (const topic of topics) {
@@ -51,9 +63,8 @@ for (const topic of topics) {
     }
     overview.hidden = true;
     detail.hidden = false;
-    back.textContent = `← Zpět na ${category === 'backgrounds' ? 'zázemí' : 'rasy'}`;
-    detailCategory.textContent = category === 'backgrounds'
-      ? 'Zázemí · D&D 5e (2014)' : 'Rasy · D&D 5e (2014)';
+    back.textContent = `← Zpět na ${categoryLabel(category)}`;
+    detailCategory.textContent = `${categoryTitle(category)} · D&D 5e (2014)`;
     content.scrollTop = 0;
     document.querySelector(`#study-guide-${topic.dataset.studyGuideTopic}-title`).focus({ preventScroll: true });
   });
