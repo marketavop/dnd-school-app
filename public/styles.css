@@ -639,6 +639,8 @@
 :where(.character-page) .name dd { font-size: 24px; line-height: 1.3; font-weight: 650; }
 :where(.character-page) .name input { font-size: 18px; }
 :where(.character-page) #character-level, :where(.character-page) #character-xp { font-weight: 600; font-variant-numeric: tabular-nums; }
+:where(.character-page) .resource-derived { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.35; }
+:where(.character-page) .resource-derived output { color: var(--accent); font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
 :where(.character-page) [data-empty="true"] { color: var(--muted); font-weight: 400; }
 
 /* Upper-sheet hierarchy; keep the portrait and ability cards unchanged. */

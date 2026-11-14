@@ -1,4 +1,4 @@
-import { SKILLS, abilityValues, skillValues, validHpDelta, adjustedHp } from './character-rules.js';
+import { SKILLS, abilityValues, proficiencyBonus, skillValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';
 import { getCurrentUser } from './login.js';
 import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';
@@ -272,8 +272,8 @@ function setupDiceRoller() {
   let lastSides = null;
   const roll = sides => {
     lastSides = sides;
-    result.textContent = `Výsledek hodu d${sides}: ${Math.floor(Math.random() * sides) + 1}`;
-    reroll.textContent = `Hodit d${sides} znovu`;
+    result.textContent = `Výsledek hodu k${sides}: ${Math.floor(Math.random() * sides) + 1}`;
+    reroll.textContent = `Hodit k${sides} znovu`;
     reroll.disabled = false;
   };
   document.querySelector('#dice-toggle').addEventListener('click', () => dialog.showModal());
@@ -750,6 +750,8 @@ function enableEditing(db, character) {
   const thresholds = [null, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
   function refreshResources() {
     for (const key of ['xp', 'current_hp', 'max_hp']) showValue(`#character-${key}`, character[key]);
+    const bonus = proficiencyBonus(character.level);
+    document.querySelector('#character-proficiency-bonus').textContent = bonus ? `+${bonus}` : '';
     const threshold = thresholds[character.level];
     document.querySelector('#xp-next').textContent = character.xp == null || !threshold ? '' :
       character.xp >= threshold ? 'Máš dost XP na další úroveň.' : `Do další úrovně: ${threshold - character.xp}`;

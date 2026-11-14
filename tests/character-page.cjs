@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const { resolve } = require('node:path');
 const dataSource = readFileSync(resolve(__dirname, '../public/characters.js'), 'utf8').replaceAll('export async', 'async');
 const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'utf8')
-  .replace("import { SKILLS, abilityValues, skillValues, validHpDelta, adjustedHp } from './character-rules.js';", readFileSync(resolve(__dirname, '../public/character-rules.js'), 'utf8').replaceAll('export const', 'const').replaceAll('export function', 'function'))
+  .replace("import { SKILLS, abilityValues, proficiencyBonus, skillValues, validHpDelta, adjustedHp } from './character-rules.js';", readFileSync(resolve(__dirname, '../public/character-rules.js'), 'utf8').replaceAll('export const', 'const').replaceAll('export function', 'function'))
   .replace("import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';", dataSource)
   .replace("import { getCurrentUser } from './login.js';", 'const getCurrentUser = () => ({ session_token: testSessionToken, role: testRole });')
   .replace("import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';", '')
@@ -26,7 +26,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
     'inventory', 'inventory-toggle', 'character-inventory', 'edit-inventory', 'inventory-status', 'error-inventory',
     'portrait-controls', 'portrait-upload', 'portrait-remove', 'portrait-file', 'portrait-status',
-    'character-class', 'character-level', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
+    'character-class', 'character-level', 'character-proficiency-bonus', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'dice-toggle', 'dice-dialog', 'dice-title', 'dice-close', 'dice-result', 'dice-reroll', ...[4, 6, 8, 10, 12, 20].map(sides => `dice-d${sides}`),
     'edit-name', 'edit-race', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-class', 'error-level',
     'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['background', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
@@ -194,13 +194,13 @@ async function page(query, row = base, error = null, leader = false, authorized 
     assert.equal(els['dice-dialog'].open, true);
     for (const sides of [4, 6, 8, 10, 12, 20]) {
       els[`dice-d${sides}`].handlers.click();
-      assert.match(els['dice-result'].textContent, new RegExp(`^Výsledek hodu d${sides}: \\d+$`));
+      assert.match(els['dice-result'].textContent, new RegExp(`^Výsledek hodu k${sides}: \\d+$`));
       const value = Number(els['dice-result'].textContent.split(': ')[1]);
       assert.ok(value >= 1 && value <= sides);
       assert.equal(els['dice-reroll'].disabled, false);
     }
     els['dice-reroll'].handlers.click();
-    assert.match(els['dice-result'].textContent, /^Výsledek hodu d20: (?:[1-9]|1\d|20)$/);
+    assert.match(els['dice-result'].textContent, /^Výsledek hodu k20: (?:[1-9]|1\d|20)$/);
     els['dice-close'].handlers.click();
     assert.equal(els['dice-dialog'].open, false);
   }
@@ -694,6 +694,10 @@ async function page(query, row = base, error = null, leader = false, authorized 
   for (const field of ['race', 'class', 'level']) assert.equal(empty.elements[`character-${field}`].textContent, '—');
   assert.equal(empty.elements.portrait.hidden, true);
   assert.equal(empty.elements['portrait-placeholder'].hidden, false);
+  for (const [level, bonus] of [[3, '+2'], [5, '+3'], [9, '+4'], [13, '+5'], [17, '+6']]) {
+    const levelPage = await page(`?character_id=${id}`, { ...base, level });
+    assert.equal(levelPage.elements['character-proficiency-bonus'].textContent, bonus);
+  }
   assert.equal(empty.elements.abilities.hidden, false, 'abilities is shown when the shared setting is true');
   assert.deepEqual(empty.rpcCalls.filter(call => call.name === 'character_section_visibility').length, 1);
   assert.equal(empty.elements.skills.hidden, true, 'missing visibility setting keeps skills hidden');
@@ -1011,6 +1015,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   late.control.error = null;
   await le['edit-level'].handlers.blur();
   assert.equal(lateRow.level, 3);
+  assert.equal(le['character-proficiency-bonus'].textContent, '+2');
   assert.equal(le['save-status'].textContent, 'Uloženo');
   assert.equal(le['edit-level'].hidden, true);
   // HP tlačítka vycházejí z confirmed hodnoty a nesmažou neuložené pole.
