@@ -22,6 +22,8 @@ for (const [, id, body] of articles) {
 assert.match(articles[3][2], /dvojnásobek zdatnostního bonusu/);
 assert.match(articles[7][2], /Sesílací vlastností je Charisma/);
 assert.match(articles[7][2], /Každé z těchto dvou kouzel.*jednou.*důkladném odpočinku/);
+assert.match(articles.find(match => match[1] === 'halfling')[2], /<h3[^>]*>Půlčík \(Halfling\)<\/h3>/);
+assert.doesNotMatch(articles.find(match => match[1] === 'halfling')[2], /Hobit/);
 const backgroundArticles = [...html.matchAll(/<article id="study-guide-background-([^\"]+)"[^>]*>([\s\S]*?)<\/article>/g)];
 assert.deepEqual(backgroundArticles.map(match => match[1]), backgrounds);
 assert.equal((html.match(/Zdroj pravidel/g) || []).length, 1, 'one shared source note');
@@ -38,6 +40,10 @@ for (const [, id, body] of classArticles) {
   assert.match(body, /<details><summary>Podrobnosti<\/summary>/, `${id}: collapsible details`);
   assert.match(body, /<strong>Důležité vlastnosti:<\/strong>/, `${id}: key abilities`);
 }
+const paladin = classArticles.find(match => match[1] === 'paladin')[2];
+assert.match(paladin, /Léčivý dotek \(Lay on Hands\)/);
+assert.match(paladin, /Kamarádovi zbývají jen 2 HP.*obnovíš mu 3 HP.*Teď má 5 HP/);
+assert.match(paladin, /vyžaduje akci.*Nejde o bonusovou akci ani o seslání kouzla/);
 const mechanicArticles = [...html.matchAll(/<article id="study-guide-mechanic-([^\"]+)"[^>]*>([\s\S]*?)<\/article>/g)];
 assert.deepEqual(mechanicArticles.map(match => match[1]), ['abilities', 'skills', 'features']);
 for (const [, id, body] of mechanicArticles) {

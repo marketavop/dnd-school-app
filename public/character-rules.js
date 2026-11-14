@@ -34,7 +34,7 @@ function abilityModifier(value) {
   return value == null ? null : Math.floor((value - 10) / 2);
 }
 
-function proficiencyBonus(level) {
+export function proficiencyBonus(level) {
   return Number.isInteger(level) && level >= 1 && level <= 20 ? 2 + Math.floor((level - 1) / 4) : 0;
 }
 
