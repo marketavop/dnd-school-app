@@ -1391,8 +1391,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.match(html, /<details id="story-background"/);
   assert.ok(html.indexOf('id="story-background"') > html.indexOf('id="panel-card"'));
   assert.ok(html.indexOf('id="story-background"') < html.indexOf('id="panel-inventory"'));
-  assert.equal((html.match(/role="tab"/g) || []).length, 5);
-  assert.equal((html.match(/role="tabpanel"/g) || []).length, 5);
+  assert.equal((html.match(/role="tab"/g) || []).length, 6);
+  assert.equal((html.match(/role="tabpanel"/g) || []).length, 6);
   assert.ok(html.indexOf('id="panel-card"') < html.indexOf('id="student-card"'));
   assert.ok(html.indexOf('id="abilities"') < html.indexOf('id="panel-inventory"'));
   assert.ok(html.indexOf('id="skills"') > html.indexOf('id="abilities"'));

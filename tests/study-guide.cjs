@@ -6,9 +6,10 @@ const { resolve } = require('node:path');
 const vm = require('node:vm');
 const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
 const races = ['human', 'elf', 'halfling', 'dwarf', 'gnome', 'half-elf', 'half-orc', 'tiefling'];
+const classes = ['barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk', 'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard'];
 const backgrounds = ['acolyte', 'charlatan', 'criminal', 'entertainer', 'folk-hero', 'guild-artisan', 'hermit', 'noble', 'outlander', 'sage', 'sailor', 'soldier', 'urchin'];
 const buttons = [...html.matchAll(/<button id="(study-guide-[^"]+)" type="button" data-study-guide-topic="([^"]+)" aria-controls="([^"]+)">/g)];
-assert.deepEqual(buttons.map(match => match[2]), [...races, ...backgrounds]);
+assert.deepEqual(buttons.map(match => match[2]), [...races, ...classes, ...backgrounds]);
 const articles = [...html.matchAll(/<article id="study-guide-race-([^"]+)"[^>]*>([\s\S]*?)<\/article>/g)];
 assert.deepEqual(articles.map(match => match[1]), races);
 for (const [, id, body] of articles) {
@@ -28,6 +29,14 @@ for (const [, id, body] of backgroundArticles) {
   assert.match(body, /<details><summary>Podrobnosti<\/summary>/, `${id}: collapsible details`);
   assert.match(body, /<strong>Dovednosti:<\/strong>/, `${id}: skills`);
 }
+const classArticles = [...html.matchAll(/<article id="study-guide-class-([^\"]+)"[^>]*>([\s\S]*?)<\/article>/g)];
+assert.deepEqual(classArticles.map(match => match[1]), classes);
+for (const [, id, body] of classArticles) {
+  assert.match(body, /<h3[^>]*>[^<]+ \([^<]+\)<\/h3>/, `${id}: bilingual title`);
+  assert.match(body, /<p><strong>Chceš|<p><strong>Chces/, `${id}: quick card`);
+  assert.match(body, /<details><summary>Podrobnosti<\/summary>/, `${id}: collapsible details`);
+  assert.match(body, /<strong>Důležité vlastnosti:<\/strong>/, `${id}: key abilities`);
+}
 const elements = new Map();
 let focused;
 const document = { querySelector(selector) {
@@ -38,9 +47,9 @@ const document = { querySelector(selector) {
     setAttribute(name, value) { this[name] = value; },
     querySelector: selector => document.querySelector(selector),
     querySelectorAll: selector => selector.includes('[role="tab"]')
-      ? ['study-guide-category-races', 'study-guide-category-backgrounds'].map(id => document.querySelector(`#${id}`))
+      ? ['study-guide-category-races', 'study-guide-category-classes', 'study-guide-category-backgrounds'].map(id => document.querySelector(`#${id}`))
       : selector.includes('[data-study-guide-category-panel]')
-        ? ['study-guide-races-panel', 'study-guide-backgrounds-panel'].map(id => document.querySelector(`#${id}`))
+        ? ['study-guide-races-panel', 'study-guide-classes-panel', 'study-guide-backgrounds-panel'].map(id => document.querySelector(`#${id}`))
         : buttons.map(match => document.querySelector(`#${match[1]}`)),
     focus() { focused = this; },
     showModal() { this.open = true; },
@@ -55,6 +64,7 @@ for (const [, id, race, target] of buttons) {
   button.getAttribute = name => name === 'aria-controls' ? target : null;
 }
 document.querySelector('#study-guide-races-panel').dataset = { studyGuideCategoryPanel: 'races' };
+document.querySelector('#study-guide-classes-panel').dataset = { studyGuideCategoryPanel: 'classes' };
 document.querySelector('#study-guide-backgrounds-panel').dataset = { studyGuideCategoryPanel: 'backgrounds' };
 vm.runInNewContext(readFileSync(resolve(__dirname, '../public/study-guide.js'), 'utf8'), { document });
 const get = id => document.querySelector(`#${id}`);
@@ -64,9 +74,15 @@ assert.equal(get('study-guide').open, true);
 assert.equal(get('study-guide-overview').hidden, false);
 assert.equal(get('study-guide-detail').hidden, true);
 assert.equal(get('study-guide-races-panel').hidden, false);
+assert.equal(get('study-guide-classes-panel').hidden, true);
+assert.equal(get('study-guide-backgrounds-panel').hidden, true);
+click('study-guide-category-classes');
+assert.equal(get('study-guide-races-panel').hidden, true);
+assert.equal(get('study-guide-classes-panel').hidden, false);
 assert.equal(get('study-guide-backgrounds-panel').hidden, true);
 click('study-guide-category-backgrounds');
 assert.equal(get('study-guide-races-panel').hidden, true);
+assert.equal(get('study-guide-classes-panel').hidden, true);
 assert.equal(get('study-guide-backgrounds-panel').hidden, false);
 click('study-guide-acolyte');
 assert.equal(get('study-guide-back').textContent, '← Zpět na zázemí');
@@ -74,11 +90,16 @@ assert.equal(get('study-guide-detail-category').textContent, 'Zázemí · D&D 5e
 click('study-guide-back');
 assert.equal(get('study-guide-backgrounds-panel').hidden, false);
 click('study-guide-category-races');
-for (const topic of [...races, ...backgrounds]) {
+for (const topic of [...races, ...classes, ...backgrounds]) {
   click(`study-guide-${topic}`);
   assert.equal(focused, get(`study-guide-${topic}-title`));
   for (const other of races) assert.equal(get(`study-guide-race-${other}`).hidden, other !== topic);
   for (const other of backgrounds) assert.equal(get(`study-guide-background-${other}`).hidden, other !== topic);
+  for (const other of classes) assert.equal(get(`study-guide-class-${other}`).hidden, other !== topic);
+  if (classes.includes(topic)) {
+    assert.equal(get('study-guide-back').textContent, '← Zpět na povolání');
+    assert.equal(get('study-guide-detail-category').textContent, 'Povolání · D&D 5e (2014)');
+  }
   click('study-guide-back');
   assert.equal(focused, get(`study-guide-${topic}`));
 }
@@ -99,4 +120,4 @@ assert.equal(get('study-guide-detail').hidden, true);
 // The guide may only access its own DOM and the existing trigger: no editor,
 // tab, navigation or storage dependencies are supplied to its execution context.
 assert.ok([...elements.keys()].every(key => key.includes('study-guide') || key === '#supplementary-info'));
-console.log('PASS: eight races, four sections, subrace notes, all topic transitions, focus restoration and DOM isolation');
+console.log('PASS: eight races, twelve classes, thirteen backgrounds, all topic transitions, focus restoration and DOM isolation');
