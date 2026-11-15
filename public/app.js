@@ -356,7 +356,7 @@ function updateAddTokenButton() {
     || !connected || !positionConnected || loading || Boolean(own?.busy);
   for (const state of tokens.values()) {
     if (!state.action) continue;
-    state.label.textContent = `${state.saved ? '●' : '○'} ${state.name}${state.saved ? ' — na mapě' : ''}`;
+    state.nameLabel.textContent = `${state.saved ? '●' : '○'} ${state.name}${state.saved ? ' — na mapě' : ''}`;
     state.action.textContent = state.saved ? 'Odebrat' : 'Přidat';
     state.action.disabled = contentMode === 'image'
       || !ready || !connected || !positionConnected || loading || state.busy || Boolean(drag);
@@ -385,12 +385,21 @@ function createToken(row, npc = false) {
   element.setAttribute('aria-label', row.name || 'Postava');
   element.textContent = (row.name || '?').slice(0, 1);
   mapSpace.append(element);
-  const state = { id: row.character_id, name: row.name, npc, element, saved: null, shown: null, busy: false, revision: 0 };
+  const state = { id: row.character_id, name: row.name, username: row.username, npc, element, saved: null, shown: null, busy: false, revision: 0 };
   if (!npc) state.hasPortrait = row.portrait_path != null;
   (npc ? npcs : tokens).set(state.id, state);
   if (leaderMode && !npc) {
     state.item = document.createElement('li');
     state.label = document.createElement('span');
+    state.nameLabel = document.createElement('span');
+    state.nameLabel.className = 'character-name';
+    state.label.append(state.nameLabel);
+    if (state.username) {
+      const username = document.createElement('span');
+      username.className = 'character-owner-username';
+      username.textContent = ` (${state.username})`;
+      state.label.append(username);
+    }
     state.action = document.createElement('button');
     state.action.type = 'button';
     state.message = document.createElement('p');

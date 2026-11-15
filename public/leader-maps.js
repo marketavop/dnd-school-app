@@ -1,6 +1,7 @@
 import { getCurrentUser } from './login.js';
 
 import { loadMaps, setActiveMap, deleteMap } from './leader-map-api.js';
+import { resolveMapImage } from './map-image.js';
 import { openMapPreparation } from './map-preparation.js';
 import { showAdminView, navigateAdminView } from './admin-view.js';
 
@@ -27,28 +28,66 @@ async function showMaps(event) {
       || typeof row.name !== 'string' || typeof row.is_active !== 'boolean')) throw new Error('Invalid map list');
     for (const row of rows) {
       const item = document.createElement('li');
-      item.className = 'map-card';
+      item.className = row.is_active ? 'map-card map-card-active' : 'map-card';
+      const main = document.createElement('div');
+      main.className = 'map-card-main';
+      const preview = document.createElement('div');
+      preview.className = 'map-card-preview';
+      const placeholder = document.createElement('span');
+      placeholder.className = 'map-card-preview-placeholder';
+      placeholder.textContent = 'Náhled není dostupný';
+      placeholder.hidden = true;
+      const image = document.createElement('img');
+      image.className = 'map-card-preview-image';
+      image.alt = `Náhled mapy ${row.name}`;
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      image.addEventListener('load', () => {
+        preview.classList.add('map-card-preview-loaded');
+        placeholder.hidden = true;
+      });
+      image.addEventListener('error', () => {
+        placeholder.hidden = false;
+        preview.classList.add('map-card-preview-error');
+      });
+      preview.append(image, placeholder);
+      if (row.image_path) {
+        void (row.image_path.startsWith('maps/')
+          ? resolveMapImage(row.image_path, row.map_id)
+          : Promise.resolve(row.image_path)).then(url => { image.src = url; }).catch(() => {
+          placeholder.hidden = false;
+          preview.classList.add('map-card-preview-error');
+        });
+      }
       const summary = document.createElement('div');
       summary.className = 'map-card-summary';
+      const details = document.createElement('div');
+      details.className = 'map-card-details';
       const name = document.createElement('span');
       name.className = 'map-card-name';
       name.textContent = row.name;
-      summary.append(name);
+      details.append(name);
       const type = document.createElement('span');
       type.className = 'map-card-type';
       type.textContent = row.content_mode === 'image' ? 'Obrázek' : 'Mapa';
-      summary.append(type);
+      const tags = document.createElement('div');
+      tags.className = 'map-card-tags';
+      tags.append(type);
       if (row.is_active) {
         const active = document.createElement('span');
         active.className = 'map-card-status';
         active.textContent = 'Aktivní';
-        summary.append(active);
+        tags.append(active);
       }
-      item.append(summary);
+      details.append(tags);
+      summary.append(details);
+      main.append(preview, summary);
+      item.append(main);
       const actions = document.createElement('div');
       actions.className = 'map-card-actions';
       if (!row.is_active) {
         const button = document.createElement('button');
+        button.className = 'map-card-activate';
         button.textContent = 'Aktivovat';
         button.type = 'button';
         button.addEventListener('click', async () => {
@@ -67,7 +106,16 @@ async function showMaps(event) {
           }
         });
         actions.append(button);
+      }
+      const prepare = document.createElement('button');
+      prepare.className = 'map-card-prepare';
+      prepare.type = 'button';
+      prepare.textContent = 'Připravit';
+      prepare.addEventListener('click', () => openMapPreparation(row.map_id));
+      actions.append(prepare);
+      if (!row.is_active) {
         const remove = document.createElement('button');
+        remove.className = 'map-card-delete';
         remove.type = 'button';
         remove.textContent = 'Smazat';
         remove.addEventListener('click', async () => {
@@ -94,11 +142,6 @@ async function showMaps(event) {
         });
         actions.append(remove);
       }
-      const prepare = document.createElement('button');
-      prepare.type = 'button';
-      prepare.textContent = 'Připravit';
-      prepare.addEventListener('click', () => openMapPreparation(row.map_id));
-      actions.append(prepare);
       item.append(actions);
       list.append(item);
     }

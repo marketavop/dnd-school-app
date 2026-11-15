@@ -15,6 +15,7 @@ function element() {
     addEventListener(type, fn) { this.handlers[type] = fn; },
     append(...children) { this.children.push(...children); },
     replaceChildren() { this.children = []; },
+    setAttribute(key, value) { this.attrs[key] = value; this[key] = value; },
     removeAttribute(key) { delete this[key]; },
   };
 }
@@ -42,7 +43,7 @@ function page(role = 'leader', responses = [[{ character_id: id, name: '<img src
     back: () => els['#players-back'].handlers.click() };
 }
 (async () => {
-  const p = page('leader', [[{ character_id: id, name: '<img src=x>' }], [{ id, name: 'Test Postava' }]]);
+  const p = page('leader', [[{ character_id: id, name: '<img src=x>', username: 'alice' }], [{ id, name: 'Test Postava' }]]);
   await p.open();
   assert.equal(new URL(p.window.location.href).searchParams.get('view'), 'players');
   assert.equal(p.els['#leader-content'].hidden, true);
@@ -53,9 +54,10 @@ function page(role = 'leader', responses = [[{ character_id: id, name: '<img src
   assert.equal(p.requests[1].cache, 'no-store');
   assert.deepEqual(p.requests[1].payload, { p_session_token: 'ab'.repeat(32) });
   assert.ok(p.requests[1].url.endsWith('/rpc/leader_players'));
-  assert.equal(p.els['#character-visibility-controls'].children.length, 3);
+  assert.equal(p.els['#character-visibility-controls'].children.length, 4);
   const button = p.els['#players-list'].children[0].children[0];
-  assert.equal(button.textContent, '<img src=x>', 'names rendered as text');
+  assert.equal(button.children[0].textContent, '<img src=x>', 'names rendered as text');
+  assert.equal(button.children[1].textContent, ' (alice)', 'owner username rendered separately');
   button.handlers.click();
   assert.equal(p.els['#leader-sheet'].src, `./character.html?mode=leader&character_id=${id}`);
   assert.equal(p.els['#leader-sheet'].hidden, false);

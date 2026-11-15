@@ -1,10 +1,21 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.18
+**Verze:** 1.1.19
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.19
+
+- GUI Vedoucího ve větvi `feature/leader-gui` má dokončené kompaktní sekce **Hráči**, **Mapy** a **NPC** ve schváleném stylu Academia Magna Illistrass; změny nemění role, navigaci, herní logiku, databázi ani priority MVP,
+- sekce **Hráči** používá na široké obrazovce dvousloupcové rozložení: vlevo kompaktní seznam postav a vpravo read-only Studentský průkaz; vybraná postava má zřetelné zvýraznění a na úzké obrazovce se seznam přirozeně přesune nad průkaz,
+- Vedoucí u každé hráčské postavy vidí jméno a sekundárně username vlastníka; stejné označení je v panelu Scéna. Username poskytuje pouze backendově autorizovaná cesta Vedoucího, ne hráčské rozhraní; účet s více postavami proto zobrazuje stejný username u každé své postavy,
+- společné přepínače viditelnosti průkazu jsou přístupné kompaktní kapsle s výraznými stavy zapnuto/vypnuto; ukládání, načítání i výchozí hodnoty zůstávají beze změny,
+- read-only náhled průkazu Vedoucího měří skutečnou výšku vloženého obsahu po načtení, změně postavy i změně záložky. Průkaz se posouvá hlavním scrollbarem stránky bez samovolného růstu iframe; nevyplněné hodnoty zůstávají označené pomlčkou a dvojjazyčné popisky Vlastností se zalamují uvnitř karet,
+- knihovna **Mapy** používá kompaktní řádky s autorizovanými náhledy, lazy loadingem a placeholderem při skutečné chybě obrázku. Aktivní mapa má jemné zlaté zvýraznění; formulář Nová mapa je vzhledově sjednocený s formulářem NPC,
+- sekce **NPC** používá jednotné portréty, placeholder s iniciálou bez obrázku, výchozím způsobem sbalený formulář Nové NPC a kompaktní ovládání. Po úspěšném vytvoření se formulář vyčistí a sbalí; při chybě zůstane otevřený s vyplněnými údaji,
+- akce v Mapách a NPC mají jednotnou významovou hierarchii: Nahrát/Změnit obrázek, Připravit, Vytvořit a Přidat jsou primární; Odstranit obrázek, Aktivovat, Obnovit seznam a Zrušit sekundární; Smazat mapu a Smazat NPC jsou destruktivní. Hierarchie je viditelná i bez hoveru a funguje ve světlém i tmavém režimu.
 
 ### Změny ve verzi 1.1.18
 
@@ -317,8 +328,15 @@ nemění.
 
 Máme jednu skupinu/kampaň, takže neexistuje výběr kampaně.
 
-Vedoucí navíc vidí jednoduchý seznam hráčů/postav a může otevřít jejich
-deníky read-only.
+Vedoucí navíc vidí kompaktní seznam hráčských postav a může otevřít jejich
+Studentské průkazy read-only. U každé postavy je vedle herního jména uveden
+méně výrazný username vlastníka; chybějící username se nezobrazuje. Toto
+označení je dostupné jen backendově autorizovanému Vedoucímu a nemění přístup
+hráčů k údajům jiných účtů.
+
+Na široké obrazovce je seznam vlevo vedle právě otevřeného průkazu. Vybraná
+postava je jednoznačně zvýrazněná; na úzké obrazovce se seznam zobrazí nad
+průkazem jako responzivní mřížka.
 
 Homepage Vedoucího má samostatné sekce **Domů**, **Hráči**, **Mapy** a
 **NPC**. Navigace je ve všech sekcích stejná a zachovává přepínání přes
@@ -416,12 +434,13 @@ viditelnosti mechanických částí, nikoliv ostatního realtime herního stavu.
 
 ### Listování Studentským průkazem
 
-Studentský průkaz obsahuje v MVP tři záložky:
+Studentský průkaz obsahuje v MVP čtyři záložky:
 
 1.  **Průkaz** — výchozí záložka. Obsahuje základní údaje postavy,
     portrét, HP, AC, XP, Zázemí a šest atributů.
-2.  **Inventář** — obsahuje stávající editovatelné pole `inventory`.
-3.  **Sešit** — obsahuje stávající Studentský sešit (`notes`).
+2.  **Kouzla** — zobrazuje existující údaje kouzel.
+3.  **Inventář** — obsahuje stávající editovatelné pole `inventory`.
+4.  **Sešit** — obsahuje stávající Studentský sešit (`notes`).
 
 Záložky patří **dovnitř Studentského průkazu**, nejsou hlavní navigací
 aplikace. Stejné uspořádání je dostupné hráči i v read-only náhledu
@@ -437,6 +456,11 @@ Přepínání probíhá na jedné stránce bez routeru a bez nových databázov�
 požadavků. Nesmí způsobit ztrátu rozepsaného textu. Toto pravidlo se týká
 listování mezi záložkami, nikoliv persistence společného nastavení
 viditelnosti mechanických částí.
+
+V read-only náhledu Vedoucího se vložený průkaz výškově přizpůsobuje
+skutečnému obsahu po načtení, změně postavy i přepnutí záložky. Posouvá se
+hlavní stránka homepage, nikoliv samostatný vnitřní kontejner průkazu; měření
+nesmí vytvářet zpětnou vazbu ani postupně zvětšovat iframe.
 
 Implementace má zůstat jednoduchá:
 
@@ -1203,6 +1227,9 @@ může také rychle vytvořit definici NPC s volitelným obrázkem a rovnou ji
 umístit na aktivní mapu. Nová definice zůstane zachovaná i při selhání
 umístění, které lze následně zopakovat bez vytvoření duplicity.
 
+U hráčských postav panel Scéna zobrazuje také méně výrazný username vlastníka.
+NPC se tímto označením nemění; ovládání hráčských tokenů zůstává beze změny.
+
 Původní globální správa NPC byla z herní obrazovky odstraněna. Globální
 definice se spravují na homepage.
 ------------------------------------------------------------------------
@@ -1283,6 +1310,16 @@ konfigurovatelné jednotky, sdílené kresby a automatická pravidlová validace
 ## 24. Knihovna map a aktivní scéna
 
 Vedoucí má seznam připravených map.
+
+Knihovna map je vizuálně sjednocená s GUI Hráči: nadpis a tlačítko Přidat mapu
+jsou na jednom řádku, každá mapa je kompaktní řádek s náhledem, názvem, štítkem
+typu a seskupenými akcemi. Náhled používá existující autorizovaný zdroj obrázku,
+lazy loading a placeholder pouze při chybě načtení. Aktivní mapa má jemný zlatý
+levý okraj a označení Aktivní.
+
+Formulář Nová mapa používá stejný pergamenový panel, popisky, vstupy a akce
+vpravo jako Nové NPC. Akce se na mobilu zalamují uvnitř karty bez horizontálního
+přetečení.
 
 **Mazání neaktivních map je implementovanou součástí MVP.** Vedoucí může
 z knihovny odstranit neaktivní mapu. Aktivní mapu nelze smazat; tento zákaz
@@ -1396,6 +1433,12 @@ se jménem nebo iniciálou.
 Vedoucí definice vytváří, spravuje jejich obrázky a globálně je maže na
 homepage. Globální smazání odstraní také všechna umístění daného NPC na
 všech mapách.
+
+Sekce NPC je vizuálně sjednocená s knihovnou map: nadpis a Přidat NPC jsou na
+jednom řádku, Obnovit seznam je kompaktní sekundární akce a každý záznam má
+jednotný portrét 64 × 64 px. NPC bez obrázku používá placeholder s iniciálou.
+Formulář Nové NPC je výchozím způsobem sbalený; po úspěšném vytvoření se vyčistí
+a sbalí, při chybě zůstává otevřený s dosavadními hodnotami.
 
 NPC nemá:
 
@@ -1685,11 +1728,11 @@ Musí být spolehlivý, ale jednoduchý.
 
 ## 34. Roadmapa prvních 20 dní
 
-### Aktuální stav ve verzi 1.1.17
+### Aktuální stav ve verzi 1.1.19
 
 Reorganizace Vedoucího je implementovaná a ověřená se skutečným Supabase
-a dvěma klienty. Serverová autorizace Studentského průkazu zůstává otevřenou
-prioritou MVP. SQL bezpečnostní regresní testy ještě vyžadují dokončení
+a dvěma klienty. Serverová autorizace Studentského průkazu je implementovaná
+autorizovanými RPC. SQL bezpečnostní regresní testy ještě vyžadují dokončení
 ověření. `tests/game-layout.cjs` má známý problém se zastaralou fixture;
 nejde o změnu produktového chování. Níže uvedená roadmapa zůstává původním
 plánovacím rámcem.
@@ -1707,6 +1750,11 @@ Studijní příručka má implementovanou a ověřenou první sadu 33 témat
 zůstávají schváleným, zatím neimplementovaným směrem.
 Herní obrazovka podle §39 čeká na samostatnou fázi. Ostatní otevřené
 úkoly MVP a jejich priority se nemění.
+
+Větev `feature/leader-gui` dokončila schválené GUI Vedoucího pro Hráče, Mapy
+a NPC včetně read-only náhledu průkazu bez vnitřního scrollbaru, bezpečného
+zobrazení username vlastníka a sjednocené hierarchie akcí. Jde o dokončení
+prezentačního rozhraní nad existujícími funkcemi, ne o rozšíření product scope.
 
 ### Dny 1--3 --- Technický spike
 
@@ -1961,10 +2009,13 @@ přebarvovat, filtrovat ani měnit jeho souřadnicová či drag logika.
 Styl se zavádí postupně:
 
 1.  Login a homepage hráče i Vedoucího (`index.html`) jsou vizuálně
-    dokončené a prošly vizuální a funkční akceptací.
+    dokončené a prošly vizuální a funkční akceptací. Sekce Hráči, Mapy a NPC
+    Vedoucího používají kompaktní akademické řádky, sjednocené formuláře a
+    významovou barevnou hierarchii akcí.
 2.  Vizuální podoba záložky Průkaz v `character.html` byla produktově
-    schválena; Inventář a Sešit se sjednocují se stejným rámem. Zbývá
-    dokončit konkrétní kontrolu dvojjazyčných popisků a regresi před merge.
+    schválena; Inventář a Sešit se sjednocují se stejným rámem. Read-only
+    náhled Vedoucího používá výšku skutečného obsahu a dvojjazyčné popisky
+    Vlastností se zalamují uvnitř karet.
 3.  Vizuální sjednocení okolního UI herní obrazovky (`game.html`) zůstává
     další plánovanou prací.
 

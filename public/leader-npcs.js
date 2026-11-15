@@ -11,6 +11,7 @@ const form = $('leader-npc-form');
 const name = $('leader-npc-name');
 const file = $('leader-npc-image');
 const submit = $('leader-npc-submit');
+const addButton = $('add-npc-button');
 let rows = [];
 let generation = 0;
 let request = 0;
@@ -20,6 +21,11 @@ let pendingId = null;
 const uncertain = new Set();
 const leader = () => getCurrentUser()?.role === 'leader' && Boolean(getCurrentUser()?.session_token);
 const active = () => leader() && !panel.hidden && new URL(window.location.href).searchParams.get('view') === 'npcs';
+function setFormOpen(open) {
+  form.hidden = !open;
+  addButton.setAttribute('aria-expanded', String(open));
+  if (open) name.focus();
+}
 
 function controls() {
   submit.disabled = busy || !ready || (pendingId && uncertain.has(pendingId));
@@ -37,23 +43,38 @@ function render() {
   for (const row of rows) {
     const item = document.createElement('li');
     item.className = 'npc-card';
-    const label = document.createElement('span');
-    label.textContent = row.name || 'NPC';
-    item.append(label);
+    const preview = document.createElement('div');
+    preview.className = 'npc-card-preview';
+    const placeholder = document.createElement('span');
+    placeholder.className = 'npc-card-placeholder';
+    placeholder.textContent = (row.name || 'NPC').trim().slice(0, 1).toUpperCase();
+    preview.append(placeholder);
     if (row.image_url != null) {
       void portraitImageUrl(row.id, { entityType: 'npc' }).then(url => {
         if (!url || version !== generation || !active() || !item.isConnected) return;
         const image = document.createElement('img');
-        image.alt = ''; image.referrerPolicy = 'no-referrer'; image.src = url;
-        image.addEventListener('error', () => image.remove());
-        item.prepend(image);
+        image.alt = `Portrét NPC ${row.name || 'NPC'}`;
+        image.loading = 'lazy'; image.referrerPolicy = 'no-referrer';
+        image.addEventListener('load', () => { placeholder.hidden = true; preview.classList.add('npc-card-preview-loaded'); });
+        image.addEventListener('error', () => { image.remove(); preview.classList.add('npc-card-preview-error'); });
+        image.src = url;
+        preview.prepend(image);
       }).catch(() => { /* The NPC name remains usable without a preview. */ });
     }
-    const button = (text, action) => {
+    const details = document.createElement('div');
+    details.className = 'npc-card-details';
+    const label = document.createElement('span');
+    label.className = 'npc-card-name';
+    label.textContent = row.name || 'NPC';
+    details.append(label);
+    const actions = document.createElement('div');
+    actions.className = 'npc-card-actions';
+    const button = (text, action, role = 'secondary') => {
       const element = document.createElement('button');
       element.type = 'button'; element.textContent = text;
+      element.className = `npc-card-${role}`;
       element.disabled = busy || !ready || uncertain.has(row.id);
-      element.addEventListener('click', action); item.append(element);
+      element.addEventListener('click', action); actions.append(element);
     };
     const input = document.createElement('input');
     input.type = 'file'; input.hidden = true; input.accept = file.accept;
@@ -61,10 +82,11 @@ function render() {
       const selected = input.files?.[0]; input.value = '';
       if (selected) void changeImage(row.id, selected);
     });
-    item.append(input);
-    button(row.image_url ? 'Změnit obrázek' : 'Nahrát obrázek', () => input.click());
-    if (row.image_url) button('Odstranit obrázek', () => changeImage(row.id));
-    button('Smazat NPC', () => deleteNpc(row));
+    actions.append(input);
+    button(row.image_url ? 'Změnit obrázek' : 'Nahrát obrázek', () => input.click(), 'primary');
+    if (row.image_url) button('Odstranit obrázek', () => changeImage(row.id), 'secondary');
+    button('Smazat NPC', () => deleteNpc(row), 'destructive');
+    item.append(preview, details, actions);
     list.append(item);
   }
 }
@@ -94,6 +116,7 @@ async function showNpcs(event) {
   if (!leader()) return;
   if (new URL(window.location.href).searchParams.get('view') !== 'npcs') navigateAdminView(window, 'npcs');
   showAdminView(document, 'npcs');
+  setFormOpen(false);
   $('leader-game').hidden = true;
   $('map-preparation').hidden = true;
   generation++;
@@ -153,6 +176,7 @@ form.addEventListener('submit', async event => {
     }
     const result = selected ? await uploadPortrait(pendingId, selected, { entityType: 'npc' }) : null;
     pendingId = null; form.reset();
+    setFormOpen(false);
     message = result?.cleanup_pending ? 'NPC vytvořeno; úklid obrázku čeká na dokončení.' : 'NPC bylo vytvořeno.';
   } catch (error) {
     if (pendingId && (error.status === 409 || error.outcome_unknown)) uncertain.add(pendingId);
@@ -167,6 +191,12 @@ form.addEventListener('submit', async event => {
 });
 
 $('leader-npcs-link').addEventListener('click', showNpcs);
+$('add-npc-button').addEventListener('click', () => setFormOpen(form.hidden));
+$('leader-npc-cancel').addEventListener('click', () => {
+  if (busy) return;
+  if (!pendingId) form.reset();
+  setFormOpen(false);
+});
 $('npcs-reload').addEventListener('click', showNpcs);
 $('npcs-home-nav').addEventListener('click', event => {
   event.preventDefault(); generation++;

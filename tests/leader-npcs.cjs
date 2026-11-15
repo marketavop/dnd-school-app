@@ -87,6 +87,7 @@ const server = http.createServer((req, res) => {
       assert.equal(await page.locator('.admin-nav:visible').count(), 0);
     }
     await page.goto(url); await page.locator('#leader-npcs-link').click(); await ready();
+    await page.locator('#add-npc-button').click();
     assert.match(await page.locator('#npcs-status').innerText(), /Zatím/);
     await page.locator('#leader-npc-name').fill('   '); await page.locator('#leader-npc-submit').click(); assert.equal(creates, 0);
     await page.locator('#leader-npc-name').fill('Goblin');
@@ -96,11 +97,13 @@ const server = http.createServer((req, res) => {
     assert.equal(creates, 1); releaseCreate(); createGate = null; await ready();
     assert.equal(await page.locator('.npc-card').count(), 1);
     const image = { name: 'image.png', mimeType: 'image/png', buffer: Buffer.from('fixture') };
+    await page.locator('#add-npc-button').click();
     await page.locator('#leader-npc-name').fill('With image'); await page.locator('#leader-npc-image').setInputFiles(image);
     await page.locator('#leader-npc-submit').click(); await ready();
     assert.equal(creates, 2); assert.equal(uploads, 1);
     // A failed upload keeps the newly created definition for a retry.
     imageError = { outcome_unknown: true };
+    await page.locator('#add-npc-button').click();
     await page.locator('#leader-npc-name').fill('Partial image'); await page.locator('#leader-npc-image').setInputFiles(image);
     await page.locator('#leader-npc-submit').click(); await ready();
     const createdBeforeRetry = creates;
@@ -125,6 +128,7 @@ const server = http.createServer((req, res) => {
     await card.getByRole('button', { name: 'Smazat NPC' }).click(); await ready();
     assert.match(await page.locator('#npcs-status').innerText(), /nebyl potvrzen/); assert.equal(rows.length, 3);
     deleteError = false; await card.getByRole('button', { name: 'Smazat NPC' }).click(); await ready(); assert.equal(rows.length, 2);
+    await page.locator('#add-npc-button').click();
     failCreate = true; await page.locator('#leader-npc-name').fill('Failure'); await page.locator('#leader-npc-submit').click(); await ready();
     assert.match(await page.locator('#npcs-status').innerText(), /nebylo potvrzeno/); failCreate = false;
     await page.reload(); await ready(); assert.equal(await page.locator('.npc-card').count(), 2);

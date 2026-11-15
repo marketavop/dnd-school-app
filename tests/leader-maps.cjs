@@ -14,7 +14,7 @@ function page(role = 'leader', result = [
   const element = () => ({ hidden: true, children: [], handlers: {}, dataset: {},
     addEventListener(type, fn) { this.handlers[type] = fn; },
     click() { return this.handlers.click({ preventDefault() {} }); },
-    replaceChildren() { this.children = []; }, append(item) { this.children.push(item); } });
+    replaceChildren() { this.children = []; }, append(...items) { this.children.push(...items); } });
   const els = Object.fromEntries(['leader-content', 'leader-maps', 'maps-list', 'maps-status',
     'leader-maps-link', 'maps-back'].map(id => [id, element()]));
   const requests = [];
@@ -56,17 +56,17 @@ function page(role = 'leader', result = [
   assert.equal(new URL(p.window.location.href).searchParams.get('view'), 'maps');
   assert.equal(p.els['leader-content'].hidden, true);
   assert.equal(p.els['leader-maps'].hidden, false);
-  assert.deepEqual(p.els['maps-list'].children.map(x => x.children[0].children[0].textContent), ['<Test map>', 'Mapa akademie']);
+  assert.deepEqual(p.els['maps-list'].children.map(x => x.children[0].children[1].children[0].children[0].textContent), ['<Test map>', 'Mapa akademie']);
   assert.equal(p.requests[0].url, 'https://example.supabase.co/rest/v1/rpc/leader_maps');
   assert.equal(p.requests[0].method, 'POST');
-  assert.deepEqual(p.els['maps-list'].children.map(x => x.children[0].children[1].textContent), ['Mapa', 'Obrázek']);
-  assert.equal(p.els['maps-list'].children[1].children[0].children[2].textContent, 'Aktivní');
+  assert.deepEqual(p.els['maps-list'].children.map(x => x.children[0].children[1].children[0].children[1].children[0].textContent), ['Mapa', 'Obrázek']);
+  assert.equal(p.els['maps-list'].children[1].children[0].children[1].children[0].children[1].children[1].textContent, 'Aktivní');
   const changedRows = [{ map_id: 'changed', name: 'Stejný název', content_mode: 'map', is_active: true }];
   const changed = page('leader', changedRows);
   await changed.open();
   changedRows[0].content_mode = 'image';
   await changed.open();
-  assert.equal(changed.els['maps-list'].children[0].children[0].children[1].textContent, 'Obrázek');
+  assert.equal(changed.els['maps-list'].children[0].children[0].children[1].children[0].children[1].children[0].textContent, 'Obrázek');
   assert.deepEqual(JSON.parse(p.requests[0].body), { p_session_token: 'test-session' });
   await p.els['maps-list'].children[0].children[1].children[0].click();
   assert.equal(p.requests[1].url, 'https://example.supabase.co/rest/v1/rpc/leader_set_active_map');
