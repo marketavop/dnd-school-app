@@ -38,14 +38,15 @@ export function mountLeaderPlayers(document, window, call = rpc) {
     const content = sheet.contentDocument?.querySelector('main');
     if (!body || !content) return;
     const style = sheet.contentWindow?.getComputedStyle(body);
-    const margins = (Number.parseFloat(style?.marginTop) || 0) + (Number.parseFloat(style?.marginBottom) || 0);
-    const height = content.scrollHeight + margins;
+    const bottomMargin = Number.parseFloat(style?.marginBottom) || 0;
+    const contentBottom = content.getBoundingClientRect().bottom + (sheet.contentWindow?.scrollY || 0);
+    const height = Math.ceil(contentBottom + bottomMargin);
+    if (height > 0 && Math.ceil(sheet.getBoundingClientRect().height) !== height) sheet.style.height = `${height}px`;
     if (sheet.dataset) {
       sheet.dataset.iframeHeight = String(Math.ceil(sheet.getBoundingClientRect().height));
       sheet.dataset.documentHeight = String(sheet.contentDocument?.documentElement?.scrollHeight ?? 0);
-      sheet.dataset.contentHeight = String(Math.ceil(height));
+      sheet.dataset.contentHeight = String(height);
     }
-    if (height > 0) sheet.style.height = `${height}px`;
   }
   function observeSheetHeight() {
     sheetResizeObserver?.disconnect();

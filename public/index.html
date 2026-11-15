@@ -77,13 +77,18 @@
         <a id="maps-npcs-nav" href="?view=npcs">NPC</a>
       </nav>
       <button id="maps-back" type="button" hidden>← Vedoucí</button>
-      <h1>Mapy</h1>
-      <button id="add-map-button" type="button">+ Přidat mapu</button>
+      <div class="maps-heading">
+        <h1>Mapy</h1>
+        <button id="add-map-button" type="button">+ Přidat mapu</button>
+      </div>
       <form id="map-upload-form" hidden>
+        <h2>Nová mapa</h2>
         <label>Název mapy<input id="map-upload-name" required maxlength="120"></label>
         <label>Obrázek<input id="map-upload-file" type="file" accept="image/png,image/jpeg,image/webp" required></label>
-        <button type="submit">Přidat mapu</button>
-        <button id="map-upload-cancel" type="button">Zrušit</button>
+        <div class="npc-form-actions">
+          <button type="submit">Přidat mapu</button>
+          <button id="map-upload-cancel" type="button">Zrušit</button>
+        </div>
         <p id="map-upload-error" role="alert"></p>
       </form>
       <p id="maps-status" role="status" aria-live="polite"></p>
@@ -96,13 +101,18 @@
         <a id="npcs-maps-nav" href="?view=maps">Mapy</a>
         <a id="npcs-npcs-nav" href="?view=npcs" aria-current="page">NPC</a>
       </nav>
-      <h1>NPC</h1>
-      <form id="leader-npc-form">
-        <label for="leader-npc-name">Jméno NPC</label>
-        <input id="leader-npc-name" maxlength="120" required>
-        <label for="leader-npc-image">Obrázek (volitelný)</label>
-        <input id="leader-npc-image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
-        <button id="leader-npc-submit" type="submit" disabled>Vytvořit NPC</button>
+      <div class="npcs-heading">
+        <h1>NPC</h1>
+        <button id="add-npc-button" type="button" aria-expanded="false" aria-controls="leader-npc-form">+ Přidat NPC</button>
+      </div>
+      <form id="leader-npc-form" hidden>
+        <h2>Nové NPC</h2>
+        <label for="leader-npc-name">Jméno NPC<input id="leader-npc-name" maxlength="120" required></label>
+        <label for="leader-npc-image">Obrázek (volitelný)<input id="leader-npc-image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"></label>
+        <div class="npc-form-actions">
+          <button id="leader-npc-submit" type="submit" disabled>Vytvořit NPC</button>
+          <button id="leader-npc-cancel" type="button">Zrušit</button>
+        </div>
       </form>
       <button id="npcs-reload" type="button">Obnovit seznam</button>
       <p id="npcs-status" role="status" aria-live="polite"></p>

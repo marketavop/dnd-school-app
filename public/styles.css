@@ -75,6 +75,8 @@
 :where(.home-page) main.players-open { margin-top: 24px; }
 :where(.home-page) main.players-open { width: min(100% - 32px, 1280px); }
 :where(.home-page) :where(#home-content, #leader-content, .content-section) { display: grid; gap: 24px; }
+:where(.home-page) #leader-maps { gap: 14px; }
+:where(.home-page) #leader-npcs { gap: 14px; }
 :where(.home-page) h1 { margin: 0; color: #243b57; font: 600 clamp(30px, 4vw, 40px)/1.15 Georgia, "Times New Roman", serif; letter-spacing: -.02em; }
 :where(.home-page) p { margin: 0; }
 :where(.home-page) .academy-header { display: grid; justify-items: center; gap: 8px; margin: 0 auto 28px; text-align: center; }
@@ -94,26 +96,40 @@
 .home-page .action-card-description { color: #526171; font-size: 14px; line-height: 1.4; }
 :where(.home-page) .content-section > button, :where(.home-page) form button, :where(.home-page) #players-list button { min-height: 44px; padding: 10px 16px; border: 1px solid #c3b791; border-radius: 6px; background: #fffdf8; color: #314f63; font: inherit; cursor: pointer; }
 :where(.home-page) button:hover:not(:disabled) { border-color: #a68a4d; background: #f8f4e9; }
-:where(.home-page) .card-list, :where(.home-page) #players-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+:where(.home-page) .card-list, :where(.home-page) #players-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
 :where(.home-page) .players-workspace { display: grid; grid-template-columns: minmax(240px, 280px) minmax(0, 1fr); align-items: start; gap: 24px; }
 :where(.home-page) #players-list { align-content: start; }
 :where(.home-page) #players-list button { width: 100%; min-width: 0; text-align: left; font-weight: 600; overflow-wrap: anywhere; }
 :where(.home-page) #players-list button[aria-current="true"] { border-color: #d8ba77; color: #fff3d2; background: #1d3553; box-shadow: inset 0 2px #d8ba77, 0 3px 10px rgb(29 53 83 / 18%); }
 :where(.home-page) #players-list button[aria-current="true"] .character-owner-username { color: #d9d2c2; }
-:where(.home-page) #add-map-button { justify-self: start; min-height: 46px; padding: 10px 18px; border-color: #a68a4d; background: #1d3553; color: #fff3d2; box-shadow: inset 0 2px #d8ba77, 0 3px 10px rgb(29 53 83 / 16%); font-weight: 700; }
+:where(.home-page) .maps-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+:where(.home-page) .maps-heading h1 { min-width: 0; }
+:where(.home-page) #add-map-button { flex: 0 0 auto; min-height: 44px; padding: 9px 16px; border-color: #a68a4d; background: #1d3553; color: #fff3d2; box-shadow: inset 0 1px #d8ba77; font-weight: 700; }
 :where(.home-page) #add-map-button:hover:not(:disabled) { border-color: #d8ba77; background: #29496b; }
-:where(.home-page) .map-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border: 1px solid #d5cdbd; border-radius: 8px; background: #fffdf8; box-shadow: 0 3px 10px rgb(38 52 66 / 6%); }
-:where(.home-page) .map-card-active { border-color: #d8ba77; background: linear-gradient(100deg, #fffdf8, #f5ecd8); box-shadow: inset 3px 0 #a68a4d, 0 4px 12px rgb(29 53 83 / 10%); }
-:where(.home-page) .map-card-summary { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
-:where(.home-page) .map-card-name { color: #243b57; font-weight: 650; overflow-wrap: anywhere; }
+:where(.home-page) .map-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 14px 10px 16px; border: 1px solid #d5cdbd; border-radius: 7px; background: #fffdf8; box-shadow: 0 2px 6px rgb(38 52 66 / 5%); }
+:where(.home-page) .map-card-active { border-color: #d8ba77; background: #fffdf8; box-shadow: inset 3px 0 #a68a4d, 0 2px 6px rgb(29 53 83 / 7%); }
+:where(.home-page) .map-card-main { display: flex; min-width: 0; flex: 1 1 auto; align-items: center; gap: 12px; }
+:where(.home-page) .map-card-preview { display: grid; flex: 0 0 100px; width: 100px; height: 75px; place-items: center; overflow: hidden; border: 1px solid #d5cdbd; border-radius: 5px; color: #6e6b61; background: #f7f0df; font-size: 11px; line-height: 1.2; text-align: center; }
+:where(.home-page) .map-card-preview-image { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 120ms ease; }
+:where(.home-page) .map-card-preview-loaded .map-card-preview-image { opacity: 1; }
+:where(.home-page) .map-card-preview-error .map-card-preview-image { display: none; }
+:where(.home-page) .map-card-preview-placeholder { max-width: 9ch; padding: 4px; }
+:where(.home-page) .map-card-preview-error { border-color: #c3b791; background: #f2eee5; }
+:where(.home-page) .map-card-summary { min-width: 0; flex: 1 1 auto; }
+:where(.home-page) .map-card-details { min-width: 0; }
+:where(.home-page) .map-card-name { color: #243b57; font-weight: 750; overflow-wrap: anywhere; }
+:where(.home-page) .map-card-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
 :where(.home-page) .map-card-type { padding: 2px 8px; border: 1px solid #d5cdbd; border-radius: 999px; color: #526171; background: #f7f0df; font-size: 12px; font-weight: 650; }
 :where(.home-page) .map-card-status { padding: 2px 8px; border: 1px solid #a68a4d; border-radius: 999px; color: #6e5b2b; background: #fff6dc; font-size: 12px; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
-:where(.home-page) .map-card-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-:where(.home-page) .map-card-actions button { min-width: 96px; }
+:where(.home-page) .map-card-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+:where(.home-page) .map-card-actions button { min-width: 88px; min-height: 44px; padding: 9px 12px; border-radius: 5px; }
+:where(.home-page) .map-card-actions button:focus-visible, :where(.home-page) #add-map-button:focus-visible { outline: 3px solid #d8ba77; outline-offset: 2px; }
+:where(.home-page) .map-card-actions .map-card-activate { border-color: #a68a4d; color: #314f63; background: #fffdf8; }
+:where(.home-page) .map-card-actions .map-card-activate:hover:not(:disabled) { border-color: #a68a4d; background: #f8f4e9; }
 :where(.home-page) .map-card-actions .map-card-prepare { border-color: #a68a4d; color: #fff3d2; background: #1d3553; box-shadow: inset 0 1px #d8ba77; font-weight: 700; }
 :where(.home-page) .map-card-actions .map-card-prepare:hover:not(:disabled) { border-color: #d8ba77; background: #29496b; }
-:where(.home-page) .map-card-actions .map-card-delete { border-color: #bb6c61; color: #8f2f28; background: #fff7f5; }
-:where(.home-page) .map-card-actions .map-card-delete:hover:not(:disabled) { border-color: #9d4037; color: #fff; background: #a9473d; }
+:where(.home-page) .map-card-actions .map-card-delete { min-width: 76px; border-color: #b86d66; color: #fff8f6; background: #a9473d; }
+:where(.home-page) .map-card-actions .map-card-delete:hover:not(:disabled) { border-color: #8f2f28; background: #8f2f28; }
 :where(.home-page) #leader-sheet { display: block; width: 100%; height: 1px; border: 0; margin: 0; }
 :where(.home-page) #players-list button:focus-visible { outline: 3px solid #d8ba77; outline-offset: 2px; }
 :where(.home-page) #navigation-status { color: #526171; }
@@ -179,7 +195,13 @@
   .home-page .action-grid { grid-template-columns: 1fr; }
   .home-page .action-card { min-height: 112px; }
   :where(.home-page) .map-card { align-items: stretch; flex-direction: column; }
-  :where(.home-page) .map-card-actions { justify-content: flex-start; }
+  :where(.home-page) .map-card-actions { width: 100%; justify-content: flex-start; }
+  :where(.home-page) .map-card-actions button { flex: 1 1 120px; }
+  :where(.home-page) .npc-card { align-items: flex-start; flex-wrap: wrap; }
+  :where(.home-page) .npc-card-actions { width: 100%; flex: 1 0 100%; justify-content: flex-start; }
+  :where(.home-page) .npc-card-actions button { flex: 1 1 120px; }
+  :where(.home-page) .npc-form-actions { justify-content: stretch; }
+  :where(.home-page) .npc-form-actions button { flex: 1 1 120px; }
   :where(.home-page):has(#login-form:not([hidden])) main { width: min(100% - 24px, 400px); }
   :where(.home-page):has(#login-form:not([hidden])) body { background-attachment: scroll; }
   :where(.home-page) .academy-header { margin-bottom: 20px; }
@@ -394,11 +416,46 @@
   .home-page .action-card :is(.action-card-title, .action-card-description) { align-self: center; }
 }
 
-.home-page #leader-npc-form { display: grid; gap: 8px; }
-.home-page #leader-npc-form input { min-width: 0; max-width: 100%; padding: 8px; font: inherit; }
-.home-page .npc-card { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px; background: #fffdf8; border: 1px solid #d5cdbd; border-radius: 8px; }
-.home-page .npc-card img { width: 64px; height: 64px; object-fit: cover; }
-.home-page .npc-card span { flex: 1; min-width: 100px; overflow-wrap: anywhere; }
+.home-page .npcs-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.home-page .npcs-heading h1 { min-width: 0; }
+.home-page #add-npc-button { flex: 0 0 auto; min-height: 44px; padding: 9px 16px; border-color: #a68a4d; background: #1d3553; color: #fff3d2; box-shadow: inset 0 1px #d8ba77; font-weight: 700; }
+.home-page #add-npc-button:hover:not(:disabled) { border-color: #d8ba77; background: #29496b; }
+.home-page :is(#leader-npc-form, #map-upload-form) { display: grid; gap: 8px; padding: 18px; border: 1px solid rgb(166 138 77 / 58%); border-radius: 7px; background: #fffdf8; box-shadow: 0 2px 6px rgb(38 52 66 / 5%); }
+.home-page :is(#leader-npc-form, #map-upload-form) h2 { margin: 0 0 2px; color: #243b57; font: 700 22px/1.2 Georgia, "Times New Roman", serif; }
+.home-page :is(#leader-npc-form, #map-upload-form) input { min-width: 0; max-width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #c3b791; border-radius: 6px; color: #314f63; background: #fffdf8; font: inherit; }
+.home-page :is(#leader-npc-form, #map-upload-form) input:focus-visible { outline: 3px solid #d8ba77; outline-offset: 2px; }
+.home-page :is(#leader-npc-form, #map-upload-form) input[type="file"] { padding: 6px 8px; }
+.home-page :is(#leader-npc-form, #map-upload-form) input[type="file"]::file-selector-button { margin-right: 10px; padding: 6px 10px; border: 1px solid #a68a4d; border-radius: 5px; color: #314f63; background: #f7f0df; font: inherit; cursor: pointer; }
+.home-page :is(#leader-npc-form, #map-upload-form) input[type="file"]::file-selector-button:hover { border-color: #80662f; background: #eee2c8; }
+.home-page :is(#leader-npc-form, #map-upload-form) label { display: grid; gap: 6px; color: #314f63; font-weight: 650; }
+.home-page .npc-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.home-page .npc-form-actions button { min-width: 112px; min-height: 44px; padding: 9px 14px; font: inherit; }
+.home-page .npc-form-actions button:focus-visible, .home-page .map-card-actions button:focus-visible, .home-page .npc-card-actions button:focus-visible { outline: 3px solid #d8ba77; outline-offset: 2px; }
+.home-page .npc-form-actions button:disabled, .home-page .map-card-actions button:disabled, .home-page .npc-card-actions button:disabled { opacity: .6; cursor: wait; }
+.home-page #leader-npc-submit { border-color: #a68a4d; background: #1d3553; color: #fff3d2; box-shadow: inset 0 1px #d8ba77; font-weight: 700; }
+.home-page #leader-npc-submit:hover:not(:disabled) { border-color: #d8ba77; background: #29496b; }
+.home-page #map-upload-form button[type="submit"] { border-color: #a68a4d; background: #1d3553; color: #fff3d2; box-shadow: inset 0 1px #d8ba77; font-weight: 700; }
+.home-page #map-upload-form button[type="submit"]:hover:not(:disabled) { border-color: #d8ba77; background: #29496b; }
+.home-page :is(#leader-npc-cancel, #map-upload-cancel) { border-color: #a68a4d; color: #314f63; background: #fffdf8; }
+.home-page :is(#leader-npc-cancel, #map-upload-cancel):hover:not(:disabled) { border-color: #a68a4d; background: #f8f4e9; }
+.home-page .npc-card { display: flex; min-width: 0; align-items: center; gap: 14px; padding: 10px 14px 10px 16px; background: #fffdf8; border: 1px solid #d5cdbd; border-radius: 7px; box-shadow: 0 2px 6px rgb(38 52 66 / 5%); }
+.home-page .npc-card-preview { display: grid; flex: 0 0 64px; width: 64px; height: 64px; place-items: center; overflow: hidden; border: 1px solid #d5cdbd; border-radius: 6px; color: #fff3d2; background: #1d3553; font: 700 26px/1 Georgia, serif; }
+.home-page .npc-card-preview img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.home-page .npc-card-preview-error { border-color: #c3b791; background: #f2eee5; }
+.home-page .npc-card-placeholder { display: grid; width: 100%; height: 100%; place-items: center; }
+.home-page .npc-card-details { min-width: 0; flex: 1 1 auto; }
+.home-page .npc-card-name { color: #243b57; font-weight: 750; overflow-wrap: anywhere; }
+.home-page #npcs-reload { justify-self: end; min-height: 40px; padding: 8px 12px; border-color: #a68a4d; color: #314f63; background: #fffdf8; }
+.home-page #npcs-reload:hover:not(:disabled) { border-color: #80662f; background: #f8f4e9; }
+.home-page .npc-card-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.home-page .npc-card-actions button { min-width: 88px; min-height: 44px; padding: 9px 12px; border-radius: 5px; font: inherit; }
+.home-page .npc-card-actions .npc-card-primary { border-color: #a68a4d; color: #fff3d2; background: #1d3553; box-shadow: inset 0 1px #d8ba77; font-weight: 700; }
+.home-page .npc-card-actions .npc-card-primary:hover:not(:disabled) { border-color: #d8ba77; background: #29496b; }
+.home-page .npc-card-actions .npc-card-secondary { border-color: #a68a4d; color: #314f63; background: #fffdf8; }
+.home-page .npc-card-actions .npc-card-secondary:hover:not(:disabled) { border-color: #80662f; background: #f8f4e9; }
+.home-page .npc-card-actions button:focus-visible, .home-page #add-npc-button:focus-visible { outline: 3px solid #d8ba77; outline-offset: 2px; }
+.home-page .npc-card-actions .npc-card-destructive { border-color: #b86d66; color: #fff8f6; background: #a9473d; }
+.home-page .npc-card-actions .npc-card-destructive:hover:not(:disabled) { border-color: #8f2f28; background: #8f2f28; }
 @font-face {
   font-family: "Character Cormorant Garamond";
   font-style: normal;
@@ -437,6 +494,7 @@
 :where(.character-page) * { box-sizing: border-box; }
 :where(.character-page) body { min-height: 100vh; margin: 16px 24px; background: var(--background); }
 :where(.character-page) body[data-leader-embed="true"] { min-height: 0; }
+:root.character-page[data-leader-embed="true"] { min-height: 0; }
 /* DESIGN-6A: document shell only; preserve the existing field layout. */
 :root:where(.character-page) {
   background-color: var(--background);
@@ -713,13 +771,15 @@
 :where(.character-page) .ability-values input[readonly]::-webkit-inner-spin-button, :where(.character-page) .ability-values input[readonly]::-webkit-outer-spin-button { appearance: none; margin: 0; }
 :where(.character-page) .ability-values input[readonly][aria-invalid="true"] { border-color: var(--error); }
 :where(.character-page) .ability-derived { display: grid; min-width: 0; gap: 6px; padding-left: 10px; border-left: 1px solid rgb(166 138 77 / 45%); font-size: 13px; line-height: 1.4; }
-:where(.character-page) .ability-derived p { margin: 0; }
+:where(.character-page) .ability-derived p { min-width: 0; margin: 0; }
 :where(.character-page) .ability-derived > p:first-child { display: grid; justify-items: start; }
-:where(.character-page) .ability-derived .modifier-label { white-space: nowrap; }
+:where(.character-page) .ability-derived .modifier-label { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+:where(.character-page) .ability-derived .modifier-label .term-english { display: block; white-space: normal; }
 :where(.character-page) .ability-derived .save-row { display: grid; justify-items: start; gap: 1px; }
 :where(.character-page) .ability-derived .save-row { margin-top: 2px; padding-top: 5px; border-top: 1px solid rgb(166 138 77 / 45%); }
 :where(.character-page) .ability-derived .save-result { display: inline-flex; align-items: center; gap: 4px; }
 :where(.character-page) .ability-derived output { display: block; color: var(--accent); font-size: 18px; font-weight: 650; font-variant-numeric: tabular-nums; }
+:where(.character-page) .ability-derived output:empty::before { content: "—"; }
 :where(.character-page) .save-proficiency { color: var(--accent); font-size: 10px; vertical-align: middle; }
 :where(.character-page) .skills { margin-top: 24px; padding: 16px; border: 1px solid var(--gold); border-radius: 4px; background: linear-gradient(135deg, #fbf6e9, #f5ebd6); }
 :where(.character-page) .skills-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgb(166 138 77 / 60%); }
@@ -802,10 +862,12 @@
   :where(.character-page) .ability-values input { width: 56px; height: 56px; font-size: 24px; }
   :where(.character-page) .ability-values input:not([readonly]) { height: 44px; font-size: 18px; }
   :where(.character-page) .ability-values > input { display: block; margin: 0 auto 8px; }
-  :where(.character-page) .ability-derived { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; padding: 6px 0 0; border-top: 1px solid rgb(166 138 77 / 45%); border-left: 0; font-size: 11px; }
-  :where(.character-page) .ability-derived .modifier-label { white-space: nowrap; }
-  :where(.character-page) .ability-derived > p:first-child { display: flex; align-items: baseline; gap: 3px; }
-  :where(.character-page) .ability-derived .save-row { display: flex; align-items: baseline; gap: 3px; margin: 0; padding: 0; border-top: 0; white-space: nowrap; }
+  :where(.character-page) .ability-derived { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 4px; padding: 6px 0 0; border-top: 1px solid rgb(166 138 77 / 45%); border-left: 0; font-size: 11px; }
+  :where(.character-page) .ability-derived .modifier-label { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+  :where(.character-page) .ability-derived > p:first-child { display: flex; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: 3px; }
+  :where(.character-page) .ability-derived .save-row { display: flex; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: 3px; margin: 0; padding: 0; border-top: 0; white-space: normal; }
+  :where(.character-page) .ability-derived .save-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+  :where(.character-page) .ability-derived .save-result { min-width: 0; }
   :where(.character-page) .ability-derived output { font-size: 16px; }
   :where(.character-page) .ability-derived .modifier-label { font-size: 0; }
   :where(.character-page) .ability-derived .modifier-label::before { content: "Mod."; font-size: 11px; }
