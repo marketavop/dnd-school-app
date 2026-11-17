@@ -91,7 +91,7 @@
       <p id="portrait-status" role="status" aria-live="polite"></p>
       </div>
       <details id="story-background" class="story-background">
-        <summary>Příběhové pozadí</summary>
+        <summary><span>Příběhové pozadí</span> <button class="story-background-info" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="story-background-dialog" aria-label="Otevřít nápovědu k příběhovému pozadí"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg></button></summary>
         <div class="story-background-content">
           <div id="character-story-background" class="story-background-display"></div>
           <textarea id="edit-story-background" rows="10" aria-label="Příběhové pozadí" aria-describedby="story-background-hint story-background-count error-story-background" hidden></textarea>
@@ -235,6 +235,63 @@
     </section>
       </div>
     </div>
+    <dialog id="story-background-dialog" class="study-guide story-background-dialog" aria-labelledby="story-background-dialog-title">
+      <header class="study-guide-header">
+        <h2 id="story-background-dialog-title">Jaký je příběh tvé postavy?</h2>
+        <button id="story-background-dialog-close" type="button" aria-label="Zavřít nápovědu k příběhovému pozadí" autofocus>×</button>
+      </header>
+      <div class="study-guide-content">
+        <div class="story-background-help-content">
+          <p>Každý hrdina má za sebou nějaký příběh. Jaký je ten tvůj? Následující otázky ti mohou pomoci s inspirací.</p>
+          <h3>Otázky pro inspiraci</h3>
+          <div class="story-background-questions" role="table" aria-label="Otázky pro inspiraci k příběhovému pozadí">
+            <div class="story-background-question story-background-question-header" role="row">
+              <strong role="columnheader">Otázka</strong><strong role="columnheader">Nápady</strong>
+            </div>
+            <div class="story-background-question" role="row"><span role="cell">Kde jsi vyrůstal/a?</span><span role="cell">Ve městě, na venkově, v lese, na horách…</span></div>
+            <div class="story-background-question" role="row"><span role="cell">S kým žiješ?</span><span role="cell">S rodinou, prarodiči, přáteli, opatrovníkem…</span></div>
+            <div class="story-background-question" role="row"><span role="cell">Čím se zabývá tvoje rodina?</span><span role="cell">Obchodem, řemeslem, zemědělstvím, uměním…</span></div>
+            <div class="story-background-question" role="row"><span role="cell">Jak trávíš volný čas?</span><span role="cell">Čtením, průzkumem okolí, hraním, péčí o zvířata…</span></div>
+            <div class="story-background-question" role="row"><span role="cell">V čem jsi dobrý/á?</span><span role="cell">Vyprávění, vymýšlení, šplhání, kreslení…</span></div>
+            <div class="story-background-question" role="row"><span role="cell">Jakou máš povahu?</span><span role="cell">Zvídavou, veselou, odvážnou, stydlivou…</span></div>
+            <div class="story-background-question" role="row"><span role="cell">Čeho se bojíš?</span><span role="cell">Tmy, bouřek, samoty, neúspěchu…</span></div>
+            <div class="story-background-question" role="row"><span role="cell">Co by sis přál/a zažít?</span><span role="cell">Velké dobrodružství, cestu do neznáma, setkání s drakem…</span></div>
+            <div class="story-background-question" role="row"><span role="cell">Stalo se ti někdy něco zvláštního?</span><span role="cell">Záhadný nález, podivné setkání, nevysvětlitelná událost…</span></div>
+          </div>
+          <h3>Příklady příběhového pozadí</h3>
+          <div class="story-background-examples">
+            <p><strong>Mudrc (Sage)</strong><br>Vyrůstám u babičky, která má spoustu starých knih. Rád čtu o magii, zvláštních tvorech a dávných záhadách. Neustále se na něco vyptávám.</p>
+            <p><strong>Cechovní řemeslník (Guild Artisan)</strong><br>Moji rodiče mají dílnu, kde jim často pomáhám. Baví mě vyrábět a opravovat různé věci. Mým snem je vytvořit něco, co ještě nikdo nevymyslel.</p>
+            <p><strong>Lidový hrdina (Folk Hero)</strong><br>Žiji v malé vesnici. Jednou jsem pomohl zachránit ztracené zvíře a od té doby se snažím pomáhat ostatním. Nemám rád nespravedlnost.</p>
+            <p><strong>Šlechtic (Noble)</strong><br>Pocházím z bohaté rodiny. Učím se slušnému chování a různým dovednostem. Mnohem raději bych ale poznával svět za branami našeho domova.</p>
+            <p><strong>Uličník (Urchin)</strong><br>Vyrůstám v rušném městě. Znám skoro všechny jeho uličky a tajné skrýše. Umím si poradit v nečekaných situacích a své přátele nikdy neopouštím.</p>
+            <p><strong>Akolyta (Acolyte)</strong><br>Vyrůstám poblíž chrámu, kde pomáhám s každodenními úkoly. Rád naslouchám příběhům o bozích a pomáhám lidem, kteří to potřebují.</p>
+            <p><strong>Umělec (Entertainer)</strong><br>Moje rodina cestuje z místa na místo a baví lidi svými vystoupeními. Miluji hudbu, příběhy a rozesmívání ostatních.</p>
+            <p><strong>Námořník (Sailor)</strong><br>Vyrůstám v přístavním městě. Často pomáhám na lodích a poslouchám vyprávění námořníků. Jednou bych chtěl objevit neznámý ostrov.</p>
+            <p><strong>Poustevník (Hermit)</strong><br>Žiji se svým opatrovníkem daleko od města. Poznávám rostliny, zvířata a tajemství přírody. Mám rád klid, ale zajímá mě, jak žijí ostatní.</p>
+            <p><strong>Šarlatán (Charlatan)</strong><br>Baví mě drobné triky, hádanky a vymýšlení neuvěřitelných historek. Občas někoho napálím, ale většinou to myslím jako legraci.</p>
+            <p><strong>Šarlatán (Charlatan) – doplnění stávajícího příkladu:</strong><br>Někdy používám vymyšlené jméno. Nechci totiž, aby mě našel někdo z mé minulosti.</p>
+          </div>
+          <h3>Může mít moje postava tajemství?</h3>
+          <p>Ne všechno o své postavě musíš ostatním prozradit hned. Možná něco skrýváš, něčeho lituješ nebo máš důvod tajit svou minulost. Během dobrodružství se ostatní mohou o tvém tajemství postupně dozvědět.</p>
+          <p>O svém tajemství ale řekni Vypravěči, aby s ním mohl při hraní počítat.</p>
+          <h3>Otázky pro inspiraci</h3>
+          <div class="story-background-questions" role="table" aria-label="Otázky pro inspiraci k tajemství postavy">
+            <div class="story-background-question story-background-question-header" role="row">
+              <strong role="columnheader">Otázka</strong><strong role="columnheader">Nápady</strong>
+            </div>
+            <div class="story-background-question" role="row"><span role="cell">Máš nějaké tajemství?</span><span role="cell">Skrýváš svůj původ, zvláštní předmět nebo událost z minulosti…</span></div>
+            <div class="story-background-question" role="row"><span role="cell">Udělal/a jsi někdy něco, čeho lituješ?</span><span role="cell">Něco jsi ukradl/a, někomu zalhal/a nebo porušil/a slib…</span></div>
+            <div class="story-background-question" role="row"><span role="cell">Proč své tajemství skrýváš?</span><span role="cell">Bojíš se odsouzení, někoho chráníš nebo zatím nikomu nedůvěřuješ…</span></div>
+          </div>
+          <h3>Další příklad</h3>
+          <div class="story-background-examples">
+            <p><strong>Zločinec (Criminal)</strong><br>Vyrůstal jsem v chudé části města a naučil se získávat věci, které mi nepatřily. Jednou jsem ukradl předmět, jehož významu jsem nerozuměl. Dodnes ho mám schovaný a nikomu jsem o něm neřekl.</p>
+          </div>
+          <p><strong>Pamatuj:</strong> Tyto příklady slouží pouze pro inspiraci. Můžeš je kombinovat, měnit nebo si vymyslet úplně vlastní příběh. Nemusíš být slavný hrdina ani mít výjimečnou minulost. Tvoje skutečné dobrodružství teprve začíná.</p>
+        </div>
+      </div>
+    </dialog>
     <dialog id="study-guide" class="study-guide" aria-labelledby="study-guide-title">
       <header class="study-guide-header">
         <h2 id="study-guide-title">Studijní příručka</h2>
