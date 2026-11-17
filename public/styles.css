@@ -665,7 +665,7 @@
 :where(.character-page) .edit { color: var(--accent); }
 :where(.character-page) .edit[aria-pressed="true"] { color: var(--surface); background: var(--accent); border-color: var(--accent); }
 :where(.character-page) .edit[aria-pressed="true"]:hover { background: #243e50; }
-:where(.character-page) #supplementary-info { background: transparent; border-color: transparent; }
+:where(.character-page) :is(#supplementary-info, .story-background-info) { background: transparent; border-color: transparent; }
 :where(.character-page) .identity { position: relative; isolation: isolate; display: flex; align-items: flex-start; gap: 24px; }
 :where(.character-page) .identity::after { content: ""; position: absolute; z-index: -1; top: -14px; right: 0; width: min(34%, 250px); height: 220px; background: url('./assets/images/academy-astrolabe2.webp') center / contain no-repeat; opacity: .10; pointer-events: none; user-select: none; }
 :where(.character-page) .portrait-area { width: 96px; flex: 0 0 96px; min-width: 0; }
@@ -683,7 +683,7 @@
 :where(.character-page) .character-resources > div { min-width: 0; padding: 0 8px; }
 :where(.character-page) .character-resources > div > dt { text-align: center; }
 :where(.character-page) .character-resources > div + div { border-left: 1px solid rgb(166 138 77 / 40%); }
-:where(.character-page) .character-resources > div > dd { font-size: 22px; line-height: 1.3; }
+:where(.character-page) .character-resources > div > dd { font-size: 22px; line-height: 1.3; text-align: center; }
 :where(.character-page) #character-level {
   display: flex;
   width: 86px;
@@ -723,10 +723,11 @@
 :where(.character-page) .character-resources #edit-level { font-size: 30px; line-height: 1; }
 :where(.character-page) .character-resources .hint { font-size: 14px; line-height: 1.5; color: #4d5660; }
 :where(.character-page) .hp-heart { color: #816933; font-size: 15px; }
+:where(.character-page) .character-resources :is(#edit-xp, #edit-ac, #edit-ac_note) { text-align: center; }
 :where(.character-page) .character-resources #hp-delta { flex: 1; min-width: 44px; max-width: 72px; font-size: 14px; }
-:where(.character-page) .hp-values { display: flex; align-items: center; gap: 8px; font-size: 24px; line-height: 1.3; font-weight: 700; font-variant-numeric: tabular-nums; }
+:where(.character-page) .hp-values { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 24px; line-height: 1.3; font-weight: 700; font-variant-numeric: tabular-nums; }
 :where(.character-page) .hp-values input { max-width: 88px; }
-:where(.character-page) .hp-adjust { display: flex; width: max-content; max-width: 100%; align-items: stretch; gap: 0; margin-top: 4px; border: 1px solid var(--gold); border-radius: 4px; background: var(--paper); }
+:where(.character-page) .hp-adjust { display: flex; width: max-content; max-width: 100%; align-items: stretch; gap: 0; margin: 4px auto 0; border: 1px solid var(--gold); border-radius: 4px; background: var(--paper); }
 :where(.character-page) #hp-delta { flex: 0 1 46px; width: 46px; min-width: 44px; max-width: 46px; height: 42px; padding: 4px 2px; border: 0; border-right: 1px solid rgb(166 138 77 / 55%); border-left: 1px solid rgb(166 138 77 / 55%); border-radius: 0; background: var(--surface); text-align: center; }
 :where(.character-page) .hp-adjust button { flex: 0 0 42px; min-width: 42px; height: 42px; border: 0; border-radius: 0; background: transparent; color: var(--accent); font-size: 18px; line-height: 1; }
 :where(.character-page) .hp-adjust button:enabled:hover { border-color: transparent; background: #eee2c8; }
@@ -973,6 +974,23 @@
 :where(.character-page) #story-background [hidden] { display: none; }
 :where(.character-page) #story-background { position: relative; margin-top: 24px; padding: 0; border: 1px solid var(--gold); border-top-width: 2px; border-radius: 4px; background: linear-gradient(135deg, #fbf6e9, #f5ebd6); box-shadow: inset 0 0 0 2px rgb(166 138 77 / 10%); }
 :where(.character-page) #story-background summary { cursor: pointer; padding: 14px 18px; color: var(--accent); font-size: 18px; font-weight: 700; line-height: 1.35; }
+:where(.character-page) #story-background > summary { display: flex; align-items: center; gap: 8px; }
+:where(.character-page) #story-background > summary::before { content: "▸"; flex: 0 0 auto; color: var(--accent); font-size: .95em; line-height: 1; }
+:where(.character-page) #story-background[open] > summary::before { content: "▾"; }
+:where(.character-page) #story-background > summary { list-style: none; }
+:where(.character-page) #story-background > summary::-webkit-details-marker { display: none; }
+:where(.character-page) .story-background-info { margin-left: auto; color: var(--accent); }
+:where(.character-page) .story-background-info:focus-visible { outline-color: var(--accent); }
+:where(.character-page) .story-background-dialog .story-background-help-content { padding: 0; border: 0; background: transparent; box-shadow: none; }
+:where(.character-page) .story-background-dialog .story-background-help-content h3,
+:where(.character-page) .story-background-dialog .story-background-help-content h4 { margin: 18px 0 8px; color: var(--accent); }
+:where(.character-page) .story-background-dialog .story-background-help-content h3:first-child { margin-top: 0; }
+:where(.character-page) .story-background-dialog .story-background-help-content p { margin: 8px 0; }
+:where(.character-page) .story-background-question { display: grid; grid-template-columns: minmax(10rem, .9fr) minmax(0, 1.1fr); gap: 12px; padding: 8px 0; border-top: 1px solid rgb(166 138 77 / 28%); }
+:where(.character-page) .story-background-question-header { border-top: 0; color: var(--accent); }
+:where(.character-page) .story-background-question > * { min-width: 0; overflow-wrap: anywhere; }
+:where(.character-page) .story-background-examples p { padding: 8px 0; border-top: 1px solid rgb(166 138 77 / 28%); }
+:where(.character-page) .story-background-examples strong { color: var(--accent); }
 :where(.character-page) #story-background[open] > summary { border-bottom: 1px solid rgb(166 138 77 / 42%); }
 :where(.character-page) #story-background summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
 :where(.character-page) .story-background-content { margin: 14px; padding: 16px; border: 1px solid rgb(166 138 77 / 55%); border-left: 3px solid var(--gold); border-radius: 4px; background: #fbf6e9; box-shadow: 0 2px 8px rgb(29 53 83 / 5%); }
@@ -1006,6 +1024,8 @@
   :where(.character-page) #notes-help { margin: 0; }
   :where(.character-page) #notes-count { margin-left: 0; }
   :where(.character-page) #story-background summary { padding: 12px 14px; font-size: 17px; }
+  :where(.character-page) .story-background-question { grid-template-columns: 1fr; gap: 2px; }
+  :where(.character-page) .story-background-question:not(.story-background-question-header) > :last-child { color: var(--muted); }
   :where(.character-page) .story-background-content { margin: 8px; padding: 12px; }
   :where(.character-page) .story-background-meta,
   :where(.character-page) .story-background-actions { align-items: flex-start; flex-direction: column; }

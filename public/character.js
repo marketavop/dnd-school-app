@@ -740,6 +740,9 @@ function setupStoryBackground(db, character) {
   const error = document.querySelector('#error-story-background');
   const hint = document.querySelector('#story-background-hint');
   const counter = document.querySelector('#story-background-count');
+  const info = document.querySelector('.story-background-info');
+  const help = document.querySelector('#story-background-dialog');
+  const helpClose = document.querySelector('#story-background-dialog-close');
   let editing = false, busy = false, failed = false;
   let savedTimer = null;
   function updateCounter() {
@@ -768,6 +771,21 @@ function setupStoryBackground(db, character) {
   input.value = character.story_background ?? '';
   render();
   section.hidden = false;
+  const openHelp = event => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!help.open) help.showModal();
+    info.setAttribute('aria-expanded', 'true');
+  };
+  info?.addEventListener('click', openHelp);
+  info?.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') openHelp(event);
+  });
+  helpClose?.addEventListener('click', () => help.close());
+  help?.addEventListener('close', () => {
+    info.setAttribute('aria-expanded', 'false');
+    info.focus({ preventScroll: true });
+  });
   if (readOnly) return;
   function validate() {
     return [...input.value].length <= 5000;
