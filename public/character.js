@@ -1,4 +1,6 @@
 import { SKILLS, abilityValues, proficiencyBonus, skillValues, validHpDelta, adjustedHp } from './character-rules.js';
+import { automaticSpellSlots, restoreAllSpellSlots, serializeSpellSlotState, setManualCorrection, spellSlotStateFromRecord } from './spell-slots.js';
+import { renderSpellGroups, spellLevelName } from './spell-groups.js';
 import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';
 import { getCurrentUser } from './login.js';
 import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';
@@ -424,7 +426,6 @@ function setupTabs() {
 function setupSpells(db, character) {
   const section = document.querySelector('#spells');
   if (!section) return;
-  const list = document.querySelector('#character-spells');
   const form = document.querySelector('#spells-form');
   const title = document.querySelector('#spells-form-title');
   const english = document.querySelector('#spell-english-name');
@@ -433,9 +434,21 @@ function setupSpells(db, character) {
   const note = document.querySelector('#spell-note');
   const save = document.querySelector('#spell-save');
   const cancel = document.querySelector('#spell-cancel');
+  const addOpen = document.querySelector('#spell-add-open');
+  const formDialog = document.querySelector('#spell-form-dialog');
+  const formClose = document.querySelector('#spell-form-close');
   const error = document.querySelector('#spells-error');
   const status = document.querySelector('#spells-status');
   let editingIndex = null, busy = false;
+  const noteObserver = new ResizeObserver(entries => {
+    for (const entry of entries) {
+      const note = entry.target;
+      const toggle = note.nextElementSibling;
+      if (!note.clientHeight || !toggle?.classList.contains('spell-note-toggle')) continue;
+      if (toggle.getAttribute('aria-expanded') === 'true') { toggle.hidden = false; continue; }
+      toggle.hidden = note.scrollHeight <= note.clientHeight + 1;
+    }
+  });
   const spells = () => Array.isArray(character.spells) ? character.spells : [];
   function reset() {
     editingIndex = null;
@@ -446,33 +459,58 @@ function setupSpells(db, character) {
     cancel.hidden = true;
     error.textContent = '';
   }
-  function render() {
-    list.replaceChildren();
-    if (!spells().length) list.textContent = 'Zatím nemáš zapsaná žádná kouzla.';
+  function spellEntriesByLevel() {
+    noteObserver.disconnect();
+    const grouped = new Map();
     for (const [index, spell] of spells().entries()) {
       const item = document.createElement('article'); item.className = 'spell-entry';
       const heading = document.createElement('h3'); heading.textContent = `${spell.english_name} (${spell.czech_name})`;
-      const spellLevel = document.createElement('p'); spellLevel.textContent = spell.level === 0 ? 'Trik (Cantrip)' : `Úroveň ${spell.level} (Level ${spell.level})`;
-      item.append(heading, spellLevel);
-      if (spell.note) { const paragraph = document.createElement('p'); paragraph.textContent = spell.note; item.append(paragraph); }
+      const spellLevel = document.createElement('p'); spellLevel.textContent = spellLevelName(spell.level);
+      const headingRow = document.createElement('div'); headingRow.className = 'spell-entry-heading';
+      headingRow.append(heading);
+      item.append(headingRow, spellLevel);
+      if (spell.note) {
+        const paragraph = document.createElement('p');
+        paragraph.className = 'spell-note-preview';
+        paragraph.id = `spell-note-preview-${index}`;
+        paragraph.textContent = spell.note;
+        const noteToggle = document.createElement('button');
+        noteToggle.className = 'spell-note-toggle';
+        noteToggle.type = 'button';
+        noteToggle.hidden = true;
+        noteToggle.setAttribute('aria-expanded', 'false');
+        noteToggle.setAttribute('aria-controls', paragraph.id);
+        noteToggle.textContent = 'Zobrazit více';
+        noteToggle.addEventListener('click', () => {
+          const expanded = noteToggle.getAttribute('aria-expanded') === 'true';
+          noteToggle.setAttribute('aria-expanded', String(!expanded));
+          paragraph.classList.toggle('is-expanded', !expanded);
+          noteToggle.textContent = expanded ? 'Zobrazit více' : 'Zobrazit méně';
+        });
+        item.append(paragraph, noteToggle);
+        noteObserver.observe(paragraph);
+      }
       if (!readOnly) {
         const actions = document.createElement('div'); actions.className = 'spell-actions';
-        const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Upravit';
+        const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'spell-icon-button';
+        edit.setAttribute('aria-label', 'Upravit kouzlo'); edit.title = 'Upravit kouzlo';
+        edit.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M4 20l5-1L20 8a2.8 2.8 0 0 0-4-4L5 15z"/></svg>';
         edit.addEventListener('click', () => {
           editingIndex = index;
           english.value = spell.english_name; czech.value = spell.czech_name; level.value = String(spell.level); note.value = spell.note;
           title.textContent = 'Upravit kouzlo'; save.textContent = 'Uložit změny'; cancel.hidden = false; error.textContent = '';
-          english.focus();
+          formDialog.showModal(); english.focus();
         });
-        const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Odstranit';
+        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'spell-icon-button spell-icon-delete';
+        remove.setAttribute('aria-label', 'Odstranit kouzlo'); remove.title = 'Odstranit kouzlo';
+        remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg>';
         remove.addEventListener('click', async () => { await persist(spells().filter((_, itemIndex) => itemIndex !== index)); });
-        actions.append(edit, remove); item.append(actions);
+        actions.append(edit, remove); headingRow.append(actions);
       }
-      list.append(item);
+      if (!grouped.has(spell.level)) grouped.set(spell.level, []);
+      grouped.get(spell.level).push(item);
     }
-    form.hidden = readOnly;
-    section.hidden = false;
-    if (readOnly) status.textContent = 'Pouze pro čtení';
+    return grouped;
   }
   function candidate() {
     return { english_name: english.value.trim(), czech_name: czech.value.trim(), level: Number(level.value), note: note.value };
@@ -488,7 +526,7 @@ function setupSpells(db, character) {
     try {
       const updated = await updateCharacterField(db, character.id, 'spells', next, playerSessionToken);
       character.spells = updated.spells;
-      status.textContent = 'Uloženo'; reset(); render(); return true;
+      status.textContent = 'Uloženo'; reset(); renderGroups(); return true;
     } catch {
       error.textContent = 'Nepodařilo se uložit. Rozepsané údaje zůstaly zachované.';
       status.textContent = 'Nepodařilo se uložit'; return false;
@@ -499,10 +537,137 @@ function setupSpells(db, character) {
     if (!valid(spell)) { error.textContent = 'Vyplň oba názvy a zvol úroveň 0 až 9.'; return; }
     const next = [...spells()];
     if (editingIndex === null) next.push(spell); else next[editingIndex] = spell;
-    await persist(next);
+    if (await persist(next)) formDialog.close();
   });
-  cancel.addEventListener('click', reset);
+  cancel.addEventListener('click', () => { reset(); formDialog.close(); });
+  addOpen.addEventListener('click', () => {
+    reset(); status.textContent = ''; formDialog.showModal(); english.focus();
+  });
+  formClose.addEventListener('click', () => formDialog.close());
+  formDialog.addEventListener('close', reset);
+  const renderGroups = setupSpellSlots(db, character, spellEntriesByLevel);
+  form.hidden = readOnly;
+  addOpen.hidden = readOnly;
+  section.hidden = false;
+  if (readOnly) status.textContent = 'Pouze pro čtení';
+}
+
+function setupSpellSlots(db, character, spellEntriesByLevel) {
+  const list = document.querySelector('#character-spells');
+  const restoreAll = document.querySelector('#spell-slot-restore');
+  const adjustments = document.querySelector('#spell-slot-adjustments');
+  const settings = document.querySelector('#spell-slot-settings');
+  const settingsRows = document.querySelector('#spell-slot-settings-rows');
+  const settingsError = document.querySelector('#spell-slot-settings-error');
+  const settingsClose = document.querySelector('#spell-slot-settings-close');
+  const adjustmentSave = document.querySelector('#spell-slot-adjustment-save');
+  const adjustmentReset = document.querySelector('#spell-slot-adjustment-reset');
+  const error = document.querySelector('#spell-slot-error');
+  const status = document.querySelector('#spell-slot-status');
+  const levels = Array.from({ length: 9 }, (_, index) => index + 1);
+  const countLimit = 999999999; // Existing persistence limit.
+  let draft = [];
+  let state = spellSlotStateFromRecord(character);
+  let busy = false;
+  const automaticMaximum = slotLevel => automaticSpellSlots(character.class_code, character.level)
+    .find(row => row.level === slotLevel)?.maximum ?? 0;
+  const rowForLevel = slotLevel => state.slots.find(row => row.level === slotLevel) ?? { level: slotLevel, maximum: 0, current: 0 };
+  function renderGroups() {
+    renderSpellGroups(list, character, state, spellEntriesByLevel(), { busy, onChange: readOnly ? null : persist });
+  }
+  function render() {
+    renderGroups();
+    restoreAll.hidden = readOnly;
+    restoreAll.disabled = busy || !state.slots.some(row => row.current < row.maximum);
+    settings.hidden = readOnly;
+    settings.disabled = adjustmentSave.disabled = adjustmentReset.disabled = settingsClose.disabled = busy;
+    settingsRows.inert = busy;
+    if (readOnly) status.textContent = 'Pouze pro čtení';
+  }
+  async function persist(nextState) {
+    if (busy || readOnly || nextState === state) return false;
+    busy = true; error.textContent = ''; status.textContent = 'Ukládám…'; status.dataset.error = 'false'; render();
+    try {
+      const updated = await updateCharacterField(db, character.id, 'spell_slot_state', serializeSpellSlotState(nextState), playerSessionToken);
+      character.spell_slot_state = updated.spell_slot_state;
+      state = spellSlotStateFromRecord(character);
+      status.textContent = 'Uloženo';
+      return true;
+    } catch {
+      error.textContent = 'Pozice se nepodařilo uložit. Zkus to prosím znovu.';
+      status.textContent = 'Nepodařilo se uložit'; status.dataset.error = 'true';
+      return false;
+    } finally { busy = false; render(); }
+  }
+  restoreAll.addEventListener('click', () => persist(restoreAllSpellSlots(state)));
+  const info = document.querySelector('#spell-slot-info');
+  info.addEventListener('click', () => {
+    document.querySelector('#supplementary-info').click();
+    document.querySelector('#study-guide-spells')?.click();
+  });
+  function renderSettings() {
+    settingsRows.replaceChildren();
+    for (const level of levels) {
+      const row = document.createElement('div');
+      row.className = 'spell-slot-settings-row';
+      const label = document.createElement('span');
+      label.textContent = `${level}. úroveň`;
+      const count = document.createElement('output');
+      count.setAttribute('aria-label', `Počet pozic pro ${level}. úroveň`);
+      const minus = document.createElement('button');
+      const plus = document.createElement('button');
+      minus.type = plus.type = 'button';
+      minus.textContent = '−';
+      plus.textContent = '+';
+      minus.setAttribute('aria-label', `Odebrat pozici ${level}. úrovně`);
+      plus.setAttribute('aria-label', `Přidat pozici ${level}. úrovně`);
+      function update(change = 0) {
+        if (busy) return;
+        draft[level - 1] = Math.max(0, Math.min(countLimit, draft[level - 1] + change));
+        const value = draft[level - 1];
+        count.textContent = String(value);
+        minus.disabled = value === 0;
+        plus.disabled = value === countLimit;
+      }
+      minus.addEventListener('click', () => update(-1));
+      plus.addEventListener('click', () => update(1));
+      update();
+      row.append(label, minus, count, plus);
+      settingsRows.append(row);
+    }
+  }
+  settings.addEventListener('click', () => {
+    if (readOnly || busy) return;
+    draft = levels.map(level => rowForLevel(level).maximum);
+    settingsError.textContent = '';
+    renderSettings();
+    adjustments.showModal();
+  });
+  settingsClose.addEventListener('click', () => { if (!busy) adjustments.close(); });
+  adjustments.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
+  adjustmentReset.addEventListener('click', () => {
+    if (busy) return;
+    draft = levels.map(automaticMaximum);
+    renderSettings();
+    adjustmentReset.focus();
+  });
+  adjustmentSave.addEventListener('click', async () => {
+    if (busy || readOnly || !adjustments.open) return;
+    settingsError.textContent = '';
+    let next = state;
+    for (const level of levels) {
+      const value = draft[level - 1];
+      const delta = value - automaticMaximum(level);
+      if (value !== rowForLevel(level).maximum || delta !== (state.manualCorrection[level] ?? 0)) {
+        next = setManualCorrection(next, level, delta);
+      }
+    }
+    if (next === state || await persist(next)) adjustments.close();
+    else settingsError.textContent = error.textContent;
+  });
+  character.refreshSpellSlots = () => { state = spellSlotStateFromRecord(character); render(); };
   render();
+  return renderGroups;
 }
 
 function setupInventory(db, character) {
@@ -1078,6 +1243,8 @@ function enableEditing(db, character) {
         }
         showModifier(character[field.key]);
         if (field.key === 'level' || field.key === 'class_code') {
+          character.spell_slot_state = updated.spell_slot_state;
+          character.refreshSpellSlots?.();
           for (const ability of fields) ability.refreshSave?.();
         }
         const display = field.choices ? label(updated[field.key], field.choices, 'Neznámá hodnota') : field.display ? field.display(updated[field.key]) : updated[field.key];

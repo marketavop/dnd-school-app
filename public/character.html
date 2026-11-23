@@ -167,10 +167,25 @@
       </div>
       <div id="panel-spells" role="tabpanel" aria-labelledby="tab-spells" tabindex="0" hidden>
         <section id="spells" class="card" aria-labelledby="spells-title" hidden>
-          <header class="card-header"><h2 id="spells-title">Kouzla <span class="term-english">(Spells)</span></h2></header>
+          <header class="card-header"><h2 id="spells-title">Kouzla <span class="term-english">(Spells)</span></h2><div class="spell-header-actions"><button id="spell-slot-info" type="button" aria-haspopup="dialog" aria-controls="study-guide" aria-label="Nápověda ke kouzelným pozicím" title="Nápověda ke kouzelným pozicím"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg></button><button id="spell-slot-settings" type="button" aria-haspopup="dialog" aria-label="Nastavit počet spell slotů" title="Nastavit počet spell slotů"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 14 4l.8 2 1.8 1 2.1-.5 1.4 1.4-.5 2.1.9 1.8 2 .8v2l-2 .8-.9 1.8.5 2.1-1.4 1.4-2.1-.5-1.8.9-.8 2h-2l-.8-2-1.8-.9-2.1.5-1.4-1.4.5-2.1-.9-1.8-2-.8v-2l2-.8.9-1.8-.5-2.1 1.4-1.4 2.1.5 1.8-1z"/><circle cx="13" cy="14" r="3"/></svg></button><button id="spell-add-open" type="button" aria-haspopup="dialog" aria-controls="spell-form-dialog">+ Přidat kouzlo</button></div></header>
           <div class="card-content">
+              <dialog id="spell-slot-adjustments" class="spell-slot-adjustments" aria-labelledby="spell-slot-settings-title">
+                <h3 id="spell-slot-settings-title">Nastavit počet spell slotů</h3>
+                <div id="spell-slot-settings-rows"></div>
+                <p id="spell-slot-settings-error" class="field-error" role="status"></p>
+                <div class="spell-slot-settings-actions">
+                  <button id="spell-slot-restore" type="button">Obnovit všechny spell sloty</button>
+                  <button id="spell-slot-adjustment-reset" type="button">Vrátit výchozí hodnoty</button>
+                  <button id="spell-slot-settings-close" type="button" autofocus>Zrušit</button>
+                  <button id="spell-slot-adjustment-save" type="button">Uložit</button>
+                </div>
+              </dialog>
+              <p id="spell-slot-error" class="field-error" role="status"></p>
+              <p id="spell-slot-status" class="spell-slot-status" role="status" aria-live="polite"></p>
             <div id="character-spells" class="spells-list"></div>
-            <form id="spells-form" class="spells-form" novalidate>
+            <dialog id="spell-form-dialog" class="spell-slot-adjustments spell-form-dialog" aria-labelledby="spells-form-title">
+              <button id="spell-form-close" class="spell-form-close" type="button" aria-label="Zavřít formulář">×</button>
+              <form id="spells-form" class="spells-form" novalidate>
               <h3 id="spells-form-title">Přidat kouzlo</h3>
               <label for="spell-english-name">Anglický název <span class="term-english">(English name)</span></label>
               <input id="spell-english-name" type="text" maxlength="100" required aria-describedby="spells-error">
@@ -182,7 +197,8 @@
               <textarea id="spell-note" rows="4" maxlength="2000" aria-describedby="spells-error"></textarea>
               <span id="spells-error" class="field-error" role="status"></span>
               <div class="features-actions"><button id="spell-save" type="submit">Přidat kouzlo</button><button id="spell-cancel" type="button" hidden>Zrušit úpravy</button><p id="spells-status" role="status" aria-live="polite"></p></div>
-            </form>
+              </form>
+            </dialog>
           </div>
         </section>
       </div>
@@ -361,6 +377,7 @@
             <li hidden><button id="study-guide-abilities" type="button" data-study-guide-topic="abilities" data-study-guide-section="abilities" aria-controls="study-guide-mechanic-abilities"><span class="study-guide-topic-label">Vlastnosti a záchranné hody <span class="term-english">(Ability Scores &amp; Saving Throws)</span></span><span aria-hidden="true">→</span></button></li>
             <li hidden><button id="study-guide-skills" type="button" data-study-guide-topic="skills" data-study-guide-section="skills" aria-controls="study-guide-mechanic-skills"><span class="study-guide-topic-label">Dovednosti a zdatnost <span class="term-english">(Skills &amp; Proficiency)</span></span><span aria-hidden="true">→</span></button></li>
             <li hidden><button id="study-guide-features" type="button" data-study-guide-topic="features" data-study-guide-section="features" aria-controls="study-guide-mechanic-features"><span class="study-guide-topic-label">Schopnosti <span class="term-english">(Features)</span></span><span aria-hidden="true">→</span></button></li>
+            <li hidden><button id="study-guide-spells" type="button" data-study-guide-topic="spells" data-study-guide-section="spells" aria-controls="study-guide-mechanic-spells"><span class="study-guide-topic-label">Spell slots (Kouzelné pozice)</span><span aria-hidden="true">→</span></button></li>
           </ul>
           </section>
         </section>
@@ -540,6 +557,39 @@
           <article id="study-guide-mechanic-abilities" aria-labelledby="study-guide-abilities-title" hidden><h3 id="study-guide-abilities-title" tabindex="-1">Vlastnosti, modifikátory a záchranné hody</h3><p><strong>Vlastnosti</strong> ukazují, v čem je tvoje postava silná a co jí jde hůř. Každá postava má šest vlastností: Sílu, Obratnost, Odolnost, Inteligenci, Moudrost a Charisma.</p><details><summary>Podrobnosti</summary><p><strong>Modifikátor</strong> je bonus nebo postih, který používáš při hodech. Hodnota 10 nebo 11 znamená +0, hodnota 14 nebo 15 znamená +2 a hodnota 8 nebo 9 znamená −1. Modifikátor ti počítá aplikace.</p><p><strong>Záchranný hod</strong> používáš, když se tvoje postava snaží odolat nebezpečí – například jedu, pasti nebo kouzlu. Hodíš k20 a přičteš bonus Záchrany, který vidíš na průkazu. Plná tečka ● znamená, že je tvoje postava v tomto záchranném hodu zdatná; zdatnost už aplikace započítala.</p><p><strong>Příklad:</strong> Chceš přeskočit překážku? Vypravěč ti řekne, jestli bude potřeba hod na Sílu nebo něco jiného. Když hodíš 12 a máš modifikátor +2, výsledek je 14.</p></details></article>
           <article id="study-guide-mechanic-skills" aria-labelledby="study-guide-skills-title" hidden><h3 id="study-guide-skills-title" tabindex="-1">Dovednosti a zdatnost</h3><p><strong>Dovednosti</strong> ukazují, co tvoje postava umí nebo v čem má výcvik. Když Vypravěč požádá o hod na Dovednost, hodíš k20 a přičteš bonus, který u ní vidíš na průkazu.</p><details><summary>Podrobnosti</summary><p><strong>Zdatnost</strong> znamená, že tvoje postava má v určité Dovednosti výcvik. ● znamená, že jsi v Dovednosti zdatný. ○ znamená, že v ní zdatný nejsi. Přesto ji můžeš zkusit použít! Průkaz už bonus spočítal. K hodu přičti jen zobrazené číslo.</p><p><strong>Příklad:</strong> Máš modifikátor Obratnosti +3 a jsi zdatný v Akrobacii (+2). Na průkazu uvidíš bonus Akrobacie +5.</p><p><strong>Důležité:</strong> Zdatnost si zaškrtni podle své postavy a pokynů Vypravěče, ne podle toho, co bys právě chtěl umět.</p><details><summary>Co znamená 18 Dovedností?</summary><ul><li><strong>Akrobacie (Acrobatics, DEX):</strong> Udržet rovnováhu a zvládnout obratný pohyb.</li><li><strong>Zacházení se zvířaty (Animal Handling, WIS):</strong> Uklidnit nebo zvládnout zvíře.</li><li><strong>Arkána (Arcana, INT):</strong> Vybavit si znalosti o magii.</li><li><strong>Atletika (Athletics, STR):</strong> Šplhat, skákat a plavat v náročných podmínkách.</li><li><strong>Klamání (Deception, CHA):</strong> Přesvědčivě lhát nebo něco předstírat.</li><li><strong>Historie (History, INT):</strong> Vzpomenout si na události a znalosti z minulosti.</li><li><strong>Vhled (Insight, WIS):</strong> Odhadnout úmysly a pocity druhého.</li><li><strong>Zastrašování (Intimidation, CHA):</strong> Přimět druhého spolupracovat hrozbou nebo nátlakem.</li><li><strong>Vyšetřování (Investigation, INT):</strong> Hledat stopy a vyvozovat z nich závěry.</li><li><strong>Lékařství (Medicine, WIS):</strong> Ošetřit člověka nebo poznat příznaky nemoci.</li><li><strong>Příroda (Nature, INT):</strong> Vybavit si znalosti o zvířatech, rostlinách a přírodě.</li><li><strong>Vnímání (Perception, WIS):</strong> Všimnout si zvuku, pohybu nebo něčeho skrytého.</li><li><strong>Vystupování (Performance, CHA):</strong> Zaujmout publikum hudbou, tancem nebo herectvím.</li><li><strong>Přesvědčování (Persuasion, CHA):</strong> Domluvit se, získat důvěru nebo někoho přesvědčit.</li><li><strong>Náboženství (Religion, INT):</strong> Vybavit si znalosti o bozích, obřadech a víře.</li><li><strong>Mrštnost rukou (Sleight of Hand, DEX):</strong> Šikovně zacházet s drobnými předměty nebo je nenápadně schovat.</li><li><strong>Plížení (Stealth, DEX):</strong> Pohybovat se potichu nebo se skrýt před pohledy.</li><li><strong>Přežití (Survival, WIS):</strong> Orientovat se v přírodě, sledovat stopy a hledat cestu.</li></ul><p><strong>Pamatuj:</strong> Vypravěč rozhoduje, jestli máš házet a jaká Vlastnost se při konkrétní situaci použije.</p></details></details></article>
           <article id="study-guide-mechanic-features" aria-labelledby="study-guide-features-title" hidden><h3 id="study-guide-features-title" tabindex="-1">Schopnosti (Features)</h3><p><strong>Schopnost</strong> je něco zvláštního, co tvoje postava umí díky rase, povolání nebo jiné části svého příběhu a pravidel.</p><details><summary>Podrobnosti</summary><p><strong>Příklad:</strong> Bojovník má <strong>Druhý dech</strong>, díky kterému si může během boje obnovit část životů.</p><p>Na průkaz si můžeš zapsat <strong>název schopnosti a krátkou poznámku</strong>, abys nezapomněl, co dělá.</p><p>Některé schopnosti můžeš použít jen za určitých podmínek nebo omezený početkrát. Podrobnosti ti vysvětlí Vypravěč. <strong>Aplikace použití schopností nehlídá.</strong></p></details></article>
+          <article id="study-guide-mechanic-spells" aria-labelledby="study-guide-spells-title" hidden>
+            <h3 id="study-guide-spells-title" tabindex="-1">Spell slots (Kouzelné pozice)</h3>
+            <h4>Co jsou spell sloty?</h4>
+            <p>Spell slot si můžeš představit jako zásobu magické energie, kterou tvoje postava používá k sesílání kouzel.</p>
+            <p>Když běžně sešleš kouzlo 1. nebo vyšší úrovně, spotřebuješ jeden spell slot.</p>
+            <p>Počet slotů závisí hlavně na povolání a úrovni postavy.</p>
+            <p>Spell slot není samotné kouzlo. Jedno kouzlo můžeš seslat opakovaně, dokud máš vhodné dostupné pozice a splňuješ pravidla pro jeho seslání.</p>
+            <details><summary>Jak fungují úrovně?</summary>
+              <p>Úroveň postavy a úroveň kouzla jsou dvě různé věci.</p>
+              <p>Kouzla mají úrovně 0 až 9. Kouzla 0. úrovně se nazývají triky.</p>
+              <p>Kouzlo 1. úrovně můžeš seslat pomocí slotu 1. nebo vyšší úrovně. Kouzlo 2. úrovně ale nemůžeš seslat pomocí slotu 1. úrovně.</p>
+              <p>Některá kouzla mají silnější účinek při použití vyššího slotu. To se dozvíš z popisu konkrétního kouzla.</p>
+              <p><strong>Příklad:</strong> Znáš kouzlo Magic Missile (Magická střela), které je na 1. úrovni. Můžeš ho seslat pomocí slotu 1. úrovně nebo slotu 2. úrovně. Vždy spotřebuješ právě jeden zvolený slot.</p>
+            </details>
+            <details><summary>Co jsou triky (Cantrips)?</summary>
+              <p>Triky jsou kouzla 0. úrovně. K jejich běžnému sesílání nepotřebuješ spell slot, takže je můžeš sesílat opakovaně, aniž bys spotřebovával kouzelné pozice.</p>
+            </details>
+            <details><summary>Jak sloty používám v aplikaci?</summary>
+              <ul><li>Plný diamant = slot můžeš použít.</li><li>Diamant s křížkem = slot už je spotřebovaný.</li><li>Kliknutím na plný diamant ho spotřebuješ.</li><li>Kliknutím na spotřebovaný diamant ho obnovíš.</li></ul>
+              <p>Například 2/4 znamená, že máš 2 dostupné sloty ze 4 celkových.</p>
+              <p>V nastavení můžeš také obnovit všechny sloty najednou nebo změnit jejich celkový počet.</p>
+              <p>Aplikace sloty nespotřebovává automaticky při seslání kouzla. Rozhoduješ o tom ty.</p>
+            </details>
+            <details><summary>Kdy se sloty obnovují?</summary>
+              <p>V D&amp;D 5e (2014) se běžné spell sloty zpravidla obnovují po dokončení dlouhého odpočinku.</p>
+              <p>Některá povolání a schopnosti mají zvláštní pravidla. Například Warlock (Černokněžník) používá Pact Magic a jeho sloty se obnovují po krátkém i dlouhém odpočinku.</p>
+              <p>Aplikace odpočinky nevyhodnocuje. Sloty obnovíš ručně podle pravidel a pokynů PJ.</p>
+            </details>
+            <details><summary>Důležité připomenutí</summary>
+              <p>Mít volný spell slot ještě automaticky neznamená, že můžeš seslat jakékoli kouzlo. Musíš také dané kouzlo znát nebo mít připravené podle pravidel svého povolání.</p>
+              <p>Existují i zvláštní způsoby sesílání bez spotřebování slotu, například některé rituály. Ty ti podle potřeby vysvětlí PJ.</p>
+            </details>
+          </article>
           </section>
           <section class="study-guide-classes" aria-label="Povolání">
           <article id="study-guide-class-barbarian" aria-labelledby="study-guide-barbarian-title" hidden><h3 id="study-guide-barbarian-title" tabindex="-1">Barbar (Barbarian)</h3><p><strong>Chceš se vrhnout do boje a hodně vydržet?</strong> Barbar spoléhá na sílu, odolnost a bojový hněv. Nejlépe mu to jde v boji zblízka.</p><p><strong>Důležité vlastnosti:</strong> Síla, Odolnost. <strong>Kouzlení na 1. úrovni:</strong> Ne.</p><details><summary>Podrobnosti</summary><p><strong>Na 1. úrovni:</strong> <em>Bojový hněv (Rage)</em> tě na krátkou dobu posílí: lépe útočíš silou, více zraňuješ a odoláváš běžnému fyzickému zranění. <em>Obrana beze zbroje (Unarmored Defense)</em> ti umožní počítat AC podle Obratnosti a Odolnosti, pokud nenosíš zbroj.</p><p><strong>Pozor:</strong> Hněv má omezený počet použití a má pravidla, kdy skončí. <strong>Příklad:</strong> Chráníš družinu před nepřítelem v první řadě.</p></details></article>

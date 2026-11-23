@@ -6,6 +6,8 @@ const { resolve } = require('node:path');
 const dataSource = readFileSync(resolve(__dirname, '../public/characters.js'), 'utf8').replaceAll('export async', 'async');
 const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'utf8')
   .replace("import { SKILLS, abilityValues, proficiencyBonus, skillValues, validHpDelta, adjustedHp } from './character-rules.js';", readFileSync(resolve(__dirname, '../public/character-rules.js'), 'utf8').replaceAll('export const', 'const').replaceAll('export function', 'function'))
+  .replace("import { automaticSpellSlots, restoreAllSpellSlots, serializeSpellSlotState, setManualCorrection, spellSlotStateFromRecord } from './spell-slots.js';", readFileSync(resolve(__dirname, '../public/spell-slots.js'), 'utf8').replaceAll('export function', 'function'))
+  .replace("import { renderSpellGroups, spellLevelName } from './spell-groups.js';", readFileSync(resolve(__dirname, '../public/spell-groups.js'), 'utf8').replace(/^import .*;\r?\n/m, '').replaceAll('export function', 'function'))
   .replace("import { loadCharacter, updateCharacterField, lowerCharacterHp } from './characters.js';", dataSource)
   .replace("import { getCurrentUser } from './login.js';", 'const getCurrentUser = () => ({ session_token: testSessionToken, role: testRole });')
   .replace("import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';", '')
@@ -26,8 +28,8 @@ const base = { id, name: 'Eliška', background: null, story_background: null, in
 
 async function page(query, row = base, error = null, leader = false, authorized = true, portraitControl = {}, visibilityRows = [{ section_id: 'abilities', is_visible: true }]) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race', 'subrace-field', 'character-subrace',
-    'skills', 'character-skills', 'skills-status', 'skills-retry', 'features', 'character-features', 'features-form', 'features-form-title', 'feature-name', 'feature-note', 'feature-save', 'feature-cancel', 'feature-error', 'features-status', 'student-pages', 'tab-card', 'tab-spells', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-spells', 'panel-inventory', 'panel-notes', 'spells', 'character-spells', 'spells-form', 'spells-form-title', 'spell-english-name', 'spell-czech-name', 'spell-level', 'spell-note', 'spell-save', 'spell-cancel', 'spells-error', 'spells-status', 'game-link', 'game-navigation-status',
-    'story-background', 'story-background-toggle', 'character-story-background', 'edit-story-background', 'story-background-status', 'error-story-background', 'story-background-hint', 'story-background-count',
+    'skills', 'character-skills', 'skills-status', 'skills-retry', 'features', 'character-features', 'features-form', 'features-form-title', 'feature-name', 'feature-note', 'feature-save', 'feature-cancel', 'feature-error', 'features-status', 'student-pages', 'tab-card', 'tab-spells', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-spells', 'panel-inventory', 'panel-notes', 'spells', 'spell-slots', 'spell-slot-restore', 'spell-slot-adjustments', 'spell-slot-settings', 'spell-slot-settings-rows', 'spell-slot-settings-error', 'spell-slot-settings-close', 'spell-slot-adjustment-save', 'spell-slot-adjustment-reset', 'spell-slot-error', 'spell-slot-status', 'character-spells', 'spells-form', 'spells-form-title', 'spell-english-name', 'spell-czech-name', 'spell-level', 'spell-note', 'spell-save', 'spell-cancel', 'spells-error', 'spells-status', 'game-link', 'game-navigation-status',
+    'spell-slot-info', 'spell-slot-help', 'spell-slot-help-close', 'story-background', 'story-background-toggle', 'story-background-info', 'story-background-dialog', 'story-background-dialog-close', 'character-story-background', 'edit-story-background', 'story-background-status', 'error-story-background', 'story-background-hint', 'story-background-count',
     'inventory-hint', 'inventory-count', 'inventory-help', 'notes-hint', 'notes-count', 'notes-help',
     'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
     'inventory', 'inventory-toggle', 'character-inventory', 'edit-inventory', 'inventory-status', 'error-inventory',
@@ -1456,16 +1458,108 @@ async function page(query, row = base, error = null, leader = false, authorized 
   spellEls['spell-note'].value = 'Pro průzkum.';
   await spellEls['spells-form'].handlers.submit({ preventDefault() {} });
   assert.equal(JSON.stringify(spellsPage.writes.at(-1)), JSON.stringify({ spells: [{ english_name: 'Light', czech_name: 'Světlo', level: 0, note: 'Pro průzkum.' }] }));
-  const spellActions = spellEls['character-spells'].children[0].children.at(-1);
+  const spellActions = spellEls['character-spells'].children[0].children.at(-1).children.at(-1);
   spellActions.children[0].handlers.click();
   spellEls['spell-czech-name'].value = 'Světélko';
   await spellEls['spells-form'].handlers.submit({ preventDefault() {} });
   assert.equal(spellsPage.row.spells[0].czech_name, 'Světélko');
-  spellEls['character-spells'].children[0].children.at(-1).children[1].handlers.click();
+  spellEls['character-spells'].children[0].children.at(-1).children.at(-1).children[1].handlers.click();
   assert.equal(JSON.stringify(spellsPage.row.spells), '[]');
   const spellLeader = await page(`?mode=leader&character_id=${id}`, { ...base, spells: [{ english_name: 'Light', czech_name: 'Světlo', level: 0, note: '' }] }, null, true);
   assert.equal(spellLeader.elements['spells-form'].hidden, true);
   assert.equal(spellLeader.elements['character-spells'].children[0].children.length, 2);
+
+  const slotsPage = await page(`?character_id=${id}`, { ...base, class_code: 'wizard', level: 1 }, null, false, true);
+  const slotEls = slotsPage.elements;
+  const slotHeader = slotEls['character-spells'].children[0].children[0];
+  assert.equal(slotHeader.children[2].textContent, '2/2');
+  await slotHeader.children[1].children[0].handlers.click();
+  assert.equal(JSON.stringify(slotsPage.writes.at(-1)), JSON.stringify({ spell_slot_state: { current: { 1: 1 }, maximum: { 1: 2 }, manual_correction: {}, source: { class_code: 'wizard', level: 1 } } }));
+  await slotEls['spell-slot-restore'].handlers.click();
+  assert.equal(JSON.stringify(slotsPage.writes.at(-1).spell_slot_state.current), JSON.stringify({ 1: 2 }));
+  const manualSlots = await page(`?character_id=${id}`, { ...base, class_code: 'fighter', level: 1 }, null, false, true);
+  const configureSlots = async (view, target) => {
+    const els = view.elements;
+    els['spell-slot-settings'].handlers.click();
+    assert.equal(els['spell-slot-adjustments'].open, true);
+    const rows = els['spell-slot-settings-rows'].children;
+    assert.equal(rows.length, 9);
+    const [, minus, count, plus] = rows[0].children;
+    while (Number(count.textContent) !== target) {
+      (Number(count.textContent) < target ? plus : minus).handlers.click();
+    }
+    if (target === 0) {
+      assert.equal(minus.disabled, true);
+      minus.handlers.click();
+      assert.equal(count.textContent, '0');
+    }
+    await els['spell-slot-adjustment-save'].handlers.click();
+    assert.equal(els['spell-slot-adjustments'].open, false);
+  };
+  await configureSlots(manualSlots, 2);
+  assert.equal(JSON.stringify(manualSlots.writes.at(-1)), JSON.stringify({ spell_slot_state: { current: { 1: 2 }, maximum: { 1: 2 }, manual_correction: { 1: 2 }, source: { class_code: 'fighter', level: 1 } } }));
+  const slotsLeader = await page(`?mode=leader&character_id=${id}`, { ...base, class_code: 'warlock', level: 3 }, null, true);
+  assert.equal(slotsLeader.elements['character-spells'].children[0].children[0].children[0].textContent, '2nd-level spells (Kouzla 2. úrovně) · Pact Magic');
+  assert.equal(slotsLeader.elements['spell-slot-restore'].hidden, true);
+  assert.equal(slotsLeader.elements['spell-slot-settings'].hidden, true);
+  assert.equal(slotsLeader.elements['character-spells'].children[0].children[0].children[1].children[0].tagName, 'span');
+  assert.equal(slotsLeader.writes.length, 0);
+
+  // Repeated slot renders must rebuild the same flat groups from saved data.
+  const groupedRow = { ...base, class_code: 'wizard', level: 3, spells: [
+    { english_name: 'Darkness', czech_name: 'Tma', level: 2, note: '' },
+    { english_name: 'Light', czech_name: 'Světlo', level: 0, note: '' },
+    { english_name: 'Shield', czech_name: 'Štít', level: 1, note: '' },
+  ] };
+  const groupedPage = await page(`?character_id=${id}&tab=spells`, groupedRow);
+  const groupedEls = groupedPage.elements;
+  const verifyGroups = (view, expected) => {
+    const groups = view.elements['character-spells'].children;
+    assert.deepEqual(groups.map(group => group.children[0].children[0].textContent), expected);
+    for (const group of groups) {
+      assert.equal(group.className, 'spell-level-group');
+      assert.equal(group.children[0].className, 'spell-level-heading');
+      assert.ok(group.children.slice(1).every(entry => entry.className === 'spell-entry'), 'groups must never be nested');
+    }
+  };
+  const expectedGroups = ['Cantrips (Triky)', '1st-level spells (Kouzla 1. úrovně)', '2nd-level spells (Kouzla 2. úrovně)'];
+  const firstLevel = () => groupedEls['character-spells'].children[1];
+  const diamonds = () => firstLevel().children[0].children[1].children;
+  verifyGroups(groupedPage, expectedGroups);
+  for (let index = 0; index < 3; index++) {
+    await diamonds().find(diamond => diamond.className === 'is-available').handlers.click();
+    verifyGroups(groupedPage, expectedGroups);
+    await diamonds().find(diamond => diamond.className === 'is-spent').handlers.click();
+    verifyGroups(groupedPage, expectedGroups);
+  }
+  for (const maximum of [6, 3, 5, 0]) {
+    await configureSlots(groupedPage, maximum);
+    verifyGroups(groupedPage, expectedGroups);
+    assert.equal(diamonds().length, maximum);
+    assert.equal(groupedRow.spell_slot_state.maximum[1], maximum);
+  }
+  await firstLevel().children[1].children.at(-1).children[1].handlers.click();
+  const remainingGroups = ['Cantrips (Triky)', '2nd-level spells (Kouzla 2. úrovně)'];
+  verifyGroups(groupedPage, remainingGroups);
+  groupedEls['spell-english-name'].value = 'Shield';
+  groupedEls['spell-czech-name'].value = 'Štít';
+  groupedEls['spell-level'].value = '1';
+  await groupedEls['spells-form'].handlers.submit({ preventDefault() {} });
+  verifyGroups(groupedPage, expectedGroups);
+  assert.equal(diamonds().length, 0);
+  await firstLevel().children[1].children.at(-1).children[1].handlers.click();
+  for (const tab of ['card', 'spells', 'notes', 'spells']) {
+    groupedEls['tab-' + tab].handlers.click();
+    verifyGroups(groupedPage, remainingGroups);
+  }
+  verifyGroups(await page(`?character_id=${id}&tab=spells`, groupedRow), remainingGroups);
+  groupedEls['spell-slot-settings'].handlers.click();
+  groupedEls['spell-slot-adjustment-reset'].handlers.click();
+  assert.equal(groupedEls['spell-slot-settings-rows'].children[0].children[2].textContent, '4');
+  assert.equal(groupedRow.spell_slot_state.maximum[1], 0);
+  await groupedEls['spell-slot-adjustment-save'].handlers.click();
+  assert.equal(groupedRow.spell_slot_state.maximum[1], 4);
+  verifyGroups(groupedPage, expectedGroups);
 
   const html = readFileSync(resolve(__dirname, '../public/character.html'), 'utf8');
   assert.match(html, /<details id="story-background"/);
@@ -1482,6 +1576,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.ok(html.indexOf('id="features"') < html.indexOf('id="panel-inventory"'));
   assert.ok(html.indexOf('id="panel-spells"') < html.indexOf('id="panel-inventory"'));
   assert.match(html, /<section id="spells"[^>]*hidden>/);
+  assert.ok(html.indexOf('id="spell-slot-settings"') < html.indexOf('id="character-spells"'));
   assert.match(html, /<details id="features" hidden>/);
   assert.ok(html.indexOf('id="panel-inventory"') < html.indexOf('id="inventory"'));
   assert.ok(html.indexOf('id="panel-notes"') < html.indexOf('id="notes"'));
