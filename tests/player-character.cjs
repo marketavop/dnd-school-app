@@ -52,6 +52,9 @@ function api(token = 'player-token') {
       assert.deepEqual(updated, { ...row, [field]: value });
     }
   }
+  const slotState = { current: { 1: 1 }, maximum: { 1: 2 }, manual_correction: {}, source: { class_code: 'wizard', level: 1 } };
+  await client.update('spell_slot_state', slotState);
+  assert.equal(JSON.stringify(client.calls.at(-1).args.p_patch), JSON.stringify({ spell_slot_state: slotState }));
   assert.equal(client.tableCalls.length, 0);
   for (const token of [null, '']) {
     const noToken = api(token);

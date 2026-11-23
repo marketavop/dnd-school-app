@@ -128,8 +128,27 @@
           </details>
         </section>
         <section id="spells-panel" role="tabpanel" aria-labelledby="spells-tab" hidden>
-          <h2>Kouzla <span class="term-english">(Spells)</span></h2>
-          <div id="game-spells" class="game-spells" aria-live="polite"></div>
+          <header class="game-spells-heading">
+            <details class="game-spells-info">
+              <summary aria-label="Nápověda ke kouzelným pozicím" title="Nápověda ke kouzelným pozicím"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg></summary>
+              <div class="game-spells-help-content">
+                <strong>Spell slots (Kouzelné pozice)</strong>
+                <p>Spell sloty používáš k sesílání kouzel. Každé běžné seslání kouzla 1. nebo vyšší úrovně spotřebuje jednu pozici.</p>
+                <ul>
+                  <li><span class="help-slot-diamond is-available" aria-hidden="true"></span><span>Plný diamant znamená dostupný slot. Kliknutím ho spotřebuješ.</span></li>
+                  <li><span class="help-slot-diamond is-spent" aria-hidden="true"></span><span>Diamant s křížkem znamená spotřebovaný slot. Kliknutím ho obnovíš.</span></li>
+                </ul>
+                <p><strong>2/3</strong> znamená, že máš ještě 2 ze 3 pozic.</p>
+                <p class="game-spells-help-note">Triky (Cantrips) žádné sloty nepotřebují. Pozice obnovuj podle pravidel a pokynů PJ.</p>
+              </div>
+            </details>
+            <details class="game-spells-actions">
+              <summary aria-label="Akce kouzelných pozic" title="Akce kouzelných pozic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 14 4l.8 2 1.8 1 2.1-.5 1.4 1.4-.5 2.1.9 1.8 2 .8v2l-2 .8-.9 1.8.5 2.1-1.4 1.4-2.1-.5-1.8.9-.8 2h-2l-.8-2-1.8-.9-2.1.5-1.4-1.4.5-2.1-.9-1.8-2-.8v-2l2-.8.9-1.8-.5-2.1 1.4-1.4 2.1.5 1.8-1z"/><circle cx="13" cy="14" r="3"/></svg></summary>
+              <button id="game-spells-restore" type="button" disabled>Obnovit všechny spell sloty</button>
+            </details>
+          </header>
+          <p id="game-spells-status" role="status"></p>
+          <div id="game-spells" class="game-spells"></div>
         </section>
         <section id="inventory-panel" role="tabpanel" aria-labelledby="inventory-tab" hidden>
           <div id="game-inventory">Načítám inventář…</div>

@@ -60,13 +60,40 @@ button:disabled, input:disabled { color: #68685f; background: #eeebe4; cursor: d
 .panel-tabs [aria-selected="true"] { border-bottom-color: #a68a4d; color: #263442; background: #fffdf8; font-weight: 600; }
 #character-panel .panel-tabs button { padding-inline: 2px; font-size: 12px; overflow-wrap: anywhere; min-height: 44px; }
 #inventory-panel { color: #26384f; overflow-wrap: anywhere; }
-#spells-panel { color: #26384f; overflow-wrap: anywhere; }
-#spells-panel > h2 { margin: 16px; }
-#game-spells { display: grid; gap: 8px; margin: 16px; }
+#spells-panel { --accent: #1d3553; --gold: #a68a4d; --muted: #5d5b50; --font-practical: system-ui, sans-serif; color: #26384f; overflow-wrap: anywhere; }
+.game-spells-heading { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 0 8px; padding: 0 8px; border: 1px solid #b7a579; border-bottom: 0; border-radius: 4px 4px 0 0; background: #f7f0df; }
+.game-spells-actions, .game-spells-info { position: relative; }
+.game-spells-heading summary { display: grid; place-items: center; width: 36px; height: 36px; cursor: pointer; color: var(--accent); list-style: none; }
+.game-spells-heading summary::-webkit-details-marker { display: none; }
+.game-spells-info > .game-spells-help-content { position: absolute; z-index: 1; right: 0; width: min(19rem, calc(100vw - 40px)); box-sizing: border-box; padding: 10px; color: var(--accent); background: #fbf6e9; border: 1px solid var(--gold); border-radius: 4px; font-size: 13px; line-height: 1.45; }
+.game-spells-help-content > strong { display: block; margin-bottom: 4px; }
+.game-spells-help-content p { margin: 4px 0; }
+.game-spells-help-content ul { display: grid; gap: 5px; margin: 6px 0; padding: 0; list-style: none; }
+.game-spells-help-content li { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: 6px; }
+.help-slot-diamond { position: relative; justify-self: center; width: 14px; height: 14px; box-sizing: border-box; border: 2px solid #87601e; transform: rotate(45deg); }
+.help-slot-diamond.is-available { background: #c99838; }
+.help-slot-diamond.is-spent::after { content: "×"; position: absolute; inset: -4px 0 0; transform: rotate(-45deg); color: #26384f; font: 700 14px/1 sans-serif; text-align: center; }
+.game-spells-help-content .game-spells-help-note { color: #595e5e; }
+.game-spells-actions button { position: absolute; z-index: 1; right: 0; width: max-content; max-width: min(16rem, 70vw); padding: 8px; color: var(--accent); background: #fbf6e9; border: 1px solid var(--gold); border-radius: 4px; }
+#game-spells-status { margin: 0 8px; }
+#game-spells-status:empty { display: none; }
+#game-spells { display: grid; gap: 0; margin: 0 8px 8px; padding: 0 8px 8px; border: 1px solid #b7a579; border-top: 0; border-radius: 0 0 4px 4px; background: #fffdf8; }
 #game-spells:empty { display: none; }
-.game-spell { padding: 10px; border: 1px solid #b7a579; border-radius: 4px; background: #f7f0df; overflow-wrap: anywhere; }
-.game-spell h3 { margin: 0; font-size: 17px; }
-.game-spell p { margin: 5px 0 0; }
+#spells-panel .spell-level-group { margin: 0; padding: 0; }
+#spells-panel .spell-level-group + .spell-level-group { border-top: 1px solid #d5c5a1; }
+#spells-panel .spell-level-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 6px; align-items: center; padding: 8px; background: #eee2c8; }
+#spells-panel .spell-level-heading h3 { grid-column: 1 / -1; min-width: 0; margin: 0; color: #314f63; font-family: system-ui, sans-serif; font-size: 14px; line-height: 1.4; font-weight: 700; overflow-wrap: anywhere; }
+#spells-panel .spell-slot-diamonds { gap: 0; }
+#spells-panel .spell-level-hint { justify-self: end; margin-left: 0; color: #595e5e; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+#spells-panel .game-spell { margin: 0; padding: 8px; border: 0; border-bottom: 1px solid #d5c5a1; border-radius: 0; background: #fffdf8; overflow-wrap: anywhere; }
+#spells-panel .game-spell h3 { margin: 0; color: #26384f; font-family: system-ui, sans-serif; font-size: 14px; font-weight: 600; }
+#spells-panel .game-spell-toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 44px; padding: 0; color: inherit; text-align: left; background: transparent; border: 0; cursor: pointer; }
+#spells-panel .game-spell-toggle h3 { min-width: 0; }
+#spells-panel .game-spell-toggle::after { content: ""; flex: 0 0 7px; width: 7px; height: 7px; margin-right: 3px; border-right: 1.5px solid #314f63; border-bottom: 1.5px solid #314f63; transform: rotate(45deg) translateY(-2px); transition: transform 120ms ease; }
+#spells-panel .game-spell-toggle[aria-expanded="true"]::after { transform: rotate(225deg) translate(-1px, -1px); }
+#spells-panel .game-spell-toggle:focus-visible { outline: 2px solid #314f63; outline-offset: 2px; }
+#spells-panel .game-spell p { margin: 0; padding: 8px; color: #26384f; font-family: system-ui, sans-serif; font-size: 12px; font-weight: 400; white-space: pre-wrap; overflow-wrap: anywhere; background: #f7f0df; }
+.game-spell { margin-top: 3px; }
 #game-inventory { padding: 10px 8px; border: 1px solid #b7a579; border-radius: 4px; background: #f7f0df; }
 #game-inventory > :first-child { margin-top: 0; }
 #game-inventory > :last-child { margin-bottom: 0; }

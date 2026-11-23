@@ -2,6 +2,8 @@ import { loadCharacter, updateCharacterField } from './characters.js';
 import { SKILLS, abilityValues, skillValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { gameUser } from './navigation.js';
 import { renderBasicMarkdown } from './markdown.js';
+import { renderSpellGroups } from './spell-groups.js';
+import { restoreAllSpellSlots, serializeSpellSlotState, spellSlotStateFromRecord } from './spell-slots.js';
 
 const $ = id => document.getElementById(id);
 const toggle = $('game-character-name');
@@ -100,19 +102,67 @@ function renderFeatures(character) {
     list.append(item);
   }
 }
-function renderSpells(character) {
+function setupSpells(db, character) {
   const list = $('game-spells');
-  list.replaceChildren();
+  const restore = $('game-spells-restore');
+  const status = $('game-spells-status');
+  let state = spellSlotStateFromRecord(character);
+  let busy = false;
   const spells = Array.isArray(character.spells) ? character.spells : [];
-  if (!spells.length) { list.textContent = 'Zatím nemáš zapsaná žádná kouzla.'; return; }
-  for (const spell of spells) {
-    const item = document.createElement('article'); item.className = 'game-spell';
-    const name = document.createElement('h3'); name.textContent = `${spell.english_name} (${spell.czech_name})`;
-    const level = document.createElement('p'); level.textContent = spell.level === 0 ? 'Trik (Cantrip)' : `Úroveň ${spell.level} (Level ${spell.level})`;
-    item.append(name, level);
-    if (spell.note) { const note = document.createElement('p'); note.textContent = spell.note; item.append(note); }
-    list.append(item);
+  function render() {
+    const grouped = new Map();
+    for (const [spellIndex, spell] of spells.entries()) {
+      const item = document.createElement('article');
+      item.className = 'game-spell';
+      const name = document.createElement('h3');
+      name.textContent = `${spell.english_name} (${spell.czech_name})`;
+      if (spell.note) {
+        const noteId = `game-spell-note-${spellIndex}`;
+        const toggle = document.createElement('button');
+        toggle.className = 'game-spell-toggle';
+        toggle.type = 'button';
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-controls', noteId);
+        toggle.append(name);
+        toggle.addEventListener('click', () => {
+          const expanded = toggle.getAttribute('aria-expanded') === 'true';
+          toggle.setAttribute('aria-expanded', String(!expanded));
+          note.hidden = expanded;
+        });
+        item.append(toggle);
+        const note = document.createElement('p');
+        note.id = noteId;
+        note.hidden = true;
+        note.textContent = spell.note;
+        item.append(note);
+      } else {
+        item.append(name);
+      }
+      if (!grouped.has(spell.level)) grouped.set(spell.level, []);
+      grouped.get(spell.level).push(item);
+    }
+    renderSpellGroups(list, character, state, grouped, { busy, onChange: persist });
+    restore.disabled = busy || !state.slots.some(row => row.current < row.maximum);
   }
+  async function persist(nextState) {
+    if (busy || nextState === state) return;
+    busy = true;
+    status.textContent = 'Ukládám…';
+    render();
+    try {
+      const updated = await updateCharacterField(db, character.id, 'spell_slot_state', serializeSpellSlotState(nextState), gameUser.session_token);
+      character.spell_slot_state = updated.spell_slot_state;
+      state = spellSlotStateFromRecord(character);
+      status.textContent = 'Uloženo';
+    } catch {
+      status.textContent = 'Pozice se nepodařilo uložit. Zkus to prosím znovu.';
+    } finally {
+      busy = false;
+      render();
+    }
+  }
+  restore.addEventListener('click', () => persist(restoreAllSpellSlots(state)));
+  render();
 }
 let openPanel = null;
 function togglePanel(requested) {
@@ -161,7 +211,7 @@ if (valid) {
     const character = await loadCharacter(db, ids[0].toLowerCase(), gameUser.session_token);
     if (!$('game-skills').hidden) renderSkills(character);
     if (!$('game-features').hidden) renderFeatures(character);
-    if (!$('spells-tab').hidden) renderSpells(character);
+    if (!$('spells-tab').hidden) setupSpells(db, character);
     $('game-character-name').textContent = character.name ?? 'Postava';
     $('compact-ac').textContent = character.ac ?? '—';
     $('compact-level').textContent = character.level ?? '—';

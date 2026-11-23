@@ -1,10 +1,33 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.19
+**Verze:** 1.1.22
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.22
+
+- Spell sloty jsou implementované: SLOT-01 výpočet podle D&D 5e (2014), SLOT-02 persistence v `characters.spell_slot_state` přes existující autorizovaná RPC, SLOT-03 Studentský průkaz a SLOT-04 Studijní panel,
+- manuální čerpání a obnova slotů v obou pohledech sdílejí stav; funkčnost byla ručně ověřena,
+- záložka Kouzla používá přehled po úrovních s klikacími diamanty slotů, nastavením počtu a hromadnou obnovou, ručním seznamem kouzel, náhledem poznámek a kompaktními akcemi,
+- Studijní panel zobrazuje kompaktní seznam kouzel po úrovních; správa seznamu a celkového počtu slotů zůstává ve Studentském průkazu,
+- UI používá angličtinu s českým překladem v závorkách; SLOT-05 má kontextovou nápovědu, ale úplná pravidlová nápověda ve Studijní příručce a její propojení ještě vyžadují akceptaci,
+- katalog kouzel, filtrování a úplné herní karty zůstávají **Později**; SQL integrační kontrakt přes `psql` nebyl doložen, ručně ověřeno bylo nasazení migrace a praktické fungování uloženého stavu.
+
+### Změny ve verzi 1.1.21
+
+- Spell sloty se přesouvají z priority **Později** do **Důležité**; mají přednost před katalogem kouzel, nejsou podmínkou MVP,
+- maximum slotů se má automaticky odvozovat z povolání a úrovně podle D&D 5e (2014) s ruční korekcí; při změně povolání nebo úrovně se korekce ruší,
+- dítě sloty ručně čerpá a obnovuje včetně tlačítka „Obnovit všechny pozice“; při level-upu se zachová počet spotřebovaných pozic,
+- Studentský průkaz a Studijní panel mají používat společný stav v Supabase; bez automatického sesílání a systému odpočinků. Jde o schválený návrh, nikoli potvrzenou implementaci.
+
+### Změny ve verzi 1.1.20
+
+- schváleno rozšíření ruční evidence kouzel o společný katalog D&D 5e (2014), doporučení podle povolání a úrovně a úplné herní karty s prioritou **Později**,
+- dítě si kouzla vybírá podle pokynů PJ a může zobrazit i kouzla mimo doporučení; pravidlové údaje budou pouze ke čtení a vlastní poznámka editovatelná,
+- stručný účinek a mechaniky budou součástí budoucí záložky Kouzla Studentského průkazu a Studijní panel nabídne rychlý přístup během hry,
+- statický katalog a persistence výběrů a poznámek v Supabase jsou schválený návrh, nikoli potvrzená implementace; ruční evidence kouzel v MVP zůstává zachována.
 
 ### Změny ve verzi 1.1.19
 
@@ -978,9 +1001,16 @@ název, úroveň 0–9 a krátkou poznámku. Trik je úroveň 0. Dítě seznam s
 spravuje; aplikace nepřiděluje kouzla automaticky a nepočítá žádné další
 mechaniky.
 
-**Později** může přibýt podrobná karta kouzla, pravidlová nápověda, spell
-sloty a další mechaniky. Následující podrobnější návrh patří pouze do této
-budoucí etapy.
+**Později** je schválen společný katalog D&D 5e (2014) s doporučením podle
+povolání a úrovně postavy a možností zobrazit všechna kouzla podle pokynů PJ.
+Pravidlové údaje a stručný účinek budou pouze ke čtení, vlastní poznámka
+zůstane editovatelná. Výběry a poznámky se mají persistovat v Supabase.
+Nejde o potvrzenou implementaci ani rozšíření MVP.
+
+Po pozdější implementaci katalogu bude stručný účinek a mechaniky dostupné
+v záložce Kouzla Studentského průkazu a Studijní panel nabídne rychlé čtení
+vlastních kouzel během hry. Následující podrobnější návrh patří pouze do
+této budoucí etapy.
 
 Podrobná karta kouzla může obsahovat:
 
@@ -1036,10 +1066,17 @@ Automatizujeme výpočet čísla, nikoliv použití pravidla.
 
 ## 18. Spell sloty
 
-Spell sloty a jejich UI jsou **Později** a neblokují první session.
-Následující popis platí pro pozdější doplnění.
+Spell sloty jsou implementovaná funkce. SLOT-01 až SLOT-04 pokrývají výpočet,
+persistence a použití ve Studentském průkazu i Studijním panelu.
 
-Spell sloty jsou jednoduchý stav **aktuální / maximum**.
+Spell sloty jsou sdílený stav **aktuální / maximum** uložený v
+`characters.spell_slot_state` přes existující autorizované RPC.
+
+Maximum se odvozuje z povolání a úrovně podle D&D 5e (2014), s ruční
+korekcí. Při změně povolání nebo úrovně se korekce ruší. Dítě sloty ručně
+čerpá a obnovuje včetně tlačítka **Obnovit všechny pozice**; při level-upu
+se zachová počet spotřebovaných pozic. Nevzniká automatické sesílání ani
+systém odpočinků. Funkčnost byla ručně ověřena.
 
 Mohou být zobrazeny například:
 
@@ -1866,6 +1903,10 @@ Dovednosti jsou implementované v `main` a jejich UI a výpočty jsou
 mergnuté. Dřívější pracovní větev `feature/character-skills` se už
 neuvádí jako rozpracovaný stav.
 
+Spell sloty podle §18 jsou implementované a ověřené. Katalog kouzel,
+filtrování a úplné herní karty zůstávají **Později**; úplná pravidlová
+nápověda Studijní příručky a její propojení (SLOT-05) ještě vyžadují akceptaci.
+
 ### Později
 
 Řešit až podle zkušeností ze skutečného hraní.
@@ -1875,7 +1916,7 @@ Aktuálně sem patří například:
 -   automatická realtime synchronizace viditelnosti mechanických částí
     Studentského průkazu a Studijního panelu; současné realtime kanály
     nemají potřebná oprávnění a pro první použití stačí obnovení stránky,
--   kouzla, spell sloty a spellcasting UI,
+-   katalog kouzel podle §17; spell sloty jsou vedené v prioritě **Důležité**,
 -   Speed (rychlost),
 -   Initiative (iniciativa),
 -   Passive Perception (pasivní vnímání),
