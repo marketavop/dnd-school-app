@@ -3,12 +3,18 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 const { chromium } = require('playwright');
 const characterId = '12345678-1234-4321-9876-123456789abc';
 const peerId = 'abcdefab-1234-4321-9876-abcdefabcdef';
 let saved = { x: 350, y: 350 };
 const writes = [];
-const overview = { ac: 16, level: 5, dex: 14, inventory: '# Výbava\n- **Meč**\n- *Lano*\n- [x] Pochodeň\n- [ ] Jídlo\n<script>window.inventoryExecuted=true</script>\n<img src=x onerror="window.inventoryExecuted=true">\n' + 'DlouhýInventář'.repeat(100) };
+const overview = { ac: 16, level: 5, dex: 14 };
+const inventory = [
+  { id: randomUUID(), character_id: characterId, name: 'Meč', item_type: 'weapon', quantity: 1, price_gp: 0 },
+  { id: randomUUID(), character_id: characterId, name: 'Lano', item_type: 'adventuring_gear', quantity: 2,
+    note: '**Pochodeň**\n<script>window.inventoryExecuted=true</script>\n<img src=x onerror="window.inventoryExecuted=true">\n' + 'DlouhýInventář'.repeat(100) },
+];
 const server = http.createServer((req, res) => {
   const file = path.join(__dirname, '../public', new URL(req.url, 'http://local').pathname);
   try {
@@ -21,7 +27,16 @@ const server = http.createServer((req, res) => {
   const browser = await chromium.launch({ headless: true, channel: process.env.BROWSER_CHANNEL || 'msedge' });
   try {
     const context = await browser.newContext({ hasTouch: true });
-    await context.exposeFunction('fixtureOverview', (id, emptyFeatures = false) => id === characterId ? { ...overview, level: 5, str: 10, dex: 14, int: 12, wis: 8, cha: 16, skill_proficiencies: { stealth: true }, features: emptyFeatures ? [] : [{ name: 'Odolnost', note: 'Výhoda proti jedu.\nDlouhá poznámka.' }] } : { ac: null, level: null, dex: 8 });
+    await context.exposeFunction('fixtureOverview', (id, emptyFeatures = false) => id === characterId ? { ...overview, str: 10, int: 12, wis: 8, cha: 16, skill_proficiencies: { stealth: true }, features: emptyFeatures ? [] : [{ name: 'Odolnost', note: 'Výhoda proti jedu.\nDlouhá poznámka.' }] } : { ac: null, level: null, dex: 8 });
+    await context.exposeFunction('fixtureInventory', (rpc, args) => {
+      if (rpc === 'player_inventory_items') return { data: inventory.filter(item => item.character_id === args.p_character_id) };
+      assert.equal(rpc, 'player_add_inventory_item');
+      assert.equal(args.p_character_id, characterId);
+      const item = { id: randomUUID(), character_id: args.p_character_id, name: args.p_name, item_type: args.p_item_type,
+        quantity: args.p_quantity, price_gp: args.p_price_gp, not_for_sale: args.p_not_for_sale, note: args.p_note };
+      inventory.push(item);
+      return { data: [item] };
+    });
     await context.exposeFunction('fixtureTokens', () => [{ character_id: characterId, name: 'Test', ...saved }]);
     await context.exposeFunction('fixtureMove', (action, id, mapId, point) => {
       assert.equal(action, 'move');
@@ -50,10 +65,12 @@ const server = http.createServer((req, res) => {
           const c = { on(type, filter, fn) {handlers[filter.event]=fn; return c}, subscribe(fn) {setTimeout(()=>fn?.('SUBSCRIBED'),0); return c}, async send(message) {bus.postMessage(message); return 'ok'}, close() {bus.close()} }; return c; },
         removeChannel(c) {c.close()},
         async rpc(name, args) {
-          if (name === 'character_section_visibility' && args.p_session_token === 'fixture-session') {
+          if (args.p_session_token !== 'fixture-session') throw new Error('Missing fixture session');
+          if (name === 'character_section_visibility') {
             return {data:[{section_id:'abilities', is_visible:true}, {section_id:'skills', is_visible:!location.search.includes('hide-skills')}, {section_id:'features', is_visible:!location.search.includes('hide-features')}]};
           }
-          if (!['player_character', 'player_update_character'].includes(name) || args.p_session_token !== 'fixture-session') throw new Error('Unexpected RPC');
+          if (['player_inventory_items', 'player_add_inventory_item'].includes(name)) return window.fixtureInventory(name, args);
+          if (!['player_character', 'player_update_character'].includes(name)) throw new Error('Unexpected RPC');
           if (name === 'player_update_character') {
             if (Object.keys(args.p_patch).join() !== 'current_hp') throw new Error('Only HP may be edited');
             currentHp = args.p_patch.current_hp;
@@ -126,20 +143,17 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('#overview-tab').getAttribute('aria-selected'), 'true');
     await page.locator('#game-character-name').click();
     await page.getByRole('tab', {name:'Inventář', exact:true}).click();
-    assert.equal(await page.locator('#game-inventory h2').textContent(), 'Výbava');
-    assert.equal(await page.locator('#game-inventory strong').textContent(), 'Meč');
-    assert.equal(await page.locator('#game-inventory em').textContent(), 'Lano');
-    assert.deepEqual(await page.locator('#game-inventory .markdown-checkbox').allTextContents(), ['☑', '☐']);
-    assert.equal(await page.locator('#game-inventory input, #game-inventory script, #game-inventory img').count(), 0);
+    const inventoryList = page.locator('#game-inventory-items-list');
+    await inventoryList.waitFor();
+    assert.deepEqual(await inventoryList.locator('h3').allTextContents(), ['Meč', 'Lano']);
+    assert.equal(await inventoryList.locator('.game-inventory-item-note').textContent(), inventory[1].note);
+    assert.equal(await inventoryList.locator('input, script, img, strong').count(), 0);
     assert.equal(await page.evaluate(() => window.inventoryExecuted), undefined);
-    assert.equal(await page.locator('#inventory-edit-button').textContent(), 'Upravit');
-    assert.equal(await page.locator('#game-inventory-editor').isHidden(), true);
-    await page.locator('#inventory-edit-button').click();
-    assert.equal(await page.locator('#game-inventory-editor').inputValue(), overview.inventory);
-    await page.locator('#game-inventory-editor').fill(overview.inventory + '\n- Přidán');
-    await page.waitForTimeout(650);
-    await page.locator('#inventory-edit-button').click();
-    assert.equal(await page.locator('#game-inventory').textContent(), 'Výbava\nMeč\nLano\n☑ Pochodeň\n☐ Jídlo\nPřidán');
+    await page.locator('#inventory-item-add').click();
+    await page.locator('#inventory-item-name').fill('Přidán');
+    await page.locator('#inventory-item-save').click();
+    await inventoryList.getByRole('heading', { name: 'Přidán', exact: true }).waitFor();
+    assert.deepEqual(await inventoryList.locator('h3').allTextContents(), ['Meč', 'Lano', 'Přidán']);
     await page.getByRole('tab', {name:'Inventář', exact:true}).press('Home');
     assert.equal(await page.locator('#overview-panel').isVisible(), true);
     await page.locator('#compact-hp-delta').fill('2');
@@ -152,15 +166,15 @@ const server = http.createServer((req, res) => {
     await page.getByRole('tab', {name:'Přehled'}).click();
     assert.deepEqual(await page.locator('.ability-table thead th').allTextContents(), ['Vlastnost', 'Score', 'Mod.', 'Save']);
     assert.equal(await page.locator('#game-skills').getAttribute('open'), null);
-    assert.equal(await page.locator('#game-skills-list .game-skill-row').count(), 0);
+    assert.equal(await page.locator('#game-skills-list .game-skill-row').first().isVisible(), false);
     await page.locator('#game-skills summary').click();
     assert.equal(await page.locator('#game-skills-list .game-skill-row').count(), 18);
-    assert.equal(await page.locator('.game-skill-row').filter({hasText:'Plížení'}).locator('.game-skill-bonus').textContent(), '+4');
+    assert.equal(await page.locator('.game-skill-row').filter({hasText:'Plížení'}).locator('.game-skill-bonus').textContent(), '+3');
     assert.equal(await page.locator('.game-skill-row').filter({hasText:'Plížení'}).locator('.game-skill-proficiency').textContent(), '●');
     assert.equal(await page.locator('.game-skill-row').filter({hasText:'Arkána'}).locator('.game-skill-bonus').textContent(), '+1');
     assert.equal(await page.locator('.game-skill-row').filter({hasText:'Arkána'}).locator('.game-skill-proficiency').textContent(), '○');
     assert.equal(await page.locator('#game-features').getAttribute('open'), null);
-    assert.equal(await page.locator('#game-features-list .game-feature').count(), 0);
+    assert.equal(await page.locator('#game-features-list .game-feature').first().isVisible(), false);
     await page.locator('#game-features summary').click();
     assert.equal(await page.locator('#game-features-list .game-feature').count(), 1);
     assert.equal(await page.locator('.game-feature h3').textContent(), 'Odolnost');
@@ -185,7 +199,7 @@ const server = http.createServer((req, res) => {
         assert.deepEqual(open.coordinates, saved);
         if (toggle === '#game-character-name') {
           await page.getByRole('tab', {name:'Přehled', exact:true}).click();
-          assert.deepEqual(await page.locator('#overview-panel dt').allTextContents(), ['AC', 'Level', 'Iniciativa']);
+          assert.deepEqual(await page.locator('#overview-panel dt').allTextContents(), ['Obranné číslo (Armor Class)', 'Úroveň (Level)', 'Iniciativa']);
           const overviewLayout = await page.evaluate(() => {
             const rect = selector => document.querySelector(selector).getBoundingClientRect();
             const panel = document.querySelector('#character-panel');
@@ -232,7 +246,7 @@ const server = http.createServer((req, res) => {
           await page.getByRole('tab', {name:'Inventář', exact:true}).click();
           assert.equal(await page.locator('#inventory-panel').isVisible(), true);
           assert.ok(await page.locator('#character-panel').evaluate(panel => panel.scrollWidth===panel.clientWidth && document.documentElement.scrollWidth<=innerWidth && getComputedStyle(panel).overflowY==='auto'));
-          await page.locator('#inventory-edit-button').scrollIntoViewIfNeeded();
+          await page.locator('#inventory-item-add').scrollIntoViewIfNeeded();
           await page.getByRole('tab', {name:'Přehled', exact:true}).click();
         }
       }
@@ -311,8 +325,6 @@ const server = http.createServer((req, res) => {
     assert.equal(await peer.locator('#game-character-name').textContent(), 'Test Postava 2');
     assert.equal(await peer.locator('#compact-ac').textContent(), '—');
     assert.equal(await peer.locator('#compact-level').textContent(), '—');
-    assert.equal(await peer.locator('#game-inventory').textContent(), 'Inventář je zatím prázdný.');
-    assert.equal(await peer.locator('#inventory-edit-button').isHidden(), false);
     assert.equal(await peer.locator('#compact-initiative').textContent(), '-1');
     assert.equal(await page.locator('#compact-initiative').textContent(), '0');
     assert.deepEqual(await page.locator('[data-die]').evaluateAll(nodes => nodes.map(n => Number(n.dataset.die))), [4,6,8,10,12,20,100]);
@@ -323,6 +335,10 @@ const server = http.createServer((req, res) => {
       await peer.waitForFunction(value => document.querySelector('#last-roll').textContent === value, latest);
     }
     assert.equal(await peer.locator('#dice-panel').isVisible(), false);
+    await peer.locator('#game-character-name').click();
+    await peer.getByRole('tab', {name:'Inventář', exact:true}).click();
+    await peer.getByText('Zatím nemáš žádné předměty.', {exact:true}).waitFor();
+    assert.equal(await peer.locator('#game-inventory-items-list').isHidden(), true);
     await peer.locator('#dice-toggle').click();
     await peer.locator('[data-die="20"]').click();
     const latest = await peer.locator('#last-roll').textContent();
@@ -335,13 +351,15 @@ const server = http.createServer((req, res) => {
     overview.ac = 0;
     overview.level = null;
     overview.dex = null;
-    overview.inventory = '- Uložená změna z deníku';
+    inventory[0].name = 'Uložená změna z deníku';
     await page.reload();
     await ready();
     await page.waitForFunction(() => document.querySelector('#compact-ac').textContent === '0');
     assert.equal(await page.locator('#compact-level').textContent(), '—');
     assert.equal(await page.locator('#compact-initiative').textContent(), '—');
-    assert.equal(await page.locator('#game-inventory li').textContent(), 'Uložená změna z deníku');
+    await page.locator('#game-character-name').click();
+    await page.getByRole('tab', {name:'Inventář', exact:true}).click();
+    await inventoryList.getByRole('heading', {name:'Uložená změna z deníku', exact:true}).waitFor();
     assert.deepEqual((await geometry()).coordinates, saved);
     assert.equal(writes.length, 1);
     await page.goto(url + '&hide-skills&hide-features');
@@ -352,6 +370,7 @@ const server = http.createServer((req, res) => {
     assert.equal(await page.locator('#game-features-list .game-feature').count(), 0);
     await page.goto(url + '&empty-features');
     await page.waitForFunction(() => document.querySelector('#game-character-name').textContent === 'Test Postava');
+    await page.locator('#game-character-name').click();
     await page.locator('#game-features summary').click();
     assert.equal(await page.locator('#game-features-list').textContent(), 'Zatím nemáš zapsané žádné schopnosti.');
     assert.deepEqual(errors, []);

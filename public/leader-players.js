@@ -29,6 +29,7 @@ export function mountLeaderPlayers(document, window, call = rpc) {
   const sheet = document.querySelector('#leader-sheet');
   const main = document.querySelector('main');
   let selected = null;
+  let sheetSelection = 0;
   let generation = 0;
   let visibilityGeneration = 0;
   let visibilityState = new Map();
@@ -57,7 +58,11 @@ export function mountLeaderPlayers(document, window, call = rpc) {
     sheetResizeObserver = new ResizeObserver(syncSheetHeight);
     sheetResizeObserver.observe(content);
   }
-  sheet.addEventListener('load', observeSheetHeight);
+  sheet.addEventListener('load', () => {
+    if (!selected || sheet.contentDocument?.URL !== new URL(sheet.src, window.location.href).href) return;
+    sheet.hidden = false;
+    observeSheetHeight();
+  });
   function clearSelectedPlayer() {
     Array.from(list.children).forEach(item => item.children[0]?.removeAttribute('aria-current'));
   }
@@ -120,6 +125,7 @@ export function mountLeaderPlayers(document, window, call = rpc) {
   }
   function closeSheet() {
     selected = null;
+    sheetSelection++;
     sheetResizeObserver?.disconnect();
     sheetResizeObserver = null;
     sheet.hidden = true;
@@ -134,6 +140,16 @@ export function mountLeaderPlayers(document, window, call = rpc) {
       throw new Error('Character unavailable');
     }
     return rows[0];
+  };
+  window.loadLeaderInventoryItems = async id => {
+    if (getCurrentUser()?.role !== 'leader' || id !== selected) throw new Error('Access denied');
+    const selection = sheetSelection;
+    const rows = await call('leader_inventory_items', { p_character_id: id });
+    if (selection !== sheetSelection || getCurrentUser()?.role !== 'leader'
+        || !Array.isArray(rows) || rows.some(row => row?.character_id !== id)) {
+      throw new Error('Inventory unavailable');
+    }
+    return rows;
   };
   document.querySelector('#leader-players-link').addEventListener('click', async event => {
     event.preventDefault();
@@ -172,10 +188,11 @@ export function mountLeaderPlayers(document, window, call = rpc) {
         }
         button.addEventListener('click', () => {
           selected = row.character_id;
+          sheetSelection++;
           clearSelectedPlayer();
           button.setAttribute('aria-current', 'true');
+          sheet.hidden = true;
           sheet.src = `./character.html?mode=leader&character_id=${encodeURIComponent(selected)}`;
-          sheet.hidden = false;
         });
         item.append(button);
         list.append(item);

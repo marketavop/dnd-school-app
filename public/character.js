@@ -6,6 +6,7 @@ import { getCurrentUser } from './login.js';
 import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';
 import { renderBasicMarkdown } from './markdown.js';
 import { CHARACTER_SECTIONS } from './character-sections.js';
+import { inventoryItemDetails, setupInventoryItemForm } from './inventory-items.js';
 
 const RACES = new Map([
   ['human', 'Člověk (Human)'], ['elf', 'Elf (Elf)'], ['halfling', 'Půlčík (Halfling)'], ['dwarf', 'Trpaslík (Dwarf)'],
@@ -392,7 +393,7 @@ async function setupPortrait(character, reload) {
   remove.addEventListener('click', () => change('remove'));
 }
 
-function setupTabs() {
+function setupTabs(loadInventoryItems) {
   const names = ['card', 'spells', 'inventory', 'notes'];
   const tabs = names.map(name => document.querySelector('#tab-' + name));
   const panels = names.map(name => document.querySelector('#panel-' + name));
@@ -406,6 +407,7 @@ function setupTabs() {
       tab.tabIndex = i === index ? 0 : -1;
       panels[i].hidden = i !== index;
     });
+    if (names[index] === 'inventory') void loadInventoryItems();
   }
   tabs.forEach((tab, i) => {
     tab.addEventListener('click', () => { select(i); tab.focus(); });
@@ -670,117 +672,136 @@ function setupSpellSlots(db, character, spellEntriesByLevel) {
   return renderGroups;
 }
 
-function setupInventory(db, character) {
+function setupInventoryItems(db, characterId) {
   const section = document.querySelector('#inventory');
-  const display = document.querySelector('#character-inventory');
-  const input = document.querySelector('#edit-inventory');
-  const toggle = document.querySelector('#inventory-toggle');
-  const message = document.querySelector('#inventory-status');
-  const error = document.querySelector('#error-inventory');
-  const help = document.querySelector('#inventory-help');
-  const hint = document.querySelector('#inventory-hint');
-  const counter = document.querySelector('#inventory-count');
-  display.classList.add('markdown-content');
-  function updateCounter() {
-    const count = [...input.value].length;
-    counter.textContent = count.toLocaleString('cs-CZ') + ' / 5 000';
-    counter.dataset.error = String(count > 5000);
+  const list = document.querySelector('#inventory-items-list');
+  const message = document.querySelector('#inventory-items-status');
+  const add = document.querySelector('#inventory-item-add');
+  let items = [];
+  let requested = false;
+  let deleting = false;
+  const openForm = readOnly ? null : setupInventoryItemForm(db, characterId, playerSessionToken, (saved, updating) => {
+    const next = updating ? items.map(item => item.id === saved.id ? saved : item) : [...items, saved];
+    const updatedButton = render(next, saved.id);
+    return updating ? updatedButton : add;
+  });
+  if (openForm) {
+    add.hidden = false;
+    add.addEventListener('click', () => { if (!deleting) openForm(null); });
   }
-  let editing = false, busy = false, failed = false;
-  let savedTimer = null;
-  function clearSavedTimer() {
-    clearTimeout(savedTimer);
-    savedTimer = null;
-  }
-  function render() {
-    if (character.inventory) renderBasicMarkdown(display, character.inventory);
-    else display.textContent = 'Inventář zatím není vyplněný.';
-    display.dataset.empty = String(!character.inventory);
-    display.hidden = editing || failed;
-    input.hidden = !(editing || failed);
-    hint.hidden = counter.hidden = input.hidden;
-    help.hidden = input.hidden;
-    updateCounter();
-    input.disabled = busy || readOnly;
-    toggle.disabled = readOnly;
-    toggle.textContent = editing ? 'Ukončit editaci' : 'Upravit inventář';
-    toggle.setAttribute('aria-pressed', String(editing));
-  }
-  input.value = character.inventory ?? '';
-  render();
   section.hidden = false;
-  if (readOnly) {
-    toggle.hidden = true;
-    input.readOnly = true;
-    message.textContent = 'Pouze pro čtení';
-    return;
-  }
-  function validate() {
-    // Match the server's character count, rather than UTF-16 code units.
-    return [...input.value].length <= 5000;
-  }
-  input.addEventListener('input', () => {
-    updateCounter();
-    if (validate()) {
-      error.textContent = '';
-      input.setAttribute('aria-invalid', 'false');
-    } else {
-      error.textContent = 'Inventář může mít nejvýše 5 000 znaků.';
-      input.setAttribute('aria-invalid', 'true');
-    }
-  });
-  async function save() {
-    if (busy || (!editing && !failed)) return;
-    if (!validate()) {
-      clearSavedTimer();
-      failed = true;
-      error.textContent = 'Inventář může mít nejvýše 5 000 znaků.';
-      input.setAttribute('aria-invalid', 'true');
-      message.textContent = 'Nepodařilo se uložit';
-      message.dataset.error = 'true';
-      render();
-      return;
-    }
-    const value = input.value === '' ? null : input.value;
-    if (value === character.inventory && !failed) return;
-    clearSavedTimer();
-    busy = true;
-    error.textContent = '';
-    input.setAttribute('aria-invalid', 'false');
-    message.textContent = 'Ukládám…';
-    message.dataset.error = 'false';
-    render();
+
+  async function removeItem(item, row) {
+    if (deleting || !window.confirm(`Opravdu smazat předmět „${item.name}“?`)) return;
+    deleting = true;
+    const buttons = [add, ...list.querySelectorAll('button')];
+    for (const button of buttons) button.setAttribute('aria-disabled', 'true');
+    delete message.dataset.error;
+    message.textContent = 'Mažu předmět…';
+    let nextFocus;
     try {
-      const updated = await updateCharacterField(db, character.id, 'inventory', value, playerSessionToken);
-      character.inventory = updated.inventory;
-      input.value = character.inventory ?? '';
-      failed = false;
-      message.textContent = 'Uloženo';
-      savedTimer = setTimeout(() => {
-        message.textContent = '';
-        savedTimer = null;
-      }, 2000);
+      const { error } = await db.rpc('player_delete_inventory_item', {
+        p_session_token: playerSessionToken, p_character_id: characterId, p_item_id: item.id,
+      });
+      if (error) throw error;
+      if (row.contains(document.activeElement)) {
+        const neighbor = row.nextElementSibling ?? row.previousElementSibling;
+        nextFocus = neighbor?.querySelector('.inventory-item-delete') ?? add;
+      }
+      items = items.filter(current => current.id !== item.id);
+      row.remove();
+      list.hidden = items.length === 0;
+      message.textContent = items.length ? 'Předmět byl smazán.' : 'Zatím nemáš žádné předměty.';
     } catch {
-      failed = true;
-      error.textContent = 'Nepodařilo se uložit. Pro opakování klikni do pole a znovu jej opusť.';
-      message.textContent = 'Nepodařilo se uložit';
       message.dataset.error = 'true';
+      message.textContent = 'Předmět se nepodařilo smazat. Zkus to znovu.';
     } finally {
-      busy = false;
-      render();
+      deleting = false;
+      for (const button of buttons) button.removeAttribute('aria-disabled');
+      nextFocus?.focus();
     }
   }
-  input.addEventListener('blur', event => {
-    if (event?.relatedTarget && help.contains(event.relatedTarget)) return;
-    return save();
-  });
-  toggle.addEventListener('click', async () => {
-    const saving = editing ? save() : null;
-    editing = !editing;
-    render();
-    if (editing) input.focus();
-    await saving;
-  });
+
+  function render(next, focusId) {
+    const content = document.createDocumentFragment();
+    let focus;
+    for (const item of next) {
+      const row = document.createElement('li');
+      const heading = document.createElement('div');
+      heading.className = 'inventory-item-heading';
+      const name = document.createElement('h4');
+      name.textContent = item.name;
+      heading.append(name);
+      if (openForm) {
+        const actions = document.createElement('div');
+        actions.className = 'inventory-item-actions';
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'inventory-item-edit';
+        edit.setAttribute('aria-label', 'Upravit předmět');
+        edit.setAttribute('aria-haspopup', 'dialog');
+        edit.title = 'Upravit předmět';
+        edit.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M4 20l5-1L20 8a2.8 2.8 0 0 0-4-4L5 15z"/></svg>';
+        edit.addEventListener('click', () => { if (!deleting) openForm(item); });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'inventory-item-delete';
+        remove.setAttribute('aria-label', 'Smazat předmět');
+        remove.title = 'Smazat předmět';
+        remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg>';
+        remove.addEventListener('click', () => removeItem(item, row));
+        actions.append(edit, remove);
+        heading.append(actions);
+        if (item.id === focusId) focus = edit;
+      }
+      const meta = document.createElement('p');
+      meta.className = 'inventory-item-meta';
+      for (const detail of inventoryItemDetails(item)) {
+        const part = document.createElement('span');
+        part.textContent = detail;
+        meta.append(part);
+      }
+      row.append(heading, meta);
+      if (item.note) {
+        const note = document.createElement('p');
+        note.className = 'inventory-item-note';
+        note.textContent = item.note;
+        row.append(note);
+      }
+      content.append(row);
+    }
+    list.replaceChildren(content);
+    items = next;
+    list.hidden = items.length === 0;
+    delete message.dataset.error;
+    message.textContent = items.length ? '' : 'Zatím nemáš žádné předměty.';
+    return focus;
+  }
+  return async () => {
+    if (requested) return;
+    requested = true;
+    delete message.dataset.error;
+    message.textContent = 'Načítám předměty…';
+    try {
+      let data;
+      if (readOnly) {
+        data = await window.parent.loadLeaderInventoryItems(characterId);
+      } else {
+        const response = await db.rpc('player_inventory_items', {
+          p_session_token: playerSessionToken, p_character_id: characterId,
+        });
+        if (response.error) throw response.error;
+        data = response.data;
+      }
+      if (!Array.isArray(data)) throw new Error('Neplatná odpověď inventáře.');
+      render(data);
+      if (openForm) add.disabled = false;
+    } catch {
+      requested = false;
+      message.textContent = 'Předměty se nepodařilo načíst. Zkus přepnout na jinou záložku a vrátit se do Inventáře.';
+      message.dataset.error = 'true';
+    }
+  };
 }
 
 function setupNotes(db, character) {
@@ -1355,20 +1376,19 @@ if (!ids.length) {
     setupDiceRoller();
     enableEditing(db, character);
     setupSpells(db, character);
-    setupInventory(db, character);
     setupNotes(db, character);
     setupStoryBackground(db, character);
     setupFeatures(db, character);
     setupSkills(db, character);
-    setupTabs();
+    setupTabs(setupInventoryItems(db, character.id));
     if (!readOnly) {
       const gameLink = document.querySelector('#game-link');
       gameLink.hidden = false;
       gameLink.addEventListener('click', event => {
         document.activeElement?.blur();
-        const unsavedText = [['inventory', 'edit-inventory'], ['notes', 'edit-notes'], ['story_background', 'edit-story-background']]
+        const unsavedText = [['notes', 'edit-notes'], ['story_background', 'edit-story-background']]
           .some(([field, id]) => document.querySelector('#' + id).value !== (character[field] ?? ''));
-        const saving = ['save-status', 'inventory-status', 'notes-status', 'story-background-status']
+        const saving = ['save-status', 'notes-status', 'story-background-status']
           .some(id => {
             const message = document.querySelector('#' + id);
             return message.textContent === 'Ukládám…' || message.dataset.error === 'true';

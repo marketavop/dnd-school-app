@@ -26,6 +26,18 @@ const server = http.createServer((req, res) => {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
+    await context.route('**/session-page.js', route => route.fulfill({ contentType: 'application/javascript', body: `
+      export async function requireSession() {
+        const character_id = new URLSearchParams(location.search).get('character_id');
+        if (!['${idA}', '${idB}'].includes(character_id)) throw new Error('Unknown fixture character');
+        return { role: 'player', character_id, session_token: 'fixture-session' };
+      }
+    ` }));
+    await context.route('**/game-session.js', route => route.fulfill({ contentType: 'application/javascript', body: `
+      export function installGameSession() {
+        window.getGameIdentity = () => ({ role: 'player', character_id: new URLSearchParams(location.search).get('character_id') });
+      }
+    ` }));
     await context.route('**/config.local.js', route => route.fulfill({ contentType: 'application/javascript', body: `export const SUPABASE_URL='https://example.test'; export const SUPABASE_PUBLISHABLE_KEY='sb_publishable_test';` }));
     await context.route('https://cdn.jsdelivr.net/**', route => route.fulfill({ contentType: 'application/javascript', body: `export function createClient() { return { channel(name) {
       const bus = new BroadcastChannel(name); const handlers = {};
@@ -34,15 +46,20 @@ const server = http.createServer((req, res) => {
         subscribe(fn) { setTimeout(()=>fn('SUBSCRIBED'),0); return channel; },
         async send(message) { bus.postMessage(message); return 'ok'; }, close() { bus.close(); } };
       return channel;
-    }, removeChannel(channel) { channel.close(); }, from(table) { let id, patch; return { select() { return this; }, eq(key,value) { id=value; return this; }, update(value) { patch=value; return this; }, async single() { return await window.testDb({table,id,patch}); } }; } }; }` }));
-    await context.exposeFunction('testDb', ({ table, id, patch }) => {
-      assert.equal(table, 'characters');
-      if (patch) {
-        writes.push({ id, patch });
+    }, removeChannel(channel) { channel.close(); }, rpc(name, args) { return window.testDb(name, args); } }; }` }));
+    await context.exposeFunction('testDb', (rpc, args) => {
+      assert.equal(args.p_session_token, 'fixture-session');
+      if (rpc === 'character_section_visibility') return { data: [{ section_id: 'abilities', is_visible: true }] };
+      const id = args.p_character_id;
+      assert.ok(Object.hasOwn(rows, id));
+      if (rpc === 'player_inventory_items') return { data: [] };
+      if (rpc === 'player_update_character') {
+        assert.deepEqual(Object.keys(args.p_patch), ['current_hp']);
+        writes.push({ id, patch: args.p_patch });
         if (failWrite) return { error: { message: 'test failure' } };
-        Object.assign(rows[id], patch);
-      }
-      return { data: rows[id] ?? null };
+        Object.assign(rows[id], args.p_patch);
+      } else assert.equal(rpc, 'player_character');
+      return { data: [rows[id]] };
     });
     // Layout smoke uses the unchanged production fitMap/ResizeObserver; map behavior has separate regression suites.
     const fit = fs.readFileSync(path.join(__dirname, '../public/app.js'), 'utf8').split("const grid =")[0];
@@ -55,7 +72,7 @@ const server = http.createServer((req, res) => {
     const closed = await page.locator('#map-viewport').boundingBox();
     await page.locator('#game-character-name').click();
     const opened = await page.locator('#map-viewport').boundingBox();
-    assert.ok(opened.width < closed.width);
+    assert.equal(opened.width, closed.width);
     assert.equal(opened.height, closed.height);
     assert.equal(await page.getByRole('tab').count(), 2);
     async function checkPanels(character, dice) {
@@ -102,7 +119,7 @@ const server = http.createServer((req, res) => {
     assert.equal(await peer.locator('#character-panel').isVisible(), false);
     await peer.locator('#dice-toggle').click();
     await peer.getByRole('button', { name: 'Hodit k6', exact:true }).dblclick();
-    await page.waitForFunction(() => document.querySelector('#last-roll').textContent.startsWith('Jiná postava: k6'));
+    await page.waitForFunction(() => document.querySelector('#last-roll').textContent.startsWith('Jiná postava · k6 →'));
     await page.waitForTimeout(100);
     assert.equal(await page.locator('#roll-log li').count(),10);
     assert.deepEqual(await page.locator('#roll-log li').allTextContents(),await peer.locator('#roll-log li').allTextContents());
@@ -136,13 +153,13 @@ const server = http.createServer((req, res) => {
         const panel = document.querySelector('#dice-panel');
         const p = panel.getBoundingClientRect();
         return { fits: m.left >= r.left-1 && m.right <= r.right+1 && m.top >= r.top-1 && m.bottom <= r.bottom+1,
-          noOverlap: r.right <= p.left+1,
+          overlayContained: p.left >= r.left-1 && p.right <= r.right+1 && p.bottom <= r.bottom+1,
           noScroll: v.scrollWidth === v.clientWidth && v.scrollHeight === v.clientHeight && panel.scrollWidth === panel.clientWidth,
           fullHeight: Math.abs(r.bottom-innerHeight)<1,
           body: document.body.scrollWidth <= innerWidth,
           dice: [...document.querySelectorAll('[data-die]')].every(button => { const b=button.getBoundingClientRect(); return b.width>=44 && b.height>=44 && b.left>=p.left && b.right<=p.right && b.bottom<=innerHeight; }) };
       });
-      assert.deepEqual(geometry, { fits:true, noOverlap:true, noScroll:true, fullHeight:true, body:true, dice:true });
+      assert.deepEqual(geometry, { fits:true, overlayContained:true, noScroll:true, fullHeight:true, body:true, dice:true });
       const diceWidth=(await page.locator('#dice-panel').boundingBox()).width;
       await page.locator('#game-character-name').click();
       await checkPanels(true, false);
@@ -155,7 +172,7 @@ const server = http.createServer((req, res) => {
       const closedWidth=(await page.locator('#map-viewport').boundingBox()).width;
       await page.locator('#dice-toggle').click();
       await page.waitForTimeout(80);
-      assert.ok((await page.locator('#map-viewport').boundingBox()).width<closedWidth);
+      assert.equal((await page.locator('#map-viewport').boundingBox()).width, closedWidth);
     }
     await page.reload();
     await page.waitForFunction(() => document.querySelector('#compact-current-hp').textContent === '7');

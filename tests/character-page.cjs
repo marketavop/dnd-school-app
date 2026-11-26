@@ -13,6 +13,7 @@ const pageSource = readFileSync(resolve(__dirname, '../public/character.js'), 'u
   .replace("import { portraitImageUrl, uploadPortrait, removePortrait } from './portrait-api.js';", '')
   .replace("import { renderBasicMarkdown } from './markdown.js';", readFileSync(resolve(__dirname, '../public/markdown.js'), 'utf8').replace('export function', 'function'))
   .replace("import { CHARACTER_SECTIONS } from './character-sections.js';", readFileSync(resolve(__dirname, '../public/character-sections.js'), 'utf8').replace('export const', 'const'))
+  .replace("import { inventoryItemDetails, setupInventoryItemForm } from './inventory-items.js';", readFileSync(resolve(__dirname, '../public/inventory-items.js'), 'utf8').replace('export const', 'const').replaceAll('export function', 'function'))
   .replace("await import('./config.local.js')", 'getConfig()')
   .replace("await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm')", 'sdk');
 const id = '12345678-1234-1234-1234-123456789abc';
@@ -29,16 +30,17 @@ const base = { id, name: 'Eliška', background: null, story_background: null, in
 async function page(query, row = base, error = null, leader = false, authorized = true, portraitControl = {}, visibilityRows = [{ section_id: 'abilities', is_visible: true }]) {
   const elements = Object.fromEntries(['home-link', 'load-status', 'student-card', 'character-name', 'character-race', 'subrace-field', 'character-subrace',
     'skills', 'character-skills', 'skills-status', 'skills-retry', 'features', 'character-features', 'features-form', 'features-form-title', 'feature-name', 'feature-note', 'feature-save', 'feature-cancel', 'feature-error', 'features-status', 'student-pages', 'tab-card', 'tab-spells', 'tab-inventory', 'tab-notes', 'panel-card', 'panel-spells', 'panel-inventory', 'panel-notes', 'spells', 'spell-slots', 'spell-slot-restore', 'spell-slot-adjustments', 'spell-slot-settings', 'spell-slot-settings-rows', 'spell-slot-settings-error', 'spell-slot-settings-close', 'spell-slot-adjustment-save', 'spell-slot-adjustment-reset', 'spell-slot-error', 'spell-slot-status', 'character-spells', 'spells-form', 'spells-form-title', 'spell-english-name', 'spell-czech-name', 'spell-level', 'spell-note', 'spell-save', 'spell-cancel', 'spells-error', 'spells-status', 'game-link', 'game-navigation-status',
-    'spell-slot-info', 'spell-slot-help', 'spell-slot-help-close', 'story-background', 'story-background-toggle', 'story-background-info', 'story-background-dialog', 'story-background-dialog-close', 'character-story-background', 'edit-story-background', 'story-background-status', 'error-story-background', 'story-background-hint', 'story-background-count',
-    'inventory-hint', 'inventory-count', 'inventory-help', 'notes-hint', 'notes-count', 'notes-help',
+    'spell-slot-info', 'spell-add-open', 'spell-form-dialog', 'spell-form-close', 'story-background', 'story-background-toggle', 'story-background-info', 'story-background-dialog', 'story-background-dialog-close', 'character-story-background', 'edit-story-background', 'story-background-status', 'error-story-background', 'story-background-hint', 'story-background-count',
+    'notes-hint', 'notes-count', 'notes-help',
     'notes', 'notes-toggle', 'character-notes', 'edit-notes', 'notes-status', 'error-notes',
-    'inventory', 'inventory-toggle', 'character-inventory', 'edit-inventory', 'inventory-status', 'error-inventory',
+    'inventory', 'inventory-items-list', 'inventory-items-status', 'inventory-item-add', 'inventory-item-dialog',
+    'inventory-item-form', 'inventory-item-form-title', 'inventory-item-save', 'inventory-item-cancel', 'inventory-item-error',
     'portrait-controls', 'portrait-upload', 'portrait-remove', 'portrait-file', 'portrait-status',
     'character-class', 'character-level', 'character-proficiency-bonus', 'portrait', 'portrait-placeholder', 'edit-toggle', 'save-status',
     'dice-toggle', 'dice-dialog', 'dice-title', 'dice-close', 'dice-result', 'dice-reroll', ...[4, 6, 8, 10, 12, 20].map(sides => `dice-d${sides}`),
     'edit-name', 'edit-race', 'edit-subrace', 'edit-class', 'edit-level', 'error-name', 'error-race', 'error-subrace', 'error-class', 'error-level',
     'edit-icon', 'close-icon', 'abilities', 'hp-minus', 'hp-plus', 'hp-delta', 'hp-error', 'hp-hint', 'xp-next', ...['background', 'xp', 'current_hp', 'max_hp', 'ac', 'ac_note'].flatMap(key => ['edit-' + key, 'error-' + key, 'character-' + key]), ...abilityKeys.flatMap(key => [`edit-${key}`, `error-${key}`, `modifier-${key}`, `save-${key}`, `save-proficiency-${key}`])].map(key => [key, {
-    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'subrace-field', 'edit-name', 'edit-race', 'edit-subrace', 'edit-class', 'edit-level', 'edit-background', 'close-icon', 'inventory-help', 'notes-help', 'inventory-count', 'notes-count', 'feature-cancel', 'spell-cancel', 'skills-retry'].includes(key), dataset: {}, handlers: {},
+    textContent: '', hidden: ['portrait-controls', 'student-card', 'portrait', 'subrace-field', 'edit-name', 'edit-race', 'edit-subrace', 'edit-class', 'edit-level', 'edit-background', 'close-icon', 'notes-help', 'notes-count', 'feature-cancel', 'spell-cancel', 'skills-retry'].includes(key), dataset: {}, handlers: {},
     value: '', disabled: false, validity: { badInput: false }, children: [], attributes: {},
     append(option) { this.children.push(option); },
     removeAttribute(key) { if (key === 'src') delete this.src; delete this.attributes[key]; },
@@ -55,7 +57,10 @@ async function page(query, row = base, error = null, leader = false, authorized 
     let ownText = text;
     const result = { tagName, children: [], attributes: {}, dataset: {}, className: '', handlers: {},
       append(...children) { this.children.push(...children); },
-      replaceChildren(...children) { this.children = children; ownText = ''; },
+      replaceChildren(...children) {
+        this.children = children.flatMap(child => child.tagName === '#document-fragment' ? child.children : [child]);
+        ownText = '';
+      },
       setAttribute(key, value) { this.attributes[key] = value; },
       getAttribute(key) { return this.attributes[key] ?? null; },
       addEventListener(event, handler) { this.handlers[event] = handler; },
@@ -73,17 +78,23 @@ async function page(query, row = base, error = null, leader = false, authorized 
   }
   elements.features.hidden = true;
   elements.skills.hidden = true;
-  for (const key of ['character-skills', 'character-features', 'character-inventory', 'character-notes', 'character-spells']) elements[key] = node();
-  for (const key of ['inventory-help', 'notes-help']) {
-    elements[key].summary = node('summary', 'Jak upravit text?');
-    elements[key].contains = target => target === elements[key].summary;
-  }
+  for (const key of ['character-skills', 'character-features', 'character-notes', 'character-spells']) elements[key] = node();
+  const inventoryForm = elements['inventory-item-form'];
+  const fieldset = { disabled: false };
+  inventoryForm.querySelector = selector => { assert.equal(selector, 'fieldset'); return fieldset; };
+  inventoryForm.elements = Object.fromEntries(['itemName', 'itemType', 'quantity', 'price', 'notForSale', 'note']
+    .map(name => [name, { value: '', checked: false, append: node().append, children: [], removeAttribute() {} }]));
+  for (const key of ['inventory', 'inventory-items-list', 'inventory-item-add', 'inventory-item-dialog']) elements[key].hidden = true;
+  elements['inventory-item-add'].disabled = true;
+  const notesHelp = elements['notes-help'];
+  notesHelp.summary = node('summary', 'Jak upravit text?');
+  notesHelp.contains = target => target === notesHelp.summary;
   // SVG has no HTMLElement.hidden reflection. Catch accidental property writes.
   Object.defineProperty(elements['portrait-placeholder'], 'hidden', {
     get() { return Object.hasOwn(this.attributes, 'hidden'); },
     set() { throw new Error('Use the hidden attribute on SVG'); },
   });
-  let configs = 0, clients = 0, reads = 0, leaderReads = 0;
+  let configs = 0, clients = 0, reads = 0, leaderReads = 0, leaderInventoryReads = 0;
   const logs = [];
   const writes = [];
   const rpcCalls = [];
@@ -99,6 +110,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     }
     assert.equal(args.p_character_id.toLowerCase(), id);
     rpcCalls.push({ name, args: JSON.parse(JSON.stringify(args)) });
+    if (name === 'player_inventory_items') return { data: [], error: null };
     if (name === 'player_update_character') {
       const patch = { ...args.p_patch };
       if (control.wait) await control.wait;
@@ -147,13 +159,20 @@ async function page(query, row = base, error = null, leader = false, authorized 
     },
     testSessionToken: authorized ? 'test-player-session' : null,
     URL, URLSearchParams,
+    ResizeObserver: class { observe() {} disconnect() {} },
     window: { location: { search: query, href: `https://example.test/character.html${query}`, origin: 'https://example.test' },
       parent: leader ? { location: { origin: 'https://example.test' }, async loadLeaderCharacter(characterId) {
         leaderReads++; assert.equal(characterId, id);
         if (error) throw error;
         return { ...row };
+      }, async loadLeaderInventoryItems(characterId) {
+        assert.equal(characterId, id);
+        leaderInventoryReads++;
+        return [];
       } } : undefined },
-    document: { createElement: tag => node(tag), createTextNode: value => node('#text', String(value)), querySelector: selector => { assert.ok(elements[selector.slice(1)], selector); return elements[selector.slice(1)]; } },
+    document: { createElement: tag => node(tag), createTextNode: value => node('#text', String(value)),
+      createDocumentFragment: () => node('#document-fragment'),
+      querySelector: selector => { assert.ok(elements[selector.slice(1)], selector); return elements[selector.slice(1)]; } },
     console: { error: (...args) => logs.push(args) },
     getConfig() { configs++; return { SUPABASE_URL: 'https://project.supabase.co', SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test' }; },
     sdk: { createClient(url, key, options) {
@@ -163,7 +182,18 @@ async function page(query, row = base, error = null, leader = false, authorized 
     } },
   });
   await vm.runInContext(`(async () => { ${pageSource}\n })()`, context);
-  return { document: context.document, advanceTime, portraitCalls, elements, configs, clients, reads, leaderReads, logs, writes, rpcCalls, control, row };
+  const params = new URLSearchParams(query);
+  const ids = params.getAll('character_id');
+  const modes = params.getAll('mode');
+  const canOpen = leader ? modes.length === 1 && modes[0] === 'leader'
+    : !modes.length && authorized && Array.isArray(visibilityRows);
+  if (canOpen && ids.length === 1 && ids[0].toLowerCase() === id && row && !error) {
+    const failure = logs.find(([message]) => message === 'Načtení deníku selhalo:');
+    if (failure) throw failure[1];
+    assert.equal(elements['student-card'].hidden, false, 'Expected the character sheet to finish initialization');
+  }
+  return { document: context.document, advanceTime, portraitCalls, elements, configs, clients, reads, leaderReads,
+    get leaderInventoryReads() { return leaderInventoryReads; }, logs, writes, rpcCalls, control, row };
 }
 
 (async () => {
@@ -180,15 +210,15 @@ async function page(query, row = base, error = null, leader = false, authorized 
       assert.equal(els['game-link'].hidden, false);
       assert.equal(blocked(), false);
     }
-    await els['inventory-toggle'].handlers.click();
-    els['edit-inventory'].value = 'Lano';
+    await els['notes-toggle'].handlers.click();
+    els['edit-notes'].value = 'Lano';
     assert.equal(blocked(), true, 'unsaved draft must not be discarded');
-    await els['edit-inventory'].handlers.blur();
-    assert.equal(blocked(), false, 'saved inventory allows entering the game');
-    els['inventory-status'].textContent = 'Ukládám…';
+    await els['edit-notes'].handlers.blur();
+    assert.equal(blocked(), false, 'saved notes allow entering the game');
+    els['notes-status'].textContent = 'Ukládám…';
     assert.equal(blocked(), true, 'pending save must finish before navigation');
-    els['inventory-status'].textContent = '';
-    els['inventory-status'].dataset.error = 'true';
+    els['notes-status'].textContent = '';
+    els['notes-status'].dataset.error = 'true';
     assert.equal(blocked(), true, 'failed save keeps the diary open');
   }
   for (const tab of ['spells', 'inventory', 'unknown']) {
@@ -240,14 +270,20 @@ async function page(query, row = base, error = null, leader = false, authorized 
     }
     assert.equal(view.reads + view.leaderReads, reads);
     assert.equal(view.writes.length, 0);
+    await new Promise(setImmediate);
+    assert.equal(els['inventory-items-status'].textContent, 'Zatím nemáš žádné předměty.');
+    assert.equal(els['inventory-items-list'].hidden, true);
+    assert.equal(els['inventory-item-add'].hidden, leader);
+    assert.equal(view.leaderInventoryReads, Number(leader));
+    assert.equal(view.rpcCalls.filter(call => call.name === 'player_inventory_items').length, Number(!leader));
     if (leader) {
-      for (const name of ['inventory', 'notes']) {
+      for (const name of ['notes']) {
         assert.equal(els[`edit-${name}`].disabled, true);
         assert.deepEqual(els[`edit-${name}`].handlers, {});
       }
     }
   }
-  for (const [name, limit] of [['inventory', 5000], ['notes', 20000]]) {
+  for (const [name, limit] of [['notes', 20000]]) {
     const row = { ...base };
     const view = await page(`?character_id=${id}`, row, null, false, true);
     const els = view.elements, input = els[`edit-${name}`];
@@ -281,7 +317,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     const reload = await page(`?character_id=${id}`, row, null, false, true);
     assert.equal(reload.elements['panel-card'].hidden, false);
   }
-  for (const [key, limit] of [['inventory', 5000], ['notes', 20000]]) {
+  for (const [key, limit] of [['notes', 20000]]) {
     const view = await page(`?character_id=${id}`, { ...base }, null, false, true);
     const input = view.elements[`edit-${key}`];
     const status = view.elements[`${key}-status`];
@@ -330,7 +366,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
     assert.equal(input.value.length, limit + 1);
   }
   // UI-06a: contextual help, live Unicode counts, immediate validation.
-  for (const [key, limit, maximum] of [['inventory', 5000, '5 000'], ['notes', 20000, '20 000']]) {
+  for (const [key, limit, maximum] of [['notes', 20000, '20 000']]) {
     const row = { ...base, [key]: 'A😀\nB' };
     const view = await page(`?character_id=${id}`, row, null, false, true);
     const els = view.elements;
@@ -377,92 +413,6 @@ async function page(query, row = base, error = null, leader = false, authorized 
     assert.equal(leader.elements[`${key}-hint`].hidden, true);
     assert.equal(leader.elements[`${key}-count`].hidden, true);
   }
-  // UI-05: multiline inventory stays plain text and uses one-field authorized RPCs.
-  const inventoryRow = { ...base };
-  const inventoryPage = await page(`?character_id=${id}`, inventoryRow, null, false, true);
-  const inv = inventoryPage.elements;
-  assert.equal(inv.inventory.hidden, false);
-  assert.equal(inv['character-inventory'].textContent, 'Inventář zatím není vyplněný.');
-  assert.equal(inv['inventory-help'].hidden, true);
-  assert.equal(inv['edit-inventory'].hidden, true);
-  await inv['inventory-toggle'].handlers.click();
-  assert.equal(inv['edit-inventory'].hidden, false);
-  assert.equal(inv['inventory-help'].hidden, false);
-  const helpDraft = '**Lano**\n<img src=x onerror=alert(1)>';
-  inv['edit-inventory'].value = helpDraft;
-  const callsBeforeHelp = inventoryPage.rpcCalls.length;
-  await inv['edit-inventory'].handlers.blur({ relatedTarget: inv['inventory-help'].summary });
-  assert.equal(inv['edit-inventory'].value, helpDraft);
-  assert.equal(inventoryPage.rpcCalls.length, callsBeforeHelp, 'focus into help does not save');
-  inv['edit-inventory'].value = '';
-  const markdownValue = '# Vybavení\n- **Lano**\n- [ ] Mapa';
-  const markdownInventory = await page(`?character_id=${id}`, { ...base, inventory: markdownValue }, null, false, true);
-  assert.equal(markdownInventory.elements['character-inventory'].children[0].tagName, 'h2');
-  assert.equal(markdownInventory.elements['character-inventory'].children[1].tagName, 'ul');
-  await markdownInventory.elements['inventory-toggle'].handlers.click();
-  assert.equal(markdownInventory.elements['edit-inventory'].value, markdownValue, 'textarea keeps source Markdown');
-  assert.equal(inv['edit-inventory'].focused, true);
-  assert.equal(inv['edit-inventory'].handlers.keydown, undefined, 'Enter uses native textarea behavior');
-  const saveInventory = async value => {
-    inv['edit-inventory'].value = value;
-    inv['edit-inventory'].handlers.input();
-    await inv['edit-inventory'].handlers.blur();
-  };
-  const multiline = 'Lano\n  Kniha\nMeč';
-  for (const value of [multiline, 'Lano\n  Mapa\nMeč', '', multiline, 'ž'.repeat(5000), '😀'.repeat(5000)]) {
-    const before = { ...inventoryRow };
-    await saveInventory(value);
-    assert.deepEqual(inventoryPage.rpcCalls.at(-1).args.p_patch, { inventory: value || null });
-    assert.deepEqual(inventoryRow, { ...before, inventory: value || null });
-    assert.equal(inv['inventory-status'].textContent, 'Uloženo');
-    const reload = await page(`?character_id=${id}`, inventoryRow, null, false, true);
-    assert.equal(reload.elements['character-inventory'].textContent, value || 'Inventář zatím není vyplněný.');
-  }
-  const inventoryCalls = inventoryPage.rpcCalls.length;
-  for (const value of ['x'.repeat(5001), '😀'.repeat(5001)]) {
-    await saveInventory(value);
-    assert.equal(inventoryPage.rpcCalls.length, inventoryCalls);
-    assert.equal(inv['edit-inventory'].value, value);
-    assert.match(inv['error-inventory'].textContent, /5 000/);
-    assert.equal(inv['edit-inventory'].attributes['aria-invalid'], 'true');
-  }
-  await inv['inventory-toggle'].handlers.click();
-  assert.equal(inv['edit-inventory'].hidden, false, 'invalid draft remains visible after closing');
-  await saveInventory(multiline);
-  assert.equal(inv['edit-inventory'].hidden, true);
-  assert.equal(inv['error-inventory'].textContent, '');
-  assert.equal(inv['edit-inventory'].attributes['aria-invalid'], 'false');
-  await inv['inventory-toggle'].handlers.click();
-  inventoryPage.control.error = new Error('Offline');
-  const draftInventory = 'Lano\n<img src=x onerror=alert(1)>\nŠtít';
-  await saveInventory(draftInventory);
-  assert.equal(inv['edit-inventory'].value, draftInventory);
-  assert.equal(inventoryRow.inventory, multiline);
-  assert.equal(inv['inventory-status'].textContent, 'Nepodařilo se uložit');
-  await inv['inventory-toggle'].handlers.click();
-  assert.equal(inv['edit-inventory'].hidden, false);
-  inventoryPage.control.error = null;
-  let finishInventory;
-  inventoryPage.control.wait = new Promise(resolve => { finishInventory = resolve; });
-  const retryInventory = inv['edit-inventory'].handlers.blur();
-  assert.equal(inv['inventory-status'].textContent, 'Ukládám…');
-  assert.equal(inv['edit-inventory'].disabled, true);
-  finishInventory();
-  await retryInventory;
-  assert.equal(inv['inventory-status'].textContent, 'Uloženo');
-  assert.equal(inv['character-inventory'].textContent, draftInventory);
-  assert.equal(inv['edit-inventory'].hidden, true);
-  const leaderInventory = await page(`?mode=leader&character_id=${id}`, inventoryRow, null, true);
-  assert.equal(leaderInventory.elements['character-inventory'].textContent, draftInventory);
-  assert.equal(leaderInventory.elements['character-inventory'].children[0].tagName, 'p');
-  assert.ok(leaderInventory.elements['character-inventory'].children[0].children.every(child => child.tagName !== 'img'));
-  assert.equal(leaderInventory.elements['edit-inventory'].hidden, true);
-  assert.equal(leaderInventory.elements['edit-inventory'].disabled, true);
-  assert.equal(leaderInventory.elements['inventory-toggle'].hidden, true);
-  assert.equal(leaderInventory.elements['inventory-help'].hidden, true);
-  assert.deepEqual(leaderInventory.elements['edit-inventory'].handlers, {});
-  assert.deepEqual(leaderInventory.elements['inventory-toggle'].handlers, {});
-  assert.equal(leaderInventory.writes.length, 0);
   // UI-06: notesMultiline notes stays plain text and uses one-field authorized RPCs.
   const notesRow = { ...base };
   const notesPage = await page(`?character_id=${id}`, notesRow, null, false, true);
@@ -536,7 +486,7 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.deepEqual(leaderNotes.elements['notes-toggle'].handlers, {});
   assert.equal(leaderNotes.writes.length, 0);
   // Independent section saves must not replace a notes draft with server data.
-  const independentRow = { ...base, notes: 'Uložené poznámky', inventory: 'Lano' };
+  const independentRow = { ...base, notes: 'Uložené poznámky', story_background: 'Starý příběh' };
   const independent = await page(`?character_id=${id}`, independentRow, null, false, true);
   const independentEls = independent.elements;
   await independentEls['notes-toggle'].handlers.click();
@@ -544,14 +494,14 @@ async function page(query, row = base, error = null, leader = false, authorized 
   const beforeTyping = independent.rpcCalls.length;
   independentEls['edit-notes'].handlers.input();
   assert.equal(independent.rpcCalls.length, beforeTyping, 'typing does not autosave');
-  await independentEls['inventory-toggle'].handlers.click();
-  independentEls['edit-inventory'].value = 'Lano\nKniha';
-  await independentEls['edit-inventory'].handlers.blur();
+  await independentEls['story-background-toggle'].handlers.click();
+  independentEls['edit-story-background'].value = 'Nový příběh';
+  await independentEls['edit-story-background'].handlers.blur();
   assert.equal(independentEls['edit-notes'].value, 'Rozepsané\npoznámky');
   assert.equal(independentRow.notes, 'Uložené poznámky');
   await independentEls['edit-notes'].handlers.blur();
   assert.equal(independentRow.notes, 'Rozepsané\npoznámky');
-  assert.equal(independentRow.inventory, 'Lano\nKniha');
+  assert.equal(independentRow.story_background, 'Nový příběh');
   // UI-04 uses the authorized RPC path and the existing blur editor.
   const backgroundRow = { ...base };
   const backgroundPage = await page(`?character_id=${id}`, backgroundRow, null, false, true);
@@ -1449,21 +1399,29 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.equal(storyLeader.rpcCalls.length, 0);
 
   // Spell list uses the same one-field authorized write and stays read-only for leaders.
+  function spellAction(entry, label) {
+    const heading = entry.children.find(child => child.className === 'spell-entry-heading');
+    const actions = heading?.children.find(child => child.className === 'spell-actions');
+    const button = actions?.children.find(child => child.getAttribute('aria-label') === label);
+    assert.equal(typeof button?.handlers.click, 'function', label);
+    return button.handlers.click();
+  }
   const spellsPage = await page(`?character_id=${id}`, { ...base, spells: [] }, null, false, true);
   const spellEls = spellsPage.elements;
   assert.equal(spellEls['character-spells'].textContent, 'Zatím nemáš zapsaná žádná kouzla.');
+  spellEls['spell-add-open'].handlers.click();
   spellEls['spell-english-name'].value = 'Light';
   spellEls['spell-czech-name'].value = 'Světlo';
   spellEls['spell-level'].value = '0';
   spellEls['spell-note'].value = 'Pro průzkum.';
   await spellEls['spells-form'].handlers.submit({ preventDefault() {} });
   assert.equal(JSON.stringify(spellsPage.writes.at(-1)), JSON.stringify({ spells: [{ english_name: 'Light', czech_name: 'Světlo', level: 0, note: 'Pro průzkum.' }] }));
-  const spellActions = spellEls['character-spells'].children[0].children.at(-1).children.at(-1);
-  spellActions.children[0].handlers.click();
+  const firstSpell = () => spellEls['character-spells'].children[0].children[1];
+  spellAction(firstSpell(), 'Upravit kouzlo');
   spellEls['spell-czech-name'].value = 'Světélko';
   await spellEls['spells-form'].handlers.submit({ preventDefault() {} });
   assert.equal(spellsPage.row.spells[0].czech_name, 'Světélko');
-  spellEls['character-spells'].children[0].children.at(-1).children.at(-1).children[1].handlers.click();
+  await spellAction(firstSpell(), 'Odstranit kouzlo');
   assert.equal(JSON.stringify(spellsPage.row.spells), '[]');
   const spellLeader = await page(`?mode=leader&character_id=${id}`, { ...base, spells: [{ english_name: 'Light', czech_name: 'Světlo', level: 0, note: '' }] }, null, true);
   assert.equal(spellLeader.elements['spells-form'].hidden, true);
@@ -1538,16 +1496,17 @@ async function page(query, row = base, error = null, leader = false, authorized 
     assert.equal(diamonds().length, maximum);
     assert.equal(groupedRow.spell_slot_state.maximum[1], maximum);
   }
-  await firstLevel().children[1].children.at(-1).children[1].handlers.click();
+  await spellAction(firstLevel().children[1], 'Odstranit kouzlo');
   const remainingGroups = ['Cantrips (Triky)', '2nd-level spells (Kouzla 2. úrovně)'];
   verifyGroups(groupedPage, remainingGroups);
+  groupedEls['spell-add-open'].handlers.click();
   groupedEls['spell-english-name'].value = 'Shield';
   groupedEls['spell-czech-name'].value = 'Štít';
   groupedEls['spell-level'].value = '1';
   await groupedEls['spells-form'].handlers.submit({ preventDefault() {} });
   verifyGroups(groupedPage, expectedGroups);
   assert.equal(diamonds().length, 0);
-  await firstLevel().children[1].children.at(-1).children[1].handlers.click();
+  await spellAction(firstLevel().children[1], 'Odstranit kouzlo');
   for (const tab of ['card', 'spells', 'notes', 'spells']) {
     groupedEls['tab-' + tab].handlers.click();
     verifyGroups(groupedPage, remainingGroups);
@@ -1584,8 +1543,8 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.match(html, /<section id="notes"[^>]*hidden>/);
   assert.match(html, /<textarea id="edit-notes" rows="14"[^>]*hidden><\/textarea>/);
   assert.match(html, /<section id="inventory"[^>]*hidden>/);
-  assert.match(html, /<textarea id="edit-inventory" rows="10"[^>]*hidden><\/textarea>/);
-  for (const key of ['inventory', 'notes']) {
+  assert.doesNotMatch(html, /id="(?:edit-inventory|inventory-toggle|inventory-help)"/);
+  for (const key of ['notes']) {
     assert.match(html, new RegExp(`<details id="${key}-help"[^>]*hidden><summary>Jak upravit text\\?</summary>`));
     assert.match(html, new RegExp(`<code># Nadpis</code>.*<code>\\*\\*tučně\\*\\*</code>`));
   }
@@ -1593,8 +1552,6 @@ async function page(query, row = base, error = null, leader = false, authorized 
   assert.match(styles, /#character-notes\s*\{[^}]*white-space: pre-wrap/);
   assert.match(styles, /#edit-notes\s*\{[^}]*min-height: 320px/);
   assert.match(styles, /\.markdown-content h2/);
-  assert.match(styles, /#character-inventory\s*\{[^}]*white-space: pre-wrap/);
-  assert.match(styles, /#edit-inventory\s*\{[^}]*min-height: 240px/);
   assert.ok(html.includes('<label for="edit-background">Zázemí <span class="term-english">(Background)</span></label>'));
   assert.match(html, /<input id="edit-background"[^>]*aria-describedby="error-background"[^>]*hidden/);
   assert.ok(!html.includes('<h1>Deník postavy</h1>'));

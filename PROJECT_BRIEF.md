@@ -1,10 +1,22 @@
 # PROJECT BRIEF --- Webová aplikace pro dětské D&D
 
-**Verze:** 1.1.22
+**Verze:** 1.1.24
 **Stav dokumentu:** aktualizovaný scope a přijatá rozhodnutí pro MVP\
 **Pravidlový základ:** D&D 5e (2014)\
 **Cílová skupina:** přibližně 10 uživatelů\
 **Deadline první hratelné verze:** přibližně 20 dní od zahájení vývoje
+
+### Změny ve verzi 1.1.24
+
+- Studijní panel hráče se otevírá jako pravý překryv nad mapou; mapa nemění rozměry ani kameru a po zavření je znovu plně viditelná,
+- strukturovaný Inventář je implementovaný a živě akceptovaný ve větvi `feature/structured-inventory`, zatím však není mergnutý do `main`; hráč jej spravuje v obou pohledech a Vedoucí jej čte read-only.
+
+### Změny ve verzi 1.1.23
+
+- po první ostré hře se strukturovaný Inventář přesouvá z **Budoucnosti – vzdálené** do priority **Důležité**; jde o schválené, zatím neimplementované rozšíření mimo původní MVP,
+- každý předmět bude samostatný záznam s názvem, typem z devíti kategorií, množstvím, případnou cenou v GP, označením Neprodejné a nepovinnou poznámkou,
+- hráč bude předměty spravovat v Studentském průkazu i Studijním panelu nad stejnými daty, Vedoucí zůstává read-only a operace musí být serverově autorizované,
+- textové pole `inventory` je pouze testovací historický základ; jeho řízené odstranění nevyžaduje migraci a Markdown se na strukturované položky nevztahuje.
 
 ### Změny ve verzi 1.1.22
 
@@ -405,8 +417,10 @@ Používáme:
 Oba pohledy používají stejná data. Nevytváříme dvě kopie dat ani
 samostatné výpočty pro herní panel.
 Inventář je dostupný na Studentském průkazu i ve Studijním panelu na herním
-stole; hráč jej může upravovat na obou místech přes stejné pole `inventory`.
-Vedoucí jej v obou pohledech pouze čte.
+stole; oba pohledy používají stejné strukturované záznamy předmětů. Hráč může
+předměty v obou pohledech přidávat, zobrazovat, upravovat a mazat. Vedoucí má
+pouze read-only přístup. Původní textové rozhraní inventáře již v těchto
+pohledech není dostupné.
 
 ### Zpřístupňování dalších mechanických částí
 
@@ -462,7 +476,7 @@ Studentský průkaz obsahuje v MVP čtyři záložky:
 1.  **Průkaz** — výchozí záložka. Obsahuje základní údaje postavy,
     portrét, HP, AC, XP, Zázemí a šest atributů.
 2.  **Kouzla** — zobrazuje existující údaje kouzel.
-3.  **Inventář** — obsahuje stávající editovatelné pole `inventory`.
+3.  **Inventář** — obsahuje strukturovaný seznam předmětů.
 4.  **Sešit** — obsahuje stávající Studentský sešit (`notes`).
 
 Záložky patří **dovnitř Studentského průkazu**, nejsou hlavní navigací
@@ -503,11 +517,12 @@ Studijní panel je pravý postranní panel na `game.html`.
 Aktuální MVP obsahuje záložky:
 
 -   `Přehled`,
--   `Vlastnosti`.
+-   `Kouzla`,
+-   `Inventář`.
 
-`Přehled` obsahuje aktuálně zejména HP.
-`Vlastnosti` obsahují šest vlastností, jejich hodnotu, modifikátor
-a záchranný hod.
+`Přehled` obsahuje aktuálně zejména HP a Vlastnosti se šesti vlastnostmi,
+jejich hodnotou, modifikátorem a záchranným hodem. Vlastnosti jsou součástí
+Přehledu, nikoli samostatnou záložkou.
 
 Každá další informace ve Studijním panelu musí odpovědět na otázku:
 **potřebuje ji dítě běžně během session?**
@@ -515,9 +530,11 @@ Každá další informace ve Studijním panelu musí odpovědět na otázku:
 Jméno aktuální postavy v horní liště funguje jako ovladač
 otevření/zavření Studijního panelu.
 
-Panel je po načtení stránky zavřený.
-Otevření panelu nepřekrývá mapu; mapa se pouze responsivně přizpůsobí
-menší dostupné ploše.
+Panel je po načtení stránky zavřený. U hráče se otevírá jako pravý
+překryvný panel nad mapou. Toto řešení bylo zvoleno na základě testování
+na mobilních zařízeních, kde zmenšování prostoru mapy způsobovalo problémy.
+Otevřením panelu se nemění rozměry mapové plochy ani aktuální kamera;
+panel dočasně zakrývá část mapy. Po jeho zavření je mapa opět plně viditelná.
 ------------------------------------------------------------------------
 
 ## 8. Web vs. papírový deník
@@ -1098,14 +1115,28 @@ Seznam kouzel znamená kouzla, která dítě aktuálně zná/používá.
 
 ## 19. Inventář
 
-Inventář je **MVP pro první session** jako **jedno volné textové pole**.
-Dítě jej edituje na Studentském průkazu i přímo v záložce Inventář na herním
-stole; oba pohledy ukládají do stejného pole `inventory` přes existující
-autorizovanou cestu. Vedoucí jej může zobrazit pouze read-only. Nejde o
-strukturovaný seznam předmětů. Základní Markdown má stejný omezený rozsah
-jako Studentský sešit (§15).
+Původní textové pole Inventáře zůstává pouze historickým základem. Strukturovaný
+Inventář je implementovaný a živě akceptovaný ve větvi
+`feature/structured-inventory`, zatím však není mergnutý do `main`.
 
-Peníze si dítě může zapsat do stejného textu.
+Strukturovaný Inventář má pro každý předmět samostatný záznam
+navázaný na postavu:
+
+- povinný název,
+- povinný typ z devíti kategorií zobrazovaných česky s anglickým názvem,
+- množství s výchozí hodnotou 1,
+- nepovinnou jednotkovou cenu v GP,
+- označení **Neprodejné**; neprodejnost nevylučuje uvedení ceny,
+- nepovinnou textovou poznámku.
+
+Hráč ve větvi kompletně přidává, zobrazuje, upravuje a maže předměty
+v Studentském průkazu i Studijním panelu nad stejnými daty. Vedoucí zůstává
+read-only a operace musí být serverově autorizované. Aplikace neprovádí obchod.
+
+Původní textové UI bylo z obou pohledů odstraněno. Databázový sloupec
+`characters.inventory` a jeho uložené hodnoty zůstaly beze změny; migrace
+textu se neprováděla. Není potřeba sekce „Starý inventář“.
+Markdown se týká Studentského sešitu, nikoli strukturovaných předmětů.
 
 Nevytváříme:
 
@@ -1117,10 +1148,9 @@ Nevytváříme:
 -   automatickou vazbu inventář → útoky,
 -   databázi předmětů.
 
-**Budoucnost – vzdálená:** strukturovaný inventář, kde je každý předmět
-samostatný databázový záznam. Teď neřešíme item CRUD, množství jako
-samostatné databázové pole, váhu/cenu/nosnost, equipment rules ani
-automatické mechanické účinky předmětů.
+Strukturovaný inventář zůstává prioritou **Důležité**; implementace je
+dokončená na větvi a čeká na merge do `main`. Automatické mechanické účinky
+předmětů zůstávají mimo rozsah.
 
 ------------------------------------------------------------------------
 
@@ -1230,14 +1260,16 @@ Ikona kostky otevírá/zavírá **panel Kostky**.
 Studijní panel a panel Kostky jsou vzájemně výlučné.
 Nikdy nejsou otevřené současně.
 
-Oba používají stejný pravý layoutový prostor a nepřekrývají mapu.
-Při otevření, zavření nebo přepnutí panelu se mapa pouze responsivně
-refitne do aktuálně dostupné plochy.
+Oba používají tentýž pravý překryvný prostor nad mapou a jsou vzájemně
+výlučné. Otevření, zavření ani přepnutí panelu nemění rozměry mapy ani její
+kameru. Toto rozhodnutí se týká hráčského rozhraní; popis panelů Vedoucího
+se tím nemění.
 
 Studijní panel obsahuje:
 
--   `Přehled`,
--   `Vlastnosti`.
+-   `Přehled` (včetně Vlastností),
+-   `Kouzla`,
+-   `Inventář`.
 
 Panel Kostky obsahuje:
 
@@ -1907,6 +1939,11 @@ Spell sloty podle §18 jsou implementované a ověřené. Katalog kouzel,
 filtrování a úplné herní karty zůstávají **Později**; úplná pravidlová
 nápověda Studijní příručky a její propojení (SLOT-05) ještě vyžadují akceptaci.
 
+Strukturovaný Inventář podle §19 je prioritou **Důležité**, implementace je
+dokončená a živě akceptovaná na `feature/structured-inventory`; čeká na
+merge do `main`. Předměty jsou samostatné serverově autorizované záznamy
+sdílené mezi Studentským průkazem a Studijním panelem, Vedoucí je pouze čte.
+
 ### Později
 
 Řešit až podle zkušeností ze skutečného hraní.
@@ -1943,10 +1980,9 @@ Nyní neřešit.
 Patří sem zejména funkce směřující k plnohodnotnému VTT, komplexní
 automatizaci pravidel nebo rozšiřování produktu mimo aktuální kampaň.
 
-**Budoucnost – vzdálená:** strukturovaný inventář se samostatným databázovým
-záznamem pro každý předmět. Item CRUD, množství jako samostatné pole,
-váhu/cenu/nosnost, equipment rules a automatické mechanické účinky předmětů
-teď neřešíme.
+**Budoucnost – vzdálená:** automatické mechanické účinky předmětů,
+equipment rules a další pravidlová automatizace. Strukturovaný inventář už
+není v této kategorii; patří do priority **Důležité**.
 
 ------------------------------------------------------------------------
 

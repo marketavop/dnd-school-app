@@ -151,10 +151,39 @@
           <div id="game-spells" class="game-spells"></div>
         </section>
         <section id="inventory-panel" role="tabpanel" aria-labelledby="inventory-tab" hidden>
-          <div id="game-inventory">Načítám inventář…</div>
-          <button id="inventory-edit-button" type="button" hidden>Upravit</button>
-          <textarea id="game-inventory-editor" rows="8" aria-label="Inventář" hidden></textarea>
-          <p id="game-inventory-status" role="status" aria-live="polite"></p>
+          <div class="game-inventory-items-heading">
+            <h2 id="game-inventory-items-title">Předměty</h2>
+            <button id="inventory-item-add" type="button" aria-haspopup="dialog" aria-controls="inventory-item-dialog" hidden disabled>+ Přidat předmět</button>
+          </div>
+          <p id="game-inventory-items-status" role="status"></p>
+          <ul id="game-inventory-items-list" role="list" aria-labelledby="game-inventory-items-title" hidden></ul>
+          <dialog id="inventory-item-dialog" class="inventory-item-dialog" aria-labelledby="inventory-item-form-title" hidden>
+            <form id="inventory-item-form" novalidate>
+              <h3 id="inventory-item-form-title">Přidat předmět</h3>
+              <fieldset>
+                <label for="inventory-item-name">Název předmětu</label>
+                <input id="inventory-item-name" name="itemName" type="text" required autofocus>
+                <label for="inventory-item-type">Typ předmětu</label>
+                <select id="inventory-item-type" name="itemType" required></select>
+                <div class="inventory-item-numbers">
+                  <label for="inventory-item-quantity">Množství
+                    <input id="inventory-item-quantity" name="quantity" type="number" min="1" max="2147483647" step="1" value="1" required>
+                  </label>
+                  <label for="inventory-item-price">Cena (GP / kus)
+                    <input id="inventory-item-price" name="price" type="text" inputmode="decimal">
+                  </label>
+                </div>
+                <label class="inventory-item-checkbox"><input name="notForSale" type="checkbox"> Neprodejné</label>
+                <label for="inventory-item-note">Poznámka / popis</label>
+                <textarea id="inventory-item-note" name="note" rows="3"></textarea>
+              </fieldset>
+              <p id="inventory-item-error" class="field-error" role="alert"></p>
+              <div class="inventory-item-form-actions">
+                <button id="inventory-item-cancel" type="button">Zrušit</button>
+                <button id="inventory-item-save" type="submit">Přidat předmět</button>
+              </div>
+            </form>
+          </dialog>
         </section>
       </aside>
       <aside id="dice-panel" aria-label="Kostky" hidden>

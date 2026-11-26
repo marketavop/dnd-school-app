@@ -60,6 +60,12 @@ function page(role = 'leader', responses = [[{ character_id: id, name: '<img src
   assert.equal(button.children[1].textContent, ' (alice)', 'owner username rendered separately');
   button.handlers.click();
   assert.equal(p.els['#leader-sheet'].src, `./character.html?mode=leader&character_id=${id}`);
+  assert.equal(p.els['#leader-sheet'].hidden, true);
+  p.els['#leader-sheet'].contentDocument = {
+    URL: new URL(p.els['#leader-sheet'].src, p.window.location.href).href,
+    querySelector: () => null,
+  };
+  p.els['#leader-sheet'].handlers.load();
   assert.equal(p.els['#leader-sheet'].hidden, false);
   assert.equal((await p.window.loadLeaderCharacter(id)).name, 'Test Postava');
   assert.ok(p.requests[2].url.endsWith('/rpc/leader_character'));

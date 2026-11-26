@@ -1,9 +1,9 @@
 import { loadCharacter, updateCharacterField } from './characters.js';
 import { SKILLS, abilityValues, skillValues, validHpDelta, adjustedHp } from './character-rules.js';
 import { gameUser } from './navigation.js';
-import { renderBasicMarkdown } from './markdown.js';
 import { renderSpellGroups } from './spell-groups.js';
 import { restoreAllSpellSlots, serializeSpellSlotState, spellSlotStateFromRecord } from './spell-slots.js';
+import { inventoryItemDetails, setupInventoryItemForm } from './inventory-items.js';
 
 const $ = id => document.getElementById(id);
 const toggle = $('game-character-name');
@@ -16,15 +16,16 @@ const leader = gameUser?.role === 'leader' && Boolean(gameUser?.session_token);
 const ids = gameUser?.role === 'player' ? [gameUser.character_id] : [];
 const valid = ids.length === 1 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ids[0]);
 const diceAvailable = ['player', 'leader'].includes(gameUser?.role) && Boolean(gameUser?.session_token);
-const tabs = [$('overview-tab'), $('spells-tab'), $('inventory-tab')];
-let prepareInventorySwitch = () => {};
+const inventoryTab = $('inventory-tab');
+const tabs = [$('overview-tab'), $('spells-tab'), inventoryTab];
+let loadInventoryItems = () => {};
 function selectTab(index) {
-  prepareInventorySwitch();
   tabs.forEach((tab, i) => {
     tab.setAttribute('aria-selected', String(i === index));
     tab.tabIndex = i === index ? 0 : -1;
     $(tab.getAttribute('aria-controls')).hidden = i !== index;
   });
+  if (tabs[index] === inventoryTab) void loadInventoryItems();
 }
 tabs.forEach((tab, i) => {
   tab.addEventListener('click', () => selectTab(i));
@@ -102,6 +103,128 @@ function renderFeatures(character) {
     list.append(item);
   }
 }
+function setupInventoryItems(db, characterId) {
+  const list = $('game-inventory-items-list');
+  const status = $('game-inventory-items-status');
+  const add = $('inventory-item-add');
+  const dialog = $('inventory-item-dialog');
+  const sessionToken = gameUser.session_token;
+  let items = [];
+  let requested = false;
+  let deleting = false;
+  const openForm = setupInventoryItemForm(db, characterId, sessionToken, (saved, updating) => {
+    const next = updating ? items.map(item => item.id === saved.id ? saved : item) : [...items, saved];
+    const updatedButton = render(next, saved.id);
+    return updating ? updatedButton : add;
+  });
+  add.addEventListener('click', () => { if (!add.disabled && !deleting) openForm(null); });
+
+  async function removeItem(item, row) {
+    if (deleting || dialog.open || !window.confirm(`Opravdu smazat předmět „${item.name}“?`)) return;
+    deleting = true;
+    const buttons = [add, ...list.querySelectorAll('button')];
+    for (const button of buttons) button.setAttribute('aria-disabled', 'true');
+    status.classList.remove('error');
+    status.textContent = 'Mažu předmět…';
+    let nextFocus;
+    try {
+      const { error } = await db.rpc('player_delete_inventory_item', {
+        p_session_token: sessionToken, p_character_id: characterId, p_item_id: item.id,
+      });
+      if (error) throw error;
+      const active = document.activeElement;
+      if (!panel.hidden && !$('inventory-panel').hidden && (row.contains(active) || active === document.body)) {
+        const neighbor = row.nextElementSibling ?? row.previousElementSibling;
+        nextFocus = neighbor?.querySelector('.game-inventory-item-delete') ?? add;
+      }
+      items = items.filter(current => current.id !== item.id);
+      row.remove();
+      list.hidden = items.length === 0;
+      status.textContent = items.length ? 'Předmět byl smazán.' : 'Zatím nemáš žádné předměty.';
+    } catch {
+      status.classList.add('error');
+      status.textContent = 'Předmět se nepodařilo smazat. Zkus to znovu.';
+    } finally {
+      deleting = false;
+      for (const button of buttons) button.removeAttribute('aria-disabled');
+      nextFocus?.focus();
+    }
+  }
+
+  function render(data, focusId) {
+    const rows = document.createDocumentFragment();
+    let focus;
+    for (const item of data) {
+      const row = document.createElement('li');
+      const heading = document.createElement('div');
+      heading.className = 'game-inventory-item-heading';
+      const name = document.createElement('h3');
+      name.textContent = item.name;
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.setAttribute('aria-label', 'Upravit předmět');
+      edit.setAttribute('aria-haspopup', 'dialog');
+      edit.title = 'Upravit předmět';
+      edit.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 4 4M4 20l5-1L20 8a2.8 2.8 0 0 0-4-4L5 15z"/></svg>';
+      edit.addEventListener('click', () => { if (!deleting) openForm(item); });
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'game-inventory-item-delete';
+      remove.setAttribute('aria-label', 'Smazat předmět');
+      remove.title = 'Smazat předmět';
+      remove.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg>';
+      remove.addEventListener('click', () => removeItem(item, row));
+      const actions = document.createElement('div');
+      actions.className = 'game-inventory-item-actions';
+      actions.append(edit, remove);
+      heading.append(name, actions);
+      if (item.id === focusId) focus = edit;
+      const meta = document.createElement('p');
+      meta.className = 'game-inventory-item-meta';
+      for (const detail of inventoryItemDetails(item)) {
+        const part = document.createElement('span');
+        part.textContent = detail;
+        meta.append(part);
+      }
+      row.append(heading, meta);
+      if (item.note) {
+        const note = document.createElement('p');
+        note.className = 'game-inventory-item-note';
+        note.textContent = item.note;
+        row.append(note);
+      }
+      rows.append(row);
+    }
+    list.replaceChildren(rows);
+    items = data;
+    list.hidden = data.length === 0;
+    status.classList.remove('error');
+    status.textContent = data.length ? '' : 'Zatím nemáš žádné předměty.';
+    return focus;
+  }
+
+  return async () => {
+    if (requested) return;
+    requested = true;
+    status.classList.remove('error');
+    status.textContent = 'Načítám předměty…';
+    try {
+      const { data, error } = await db.rpc('player_inventory_items', {
+        p_session_token: sessionToken, p_character_id: characterId,
+      });
+      if (error || !Array.isArray(data) || data.some(item => !item?.id || item.character_id !== characterId)) {
+        throw new Error('Neplatná odpověď inventáře.');
+      }
+      render(data);
+      add.hidden = false;
+      add.disabled = false;
+    } catch {
+      requested = false;
+      status.textContent = 'Předměty se nepodařilo načíst. Zkus znovu otevřít Inventář.';
+      status.classList.add('error');
+    }
+  };
+}
 function setupSpells(db, character) {
   const list = $('game-spells');
   const restore = $('game-spells-restore');
@@ -177,6 +300,7 @@ function togglePanel(requested) {
   diceToggle.title = dicePanel.hidden ? 'Otevřít Kostky' : 'Zavřít Kostky';
   toggle.setAttribute('aria-expanded', String(!panel.hidden));
   diceToggle.setAttribute('aria-expanded', String(!dicePanel.hidden));
+  if (openPanel === 'character' && !$('inventory-panel').hidden) void loadInventoryItems();
 }
 toggle.addEventListener('click', () => togglePanel('character'));
 diceToggle.addEventListener('click', () => togglePanel('dice'));
@@ -209,79 +333,14 @@ if (valid) {
       else $('spells-tab').hidden = true;
     } catch { /* Keep abilities hidden if visibility cannot be loaded. */ }
     const character = await loadCharacter(db, ids[0].toLowerCase(), gameUser.session_token);
+    loadInventoryItems = setupInventoryItems(db, character.id);
+    if (!panel.hidden && !$('inventory-panel').hidden) void loadInventoryItems();
     if (!$('game-skills').hidden) renderSkills(character);
     if (!$('game-features').hidden) renderFeatures(character);
     if (!$('spells-tab').hidden) setupSpells(db, character);
     $('game-character-name').textContent = character.name ?? 'Postava';
     $('compact-ac').textContent = character.ac ?? '—';
     $('compact-level').textContent = character.level ?? '—';
-    const inventoryView = $('game-inventory');
-    const inventoryEditor = $('game-inventory-editor');
-    const inventoryButton = $('inventory-edit-button');
-    const inventoryStatus = $('game-inventory-status');
-    let inventoryBusy = false;
-    let inventoryTimer = null;
-    let inventoryEditing = false;
-    const renderInventory = value => {
-      inventoryView.replaceChildren();
-      if (value?.trim()) renderBasicMarkdown(inventoryView, value);
-      else inventoryView.textContent = 'Inventář je zatím prázdný.';
-    };
-    const showInventoryStatus = (text, error = false) => {
-      inventoryStatus.textContent = text;
-      inventoryStatus.classList.toggle('error', error);
-    };
-    const saveInventory = async () => {
-      if (!inventoryEditing || inventoryBusy) return false;
-      const value = inventoryEditor.value.trim() ? inventoryEditor.value : '';
-      if (value === (character.inventory ?? '')) return true;
-      inventoryBusy = true;
-      inventoryEditor.disabled = true;
-      showInventoryStatus('Ukládám…');
-      try {
-        const updated = await updateCharacterField(db, character.id, 'inventory', value || null, gameUser.session_token);
-        character.inventory = updated.inventory;
-        inventoryEditor.value = character.inventory ?? '';
-        renderInventory(character.inventory);
-        showInventoryStatus('Uloženo');
-        return true;
-      } catch {
-        showInventoryStatus('Nepodařilo se uložit. Změny zůstaly v editoru.', true);
-        return false;
-      } finally {
-        inventoryBusy = false;
-        inventoryEditor.disabled = false;
-      }
-    };
-    const scheduleInventorySave = () => {
-      if (inventoryTimer) clearTimeout(inventoryTimer);
-      inventoryTimer = setTimeout(() => { inventoryTimer = null; saveInventory(); }, 500);
-    };
-    const enterInventoryEdit = () => {
-      if (leader || inventoryEditing) return;
-      inventoryEditing = true;
-      inventoryEditor.value = character.inventory ?? '';
-      inventoryView.hidden = true;
-      inventoryEditor.hidden = false;
-      inventoryButton.textContent = 'Hotovo';
-      inventoryEditor.focus();
-    };
-    const leaveInventoryEdit = async () => {
-      if (!inventoryEditing) return;
-      if (inventoryTimer) { clearTimeout(inventoryTimer); inventoryTimer = null; }
-      if (inventoryEditor.value !== (character.inventory ?? '') && !await saveInventory()) return;
-      if (inventoryBusy) return;
-      inventoryEditing = false;
-      inventoryView.hidden = false;
-      inventoryEditor.hidden = true;
-      inventoryButton.textContent = 'Upravit';
-    };
-    inventoryButton.hidden = leader;
-    inventoryButton.addEventListener('click', () => inventoryEditing ? leaveInventoryEdit() : enterInventoryEdit());
-    inventoryEditor.addEventListener('input', scheduleInventorySave);
-    inventoryEditor.addEventListener('blur', saveInventory);
-    prepareInventorySwitch = () => { if (inventoryEditing) saveInventory(); };
-    renderInventory(character.inventory);
     for (const key of ['str', 'dex', 'con', 'int', 'wis', 'cha']) {
       const { modifier, save } = abilityValues(character, key);
       if (key === 'dex') $('compact-initiative').textContent = signed(modifier);
