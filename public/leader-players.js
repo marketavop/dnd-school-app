@@ -34,6 +34,26 @@ export function mountLeaderPlayers(document, window, call = rpc) {
   let visibilityGeneration = 0;
   let visibilityState = new Map();
   let sheetResizeObserver = null;
+  function isCurrentSheetDocument() {
+    if (!selected || !sheet.contentDocument?.URL) return false;
+    try {
+      const loaded = new URL(sheet.contentDocument.URL, window.location.href);
+      const requested = new URL(sheet.src, window.location.href);
+      const normalizedPath = path => path.replace(/\.html$/, '');
+      const characterId = url => {
+        const ids = url.searchParams.getAll('character_id');
+        const modes = url.searchParams.getAll('mode');
+        return ids.length === 1 && modes.length === 1 && modes[0] === 'leader' ? ids[0] : null;
+      };
+      return loaded.origin === window.location.origin
+        && requested.origin === window.location.origin
+        && normalizedPath(loaded.pathname) === normalizedPath(requested.pathname)
+        && characterId(loaded) === selected
+        && characterId(requested) === selected;
+    } catch {
+      return false;
+    }
+  }
   function syncSheetHeight() {
     const body = sheet.contentDocument?.body;
     const content = sheet.contentDocument?.querySelector('main');
@@ -59,7 +79,7 @@ export function mountLeaderPlayers(document, window, call = rpc) {
     sheetResizeObserver.observe(content);
   }
   sheet.addEventListener('load', () => {
-    if (!selected || sheet.contentDocument?.URL !== new URL(sheet.src, window.location.href).href) return;
+    if (!isCurrentSheetDocument()) return;
     sheet.hidden = false;
     observeSheetHeight();
   });
